@@ -3,11 +3,15 @@
 import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 import Header from "@/client/components/Header";
 import Footer from "@/client/components/Footer";
 import { FormInput, SubmitButton } from "@/client/components/FormComponents";
+import { apiClient } from "@/client/lib/api/auth";
+import { authStorage } from "@/client/lib/auth/storage";
 
 export default function LoginPage() {
+  const router = useRouter();
   const [formData, setFormData] = useState({
     email: "",
     password: "",
@@ -55,14 +59,30 @@ export default function LoginPage() {
     setIsLoading(true);
     setSubmitMessage("");
 
-    // Simulate API call
     try {
-      await new Promise((resolve) => setTimeout(resolve, 1500));
+      const response = await apiClient.login(formData);
+
+      // Save tokens to localStorage
+      authStorage.setAccessToken(response.accessToken);
+      authStorage.setRefreshToken(response.refreshToken);
+
+      // Save user info if available
+      if (response.user) {
+        authStorage.setUser(response.user);
+      }
+
       setSubmitMessage("Đăng nhập thành công! Đang chuyển hướng...");
-      setFormData({ email: "", password: "" });
-      // In real app, redirect to dashboard
+
+      // Redirect after short delay
+      setTimeout(() => {
+        router.push("/exam");
+      }, 1000);
     } catch (error) {
-      setSubmitMessage("Đăng nhập thất bại. Vui lòng thử lại.");
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Đăng nhập thất bại. Vui lòng thử lại.";
+      setSubmitMessage(message);
     } finally {
       setIsLoading(false);
     }

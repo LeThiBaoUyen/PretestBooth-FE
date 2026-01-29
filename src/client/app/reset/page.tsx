@@ -3,11 +3,14 @@
 import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 import Header from "@/client/components/Header";
 import Footer from "@/client/components/Footer";
 import { FormInput, SubmitButton } from "@/client/components/FormComponents";
+import { apiClient } from "@/client/lib/api/auth";
 
 export default function ResetPasswordPage() {
+  const router = useRouter();
   const [formData, setFormData] = useState({
     email: "",
     code: "",
@@ -64,13 +67,26 @@ export default function ResetPasswordPage() {
     setSubmitMessage("");
 
     try {
-      await new Promise((resolve) => setTimeout(resolve, 1500));
+      await apiClient.resetPassword({
+        email: formData.email,
+        code: formData.code,
+        newPassword: formData.password,
+      });
+
       setSubmitMessage(
-        "Mật khẩu đã được cập nhật. Bạn có thể đăng nhập bằng mật khẩu mới.",
+        "Mật khẩu đã được cập nhật thành công. Đang chuyển đến trang đăng nhập...",
       );
-      setFormData({ email: "", code: "", password: "", confirmPassword: "" });
+
+      // Redirect to login after short delay
+      setTimeout(() => {
+        router.push("/login");
+      }, 2000);
     } catch (error) {
-      setSubmitMessage("Cập nhật thất bại. Vui lòng thử lại.");
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Cập nhật mật khẩu thất bại. Vui lòng thử lại.";
+      setSubmitMessage(message);
     } finally {
       setIsLoading(false);
     }

@@ -6,6 +6,7 @@ import Image from "next/image";
 import Header from "@/client/components/Header";
 import Footer from "@/client/components/Footer";
 import { FormInput, SubmitButton } from "@/client/components/FormComponents";
+import { apiClient } from "@/client/lib/api/auth";
 
 export default function ForgotPasswordPage() {
   const [formData, setFormData] = useState({ email: "" });
@@ -42,13 +43,17 @@ export default function ForgotPasswordPage() {
     setIsLoading(true);
     setSubmitMessage("");
     try {
-      await new Promise((resolve) => setTimeout(resolve, 1500));
+      await apiClient.forgotPassword({ email: formData.email });
       setSubmitMessage(
-        "Nếu email tồn tại, liên kết đặt lại mật khẩu sẽ được gửi trong ít phút.",
+        "Mã xác thực đã được gửi đến email của bạn. Vui lòng kiểm tra hộp thư.",
       );
       setFormData({ email: "" });
     } catch (error) {
-      setSubmitMessage("Gửi yêu cầu thất bại. Vui lòng thử lại.");
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Gửi yêu cầu thất bại. Vui lòng thử lại.";
+      setSubmitMessage(message);
     } finally {
       setIsLoading(false);
     }
@@ -95,12 +100,23 @@ export default function ForgotPasswordPage() {
             {submitMessage && (
               <div
                 className={`p-3 rounded-lg text-center text-sm font-medium mb-6 ${
-                  submitMessage.includes("liên kết")
+                  !submitMessage.includes("thất bại")
                     ? "bg-green-100 text-green-700"
                     : "bg-red-100 text-red-700"
                 }`}
               >
                 {submitMessage}
+              </div>
+            )}
+
+            {submitMessage && !submitMessage.includes("thất bại") && (
+              <div className="mb-6">
+                <Link
+                  href="/reset"
+                  className="block w-full text-center bg-navy-600 hover:bg-navy-700 text-white font-bold py-3 px-6 rounded-lg transition"
+                >
+                  Nhập mã xác thực
+                </Link>
               </div>
             )}
 

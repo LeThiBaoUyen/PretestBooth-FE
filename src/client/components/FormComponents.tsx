@@ -1,13 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import type { ChangeEvent } from "react";
 
 interface InputProps {
   type?: string;
   name: string;
   placeholder: string;
   value: string;
-  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onChange: (e: ChangeEvent<HTMLInputElement>) => void;
   required?: boolean;
   pattern?: string;
   error?: string;
@@ -33,10 +33,10 @@ export function FormInput({
         onChange={onChange}
         required={required}
         pattern={pattern}
-        className={`w-full px-4 py-3 rounded-lg border-2 focus:outline-none focus:ring-2 focus:ring-navy-400 transition ${
+        className={`w-full px-4 py-3 rounded-lg border-2 focus:outline-none focus:ring-2 focus:ring-blue-400 transition ${
           error
             ? "border-red-500 bg-red-50"
-            : "border-gray-300 bg-white focus:border-navy-600"
+            : "border-gray-300 bg-white focus:border-blue-600"
         }`}
       />
       {error && <p className="text-red-500 text-sm mt-1">{error}</p>}
@@ -54,7 +54,7 @@ export function SubmitButton({ text, isLoading = false }: SubmitButtonProps) {
     <button
       type="submit"
       disabled={isLoading}
-      className="w-full bg-navy-600 hover:bg-navy-700 disabled:opacity-50 text-white font-bold py-3 rounded-lg transition duration-200 flex items-center justify-center gap-2"
+      className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-bold py-3 rounded-lg transition duration-200 flex items-center justify-center gap-2"
     >
       {isLoading ? (
         <>

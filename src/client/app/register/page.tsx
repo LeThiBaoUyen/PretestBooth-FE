@@ -3,11 +3,14 @@
 import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 import Header from "@/client/components/Header";
 import Footer from "@/client/components/Footer";
 import { FormInput, SubmitButton } from "@/client/components/FormComponents";
+import { apiClient } from "@/client/lib/api/auth";
 
 export default function RegisterPage() {
+  const router = useRouter();
   const [formData, setFormData] = useState({
     fullName: "",
     email: "",
@@ -86,21 +89,26 @@ export default function RegisterPage() {
     setIsLoading(true);
     setSubmitMessage("");
 
-    // Simulate API call
     try {
-      await new Promise((resolve) => setTimeout(resolve, 2000));
-      setSubmitMessage("Đăng ký thành công! Vui lòng kiểm tra email xác nhận.");
-      setFormData({
-        fullName: "",
-        email: "",
-        studentId: "",
-        phone: "",
-        password: "",
-        confirmPassword: "",
+      await apiClient.register({
+        email: formData.email,
+        password: formData.password,
       });
-      setAgreeTerms(false);
+
+      setSubmitMessage(
+        "Đăng ký thành công! Vui lòng kiểm tra email để xác nhận tài khoản.",
+      );
+
+      // Redirect to login after short delay
+      setTimeout(() => {
+        router.push("/login");
+      }, 2000);
     } catch (error) {
-      setSubmitMessage("Đăng ký thất bại. Vui lòng thử lại.");
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Đăng ký thất bại. Vui lòng thử lại.";
+      setSubmitMessage(message);
     } finally {
       setIsLoading(false);
     }
