@@ -1,11 +1,15 @@
-"use client";
 
+"use client";
 import Link from "next/link";
 import Image from "next/image";
 import { useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 
 export default function Header() {
   const [isOpen, setIsOpen] = useState(false);
+  const queryClient = useQueryClient();
+  const user = queryClient.getQueryData(["user"]);
+  const userName = user?.name || null;
 
   return (
     <header className="bg-white shadow-md sticky top-0 z-50">
@@ -59,20 +63,26 @@ export default function Header() {
             </Link>
           </nav>
 
-          {/* Auth Buttons */}
+          {/* Auth/User Info */}
           <div className="hidden md:flex items-center space-x-4">
-            <Link
-              href="/login"
-              className="text-navy-600 hover:text-navy-700 font-medium transition"
-            >
-              Đăng nhập
-            </Link>
-            <Link
-              href="/register"
-              className="bg-navy-600 text-white px-6 py-2 rounded-lg hover:bg-navy-700 transition font-medium"
-            >
-              Đăng ký
-            </Link>
+            {userName ? (
+              <span className="text-navy-600 font-bold text-base">Xin chào, {userName}</span>
+            ) : (
+              <>
+                <Link
+                  href="/login"
+                  className="text-navy-600 hover:text-navy-700 font-medium transition"
+                >
+                  Đăng nhập
+                </Link>
+                <Link
+                  href="/register"
+                  className="bg-navy-600 text-white px-6 py-2 rounded-lg hover:bg-navy-700 transition font-medium"
+                >
+                  Đăng ký
+                </Link>
+              </>
+            )}
           </div>
 
           {/* Mobile menu button */}
@@ -121,18 +131,24 @@ export default function Header() {
               Liên hệ
             </Link>
             <div className="pt-2 space-y-2 border-t border-gray-200">
-              <Link
-                href="/login"
-                className="block text-navy-600 hover:text-navy-700 py-2 transition"
-              >
-                Đăng nhập
-              </Link>
-              <Link
-                href="/register"
-                className="block bg-navy-600 text-white px-4 py-2 rounded-lg hover:bg-navy-700 transition text-center font-medium"
-              >
-                Đăng ký
-              </Link>
+              {userName ? (
+                <span className="block text-navy-600 font-bold py-2 text-center">Xin chào, {userName}</span>
+              ) : (
+                <>
+                  <Link
+                    href="/login"
+                    className="block text-navy-600 hover:text-navy-700 py-2 transition"
+                  >
+                    Đăng nhập
+                  </Link>
+                  <Link
+                    href="/register"
+                    className="block bg-navy-600 text-white px-4 py-2 rounded-lg hover:bg-navy-700 transition text-center font-medium"
+                  >
+                    Đăng ký
+                  </Link>
+                </>
+              )}
             </div>
           </div>
         )}

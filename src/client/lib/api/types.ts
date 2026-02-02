@@ -3,6 +3,7 @@
 export interface User {
   id: string;
   email: string;
+  name?: string; // Thêm tên user (tùy backend trả về)
   role: "STUDENT" | "TEACHER" | "ADMIN";
   isEmailVerified: boolean;
 }

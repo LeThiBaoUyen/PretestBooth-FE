@@ -8,22 +8,21 @@ import Header from "@/client/components/Header";
 import Footer from "@/client/components/Footer";
 import { FormInput, SubmitButton } from "@/client/components/FormComponents";
 import { apiClient } from "@/client/lib/api/auth";
-import { authStorage } from "@/client/lib/auth/storage";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 export default function LoginPage() {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const [formData, setFormData] = useState({
     email: "",
     password: "",
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const [isLoading, setIsLoading] = useState(false);
   const [submitMessage, setSubmitMessage] = useState("");
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
-    // Clear error for this field
     if (errors[name]) {
       setErrors((prev) => ({ ...prev, [name]: "" }));
     }
@@ -31,61 +30,45 @@ export default function LoginPage() {
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
-
     if (!formData.email) {
       newErrors.email = "Email không được để trống";
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
       newErrors.email = "Email không hợp lệ";
     }
-
     if (!formData.password) {
       newErrors.password = "Mật khẩu không được để trống";
     } else if (formData.password.length < 6) {
       newErrors.password = "Mật khẩu phải có ít nhất 6 ký tự";
     }
-
     return newErrors;
   };
 
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+  const loginMutation = useMutation({
+    mutationFn: (data) => apiClient.login(data),
+    onSuccess: (response) => {
+      // Store tokens in memory (or cookie via backend)
+      // Invalidate user query to refetch user info
+      queryClient.setQueryData(["user"], response.user);
+      setSubmitMessage("Đăng nhập thành công! Đang chuyển hướng...");
+      setTimeout(() => {
+        router.push("/dashboard");
+      }, 1000);
+    },
+    onError: (error: any) => {
+      const message = error?.message || "Đăng nhập thất bại. Vui lòng thử lại.";
+      setSubmitMessage(message);
+    },
+  });
+
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const newErrors = validateForm();
-
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
       return;
     }
-
-    setIsLoading(true);
     setSubmitMessage("");
-
-    try {
-      const response = await apiClient.login(formData);
-
-      // Save tokens to localStorage
-      authStorage.setAccessToken(response.accessToken);
-      authStorage.setRefreshToken(response.refreshToken);
-
-      // Save user info if available
-      if (response.user) {
-        authStorage.setUser(response.user);
-      }
-
-      setSubmitMessage("Đăng nhập thành công! Đang chuyển hướng...");
-
-      // Redirect after short delay
-      setTimeout(() => {
-        router.push("/exam");
-      }, 1000);
-    } catch (error) {
-      const message =
-        error instanceof Error
-          ? error.message
-          : "Đăng nhập thất bại. Vui lòng thử lại.";
-      setSubmitMessage(message);
-    } finally {
-      setIsLoading(false);
-    }
+    loginMutation.mutate(formData);
   };
 
   return (
@@ -150,7 +133,7 @@ export default function LoginPage() {
                 </Link>
               </div>
 
-              <SubmitButton text="Đăng nhập" isLoading={isLoading} />
+              <SubmitButton text="Đăng nhập" isLoading={loginMutation.status === "pending"} disabled={loginMutation.status === "pending"} />
             </form>
 
             {/* Message */}
