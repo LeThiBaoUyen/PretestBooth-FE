@@ -1,6 +1,6 @@
 "use client";
-import Header from "@/client/components/Header";
-import Footer from "@/client/components/Footer";
+import Header from "@/components/Header";
+import Footer from "@/components/Footer";
 import ExamLibrary from "./ExamLibrary";
 export default function DashboardPage() {
   return (
