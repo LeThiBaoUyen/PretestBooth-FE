@@ -33,7 +33,7 @@ export function FormInput({
         onChange={onChange}
         required={required}
         pattern={pattern}
-        className={`w-full px-4 py-3 rounded-lg border-2 focus:outline-none focus:ring-2 focus:ring-blue-400 transition ${
+        className={`text-gray-900 w-full px-4 py-3 rounded-lg border-2 focus:outline-none focus:ring-2 focus:ring-blue-400 transition ${
           error
             ? "border-red-500 bg-red-50"
             : "border-gray-300 bg-white focus:border-blue-600"
