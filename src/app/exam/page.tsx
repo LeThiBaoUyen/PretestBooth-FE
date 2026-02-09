@@ -106,7 +106,7 @@ export default function ExamPage() {
         setCode(apiProblem.starterCode[newLanguage]);
       }
     },
-    [apiProblem]
+    [apiProblem],
   );
 
   // Run test cases mutation
