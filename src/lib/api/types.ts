@@ -103,6 +103,10 @@ export interface Problem {
   hints: string[];
   timeLimit: number;
   memoryLimit: number;
+  functionName: string;
+  inputTypes: string[];
+  outputType: string;
+  argNames: string[];
   totalSubmissions: number;
   acceptedSubmissions: number;
   acceptanceRate: number;
@@ -190,6 +194,8 @@ export interface ExecuteCodeRequest {
   language: string;
   version?: string;
   source: string;
+  functionName?: string;
+  inputTypes?: string[];
   stdin?: string;
   args?: string[];
   compileTimeout?: number;
@@ -218,6 +224,8 @@ export interface RunTestCaseRequest {
   language: string;
   version?: string;
   source: string;
+  functionName?: string;
+  inputTypes?: string[];
   input: string;
   expectedOutput: string;
   runTimeout?: number;
@@ -239,6 +247,8 @@ export interface SubmitCodeRequest {
   language: string;
   version?: string;
   source: string;
+  functionName?: string;
+  inputTypes?: string[];
   problemId: string;
   runTimeout?: number;
 }

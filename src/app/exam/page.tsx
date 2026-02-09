@@ -98,6 +98,17 @@ export default function ExamPage() {
     setCode(value || "");
   }, []);
 
+  // Handle language change and update code with starter code
+  const handleLanguageChange = useCallback(
+    (newLanguage: string) => {
+      setLanguage(newLanguage);
+      if (apiProblem?.starterCode?.[newLanguage]) {
+        setCode(apiProblem.starterCode[newLanguage]);
+      }
+    },
+    [apiProblem]
+  );
+
   // Run test cases mutation
   const runMutation = useMutation({
     mutationFn: async () => {
@@ -118,6 +129,8 @@ export default function ExamPage() {
             language: lang,
             version: version || "*",
             source: code,
+            functionName: apiProblem.functionName,
+            inputTypes: apiProblem.inputTypes,
             input: tc.input,
             expectedOutput: tc.expectedOutput,
             runTimeout: apiProblem.timeLimit || 3000,
@@ -169,6 +182,8 @@ export default function ExamPage() {
         language: lang,
         version: version || "*",
         source: code,
+        functionName: apiProblem.functionName,
+        inputTypes: apiProblem.inputTypes,
         problemId: apiProblem.id,
         runTimeout: apiProblem.timeLimit || 3000,
       });
@@ -253,7 +268,7 @@ export default function ExamPage() {
             code={code}
             language={language}
             onChange={handleEditorChange}
-            onLanguageChange={setLanguage}
+            onLanguageChange={handleLanguageChange}
           />
         </div>
       </div>
