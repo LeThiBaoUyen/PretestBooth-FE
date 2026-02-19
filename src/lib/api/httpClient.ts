@@ -1,5 +1,5 @@
 // HTTP client with automatic token refresh interceptor
-import { getTokenManager } from "./tokenManager";
+import { getTokenManager } from "../auth/tokenManager";
 import type { RefreshTokenResponse } from "../api/types";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
@@ -73,10 +73,7 @@ class HttpClient {
   /**
    * Make an HTTP request with automatic token refresh
    */
-  async fetch<T>(
-    endpoint: string,
-    options: RequestInit = {},
-  ): Promise<T> {
+  async fetch<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
     const url = `${this.baseURL}${endpoint}`;
     const tokenManager = getTokenManager();
     const accessToken = tokenManager.getAccessToken();

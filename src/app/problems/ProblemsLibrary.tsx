@@ -5,12 +5,17 @@ import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import type { Difficulty } from "@/lib/api/types";
 import { problemsApiClient } from "@/lib/api/problems";
+import { useAuth } from "@/lib/hooks/useAuth";
 
 export default function ProblemsLibrary() {
+  const { user } = useAuth();
   const [page, setPage] = useState(1);
   const [difficulty, setDifficulty] = useState<Difficulty | "ALL">("ALL");
   const [search, setSearch] = useState("");
   const limit = 20;
+  
+  // Check if user is authorized to create problems
+  const isAuthorized = user && ["LECTURER", "ADMIN"].includes(user.role);
 
   const { data, isLoading, error } = useQuery({
     queryKey: ["problems", page, difficulty, search],
@@ -57,13 +62,23 @@ export default function ProblemsLibrary() {
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-4xl font-bold text-navy-600 mb-2">
-          Thư viện Bài tập
-        </h1>
-        <p className="text-gray-600">
-          Rèn luyện kỹ năng lập trình với các bài tập từ dễ đến khó
-        </p>
+      <div className="mb-8 flex items-center justify-between">
+        <div>
+          <h1 className="text-4xl font-bold text-navy-600 mb-2">
+            Thư viện Bài tập
+          </h1>
+          <p className="text-gray-600">
+            Rèn luyện kỹ năng lập trình với các bài tập từ dễ đến khó
+          </p>
+        </div>
+        {isAuthorized && (
+          <Link
+            href="/problems/create"
+            className="px-5 py-2.5 bg-navy-600 text-white rounded-lg hover:bg-navy-700 transition font-medium text-sm flex items-center gap-2"
+          >
+            + Tạo bài tập
+          </Link>
+        )}
       </div>
 
       {/* Filters */}

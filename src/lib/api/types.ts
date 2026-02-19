@@ -4,7 +4,7 @@ export interface User {
   id: string;
   email: string;
   name?: string; // Thêm tên user (tùy backend trả về)
-  role: "STUDENT" | "TEACHER" | "ADMIN";
+  role: "STUDENT" | "LECTURER" | "ADMIN";
   isEmailVerified: boolean;
 }
 
@@ -146,6 +146,15 @@ export interface QueryProblemsParams {
   sortOrder?: "asc" | "desc";
 }
 
+export interface CreateTestCaseRequest {
+  input: string;
+  expectedOutput: string;
+  explanation?: string | null;
+  isHidden?: boolean;
+  isSample?: boolean;
+  order?: number;
+}
+
 export interface CreateProblemRequest {
   title: string;
   slug: string;
@@ -156,7 +165,12 @@ export interface CreateProblemRequest {
   hints?: string[];
   timeLimit?: number;
   memoryLimit?: number;
+  functionName?: string;
+  inputTypes?: string[];
+  outputType?: string;
+  argNames?: string[];
   isPublished?: boolean;
+  testCases?: CreateTestCaseRequest[];
 }
 
 export interface UpdateProblemRequest {
@@ -169,6 +183,10 @@ export interface UpdateProblemRequest {
   hints?: string[];
   timeLimit?: number;
   memoryLimit?: number;
+  functionName?: string;
+  inputTypes?: string[];
+  outputType?: string;
+  argNames?: string[];
   isPublished?: boolean;
 }
 
