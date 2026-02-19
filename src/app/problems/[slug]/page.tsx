@@ -3,15 +3,18 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useParams, useRouter } from "next/navigation";
+import Link from "next/link";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { problemsApiClient } from "@/lib/api/problems";
 import { getTokenManager } from "@/lib/auth/tokenManager";
+import { useAuth } from "@/lib/hooks/useAuth";
 import type { Difficulty } from "@/lib/api/types";
 
 export default function ProblemDetailPage() {
   const params = useParams();
   const router = useRouter();
+  const { user } = useAuth();
   const slug = params.slug as string;
   const [activeTab, setActiveTab] = useState<"description" | "submissions">(
     "description",
@@ -143,6 +146,17 @@ export default function ProblemDetailPage() {
                   </span>
                 </div>
               </div>
+              {/* Edit Button */}
+              {user &&
+                (user.id === problem.creatorId || user.role === "ADMIN") &&
+                ["LECTURER", "ADMIN"].includes(user.role) && (
+                  <Link
+                    href={`/problems/${problem.slug}/edit`}
+                    className="px-4 py-2 bg-navy-600 text-white rounded-lg hover:bg-navy-700 transition font-medium text-sm flex items-center gap-2 whitespace-nowrap"
+                  >
+                    ✏️ Chỉnh sửa
+                  </Link>
+                )}
             </div>
 
             {/* Tabs */}
