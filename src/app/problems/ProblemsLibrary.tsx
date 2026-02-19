@@ -13,7 +13,7 @@ export default function ProblemsLibrary() {
   const [difficulty, setDifficulty] = useState<Difficulty | "ALL">("ALL");
   const [search, setSearch] = useState("");
   const limit = 20;
-  
+
   // Check if user is authorized to create problems
   const isAuthorized = user && ["LECTURER", "ADMIN"].includes(user.role);
 
