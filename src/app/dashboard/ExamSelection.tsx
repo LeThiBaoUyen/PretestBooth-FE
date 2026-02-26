@@ -1,5 +1,5 @@
 "use client";
-import React, { useState } from "react";
+import { useState } from "react";
 
 const DIFFICULTY_LEVELS = ["Dễ", "Trung bình", "Khó"];
 const DURATIONS = ["30 phút", "45 phút", "60 phút", "90 phút"];

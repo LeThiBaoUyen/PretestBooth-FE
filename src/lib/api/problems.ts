@@ -64,6 +64,8 @@ class ProblemsApiClient {
       searchParams.append("isPublished", params.isPublished.toString());
     if (params?.sortBy) searchParams.append("sortBy", params.sortBy);
     if (params?.sortOrder) searchParams.append("sortOrder", params.sortOrder);
+    if (params?.subjectId) searchParams.append("subjectId", params.subjectId);
+    if (params?.topicId) searchParams.append("topicId", params.topicId);
 
     const queryString = searchParams.toString();
     return this.request<PaginatedProblems>(

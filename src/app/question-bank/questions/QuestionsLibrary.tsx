@@ -112,7 +112,7 @@ export default function QuestionsLibrary() {
         </div>
         {isAuthorized && (
           <Link
-            href="/questions/create"
+            href="/question-bank/questions/create"
             className="px-5 py-2.5 bg-navy-600 text-white rounded-lg hover:bg-navy-700 transition font-medium text-sm flex items-center gap-2"
           >
             + Tạo câu hỏi
@@ -259,7 +259,7 @@ export default function QuestionsLibrary() {
                       </td>
                       <td className="px-6 py-4">
                         <Link
-                          href={`/questions/${question.id}`}
+                          href={`/question-bank/questions/${question.id}`}
                           className="text-navy-600 hover:text-navy-700 font-medium hover:underline line-clamp-2"
                         >
                           {question.content}

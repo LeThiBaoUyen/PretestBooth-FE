@@ -85,7 +85,7 @@ export default function SubmissionDetailPage() {
               </h3>
               {submission.problem ? (
                 <Link
-                  href={`/problems/${submission.problem.slug}`}
+                  href={`/question-bank/problems/${submission.problem.slug}`}
                   className="text-lg font-semibold text-blue-600 hover:text-blue-800"
                 >
                   {submission.problem.title}

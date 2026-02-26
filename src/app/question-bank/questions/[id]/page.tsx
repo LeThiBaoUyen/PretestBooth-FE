@@ -79,7 +79,7 @@ export default function QuestionDetailPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["questions"] });
-      router.push("/questions");
+      router.push("/question-bank/questions");
     },
   });
 
@@ -128,7 +128,7 @@ export default function QuestionDetailPage() {
                 Câu hỏi này không tồn tại hoặc đã bị xóa.
               </p>
               <button
-                onClick={() => router.push("/questions")}
+                onClick={() => router.push("/question-bank/questions")}
                 className="bg-navy-600 text-white px-6 py-3 rounded-lg hover:bg-navy-700 transition"
               >
                 Quay lại danh sách
@@ -148,7 +148,7 @@ export default function QuestionDetailPage() {
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           {/* Back */}
           <button
-            onClick={() => router.push("/questions")}
+            onClick={() => router.push("/question-bank/questions")}
             className="mb-4 text-navy-600 hover:text-navy-700 font-medium flex items-center gap-2 transition"
           >
             <svg
@@ -215,7 +215,7 @@ export default function QuestionDetailPage() {
                     {question.isPublished ? "Ẩn" : "Xuất bản"}
                   </button>
                   <Link
-                    href={`/questions/${question.id}/edit`}
+                    href={`/question-bank/questions/${question.id}/edit`}
                     className="px-4 py-2 bg-navy-600 text-white rounded-lg hover:bg-navy-700 transition font-medium text-sm"
                   >
                     ✏️ Sửa

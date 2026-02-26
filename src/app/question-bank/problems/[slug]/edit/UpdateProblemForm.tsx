@@ -232,7 +232,7 @@ export default function UpdateProblemForm({
       return problemsApiClient.updateProblem(problem.id, data, accessToken);
     },
     onSuccess: (updatedProblem) => {
-      router.push(`/problems/${updatedProblem.slug}`);
+      router.push(`/question-bank/problems/${updatedProblem.slug}`);
     },
     onError: (error) => {
       setFormError(
@@ -311,7 +311,7 @@ export default function UpdateProblemForm({
             Không tìm thấy bài tập
           </p>
           <Link
-            href="/problems"
+            href="/question-bank/problems"
             className="text-navy-600 hover:text-navy-700 font-medium"
           >
             Quay lại trang bài tập
@@ -329,7 +329,7 @@ export default function UpdateProblemForm({
             Bạn không có quyền chỉnh sửa bài tập này.
           </p>
           <Link
-            href={`/problems/${problem.slug}`}
+            href={`/question-bank/problems/${problem.slug}`}
             className="text-navy-600 hover:text-navy-700 font-medium"
           >
             Quay lại bài tập
@@ -352,7 +352,7 @@ export default function UpdateProblemForm({
           </p>
         </div>
         <Link
-          href={`/problems/${problem.slug}`}
+          href={`/question-bank/problems/${problem.slug}`}
           className="flex items-center gap-2 px-4 py-2 text-gray-600 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition"
         >
           ← Quay lại
@@ -810,7 +810,7 @@ export default function UpdateProblemForm({
         {/* ==================== SUBMIT BUTTON ==================== */}
         <div className="mt-8 flex items-center justify-end gap-4">
           <Link
-            href={`/problems/${problem.slug}`}
+            href={`/question-bank/problems/${problem.slug}`}
             className="px-6 py-2.5 border border-gray-300 text-gray-600 rounded-lg hover:bg-gray-50 transition font-medium"
           >
             Hủy

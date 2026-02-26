@@ -1,0 +1,147 @@
+"use client";
+
+import { useQuery } from "@tanstack/react-query";
+import Link from "next/link";
+import { problemsApiClient } from "@/lib/api/problems";
+import { questionsApiClient } from "@/lib/api/questions";
+import { useAuth } from "@/lib/hooks";
+
+export default function QuestionBankHome() {
+  const { accessToken } = useAuth();
+
+  const { data: problemsData } = useQuery({
+    queryKey: ["problems-count"],
+    queryFn: () => problemsApiClient.getProblems({ page: 1, limit: 1 }),
+  });
+
+  const { data: questionsData } = useQuery({
+    queryKey: ["questions-count"],
+    queryFn: () =>
+      questionsApiClient.getQuestions(
+        { page: 1, limit: 1 },
+        accessToken || undefined,
+      ),
+  });
+
+  const { data: subjects } = useQuery({
+    queryKey: ["subjects"],
+    queryFn: () => questionsApiClient.getSubjects(accessToken || undefined),
+  });
+
+  const totalProblems = problemsData?.total ?? 0;
+  const totalQuestions = questionsData?.total ?? 0;
+  const totalAll = totalProblems + totalQuestions;
+
+  return (
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      {/* Header */}
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold text-navy-600">Ngân hàng câu hỏi</h1>
+        <p className="text-gray-500 mt-1">
+          Quản lý bài tập lập trình và câu hỏi trắc nghiệm tập trung
+        </p>
+      </div>
+
+      {/* Stats Overview */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
+        <div className="bg-white rounded-xl shadow-md p-5 text-center">
+          <p className="text-3xl font-bold text-navy-600">{totalAll}</p>
+          <p className="text-gray-500 text-sm mt-1">Tổng câu hỏi</p>
+        </div>
+        <div className="bg-white rounded-xl shadow-md p-5 text-center">
+          <p className="text-3xl font-bold text-indigo-600">{totalProblems}</p>
+          <p className="text-gray-500 text-sm mt-1">Bài tập lập trình</p>
+        </div>
+        <div className="bg-white rounded-xl shadow-md p-5 text-center">
+          <p className="text-3xl font-bold text-emerald-600">
+            {totalQuestions}
+          </p>
+          <p className="text-gray-500 text-sm mt-1">Câu hỏi trắc nghiệm</p>
+        </div>
+      </div>
+
+      {/* Two Category Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+        {/* Problems Card */}
+        <Link
+          href="/question-bank/problems"
+          className="group bg-white rounded-xl shadow-md p-6 hover:shadow-lg transition border-2 border-transparent hover:border-indigo-200"
+        >
+          <div className="flex items-center gap-4 mb-4">
+            <div className="w-14 h-14 rounded-xl bg-indigo-100 flex items-center justify-center text-3xl">
+              💻
+            </div>
+            <div>
+              <h2 className="text-xl font-bold text-navy-600 group-hover:text-indigo-600 transition">
+                Bài tập lập trình
+              </h2>
+              <p className="text-sm text-gray-500">{totalProblems} bài tập</p>
+            </div>
+          </div>
+          <p className="text-gray-600 text-sm">
+            Các bài tập lập trình có test case, cho phép sinh viên viết code và
+            nộp bài tự động chấm điểm.
+          </p>
+          <div className="mt-4 text-indigo-600 font-medium text-sm flex items-center gap-1">
+            Xem danh sách →
+          </div>
+        </Link>
+
+        {/* Questions Card */}
+        <Link
+          href="/question-bank/questions"
+          className="group bg-white rounded-xl shadow-md p-6 hover:shadow-lg transition border-2 border-transparent hover:border-emerald-200"
+        >
+          <div className="flex items-center gap-4 mb-4">
+            <div className="w-14 h-14 rounded-xl bg-emerald-100 flex items-center justify-center text-3xl">
+              📝
+            </div>
+            <div>
+              <h2 className="text-xl font-bold text-navy-600 group-hover:text-emerald-600 transition">
+                Câu hỏi trắc nghiệm
+              </h2>
+              <p className="text-sm text-gray-500">{totalQuestions} câu hỏi</p>
+            </div>
+          </div>
+          <p className="text-gray-600 text-sm">
+            Câu hỏi trắc nghiệm ABCD, nhiều đáp án, và tự luận ngắn — phân loại
+            theo môn học và chủ đề.
+          </p>
+          <div className="mt-4 text-emerald-600 font-medium text-sm flex items-center gap-1">
+            Xem danh sách →
+          </div>
+        </Link>
+      </div>
+
+      {/* Subjects Overview */}
+      {subjects && subjects.length > 0 && (
+        <div className="bg-white rounded-xl shadow-md p-6">
+          <h2 className="text-lg font-semibold text-navy-600 mb-4">Môn học</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            {subjects.map((subject) => (
+              <div
+                key={subject.id}
+                className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg"
+              >
+                <span className="text-xl">📚</span>
+                <div className="flex-1 min-w-0">
+                  <p className="font-medium text-gray-800 truncate">
+                    {subject.name}
+                  </p>
+                  {subject.description && (
+                    <p className="text-xs text-gray-500 truncate">
+                      {subject.description}
+                    </p>
+                  )}
+                </div>
+                <span className="text-xs text-gray-400 flex-shrink-0">
+                  {subject.questionCount ?? 0} câu
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

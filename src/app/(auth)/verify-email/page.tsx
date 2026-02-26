@@ -6,7 +6,6 @@ import Image from "next/image";
 import { useSearchParams, useRouter } from "next/navigation";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
-import { SubmitButton } from "@/components/FormComponents";
 import { apiClient } from "@/lib/api/auth";
 
 export default function VerifyEmailPage() {

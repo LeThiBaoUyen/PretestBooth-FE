@@ -168,7 +168,7 @@ export default function EditQuestionForm() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["question", questionId] });
       queryClient.invalidateQueries({ queryKey: ["questions"] });
-      router.push(`/questions/${questionId}`);
+      router.push(`/question-bank/questions/${questionId}`);
     },
     onError: (error) => {
       setFormError(
@@ -257,7 +257,7 @@ export default function EditQuestionForm() {
             Câu hỏi này không tồn tại hoặc đã bị xóa.
           </p>
           <button
-            onClick={() => router.push("/questions")}
+            onClick={() => router.push("/question-bank/questions")}
             className="bg-navy-600 text-white px-6 py-3 rounded-lg hover:bg-navy-700 transition"
           >
             Quay lại danh sách
@@ -279,7 +279,9 @@ export default function EditQuestionForm() {
             Bạn không có quyền chỉnh sửa câu hỏi này.
           </p>
           <button
-            onClick={() => router.push(`/questions/${questionId}`)}
+            onClick={() =>
+              router.push(`/question-bank/questions/${questionId}`)
+            }
             className="bg-navy-600 text-white px-6 py-3 rounded-lg hover:bg-navy-700 transition"
           >
             Quay lại chi tiết
@@ -300,7 +302,7 @@ export default function EditQuestionForm() {
           <p className="text-gray-500 mt-1">Cập nhật thông tin câu hỏi</p>
         </div>
         <Link
-          href={`/questions/${questionId}`}
+          href={`/question-bank/questions/${questionId}`}
           className="flex items-center gap-2 px-4 py-2 text-gray-600 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition"
         >
           ← Quay lại
@@ -590,7 +592,7 @@ export default function EditQuestionForm() {
         {/* Submit Actions */}
         <div className="flex items-center justify-end gap-4">
           <Link
-            href={`/questions/${questionId}`}
+            href={`/question-bank/questions/${questionId}`}
             className="px-6 py-2.5 border border-gray-300 text-gray-600 rounded-lg hover:bg-gray-50 transition font-medium"
           >
             Hủy

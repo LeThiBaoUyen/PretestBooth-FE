@@ -128,7 +128,7 @@ export default function AddQuestionForm() {
       return questionsApiClient.createQuestion(data, accessToken);
     },
     onSuccess: (question) => {
-      router.push(`/questions/${question.id}`);
+      router.push(`/question-bank/questions/${question.id}`);
     },
     onError: (error) => {
       setFormError(
@@ -205,7 +205,7 @@ export default function AddQuestionForm() {
           </p>
         </div>
         <Link
-          href="/questions"
+          href="/question-bank/questions"
           className="flex items-center gap-2 px-4 py-2 text-gray-600 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition"
         >
           ← Quay lại
@@ -523,7 +523,7 @@ export default function AddQuestionForm() {
           {/* Submit Actions */}
           <div className="flex items-center justify-end gap-4">
             <Link
-              href="/questions"
+              href="/question-bank/questions"
               className="px-6 py-2.5 border border-gray-300 text-gray-600 rounded-lg hover:bg-gray-50 transition font-medium"
             >
               Hủy

@@ -5,30 +5,52 @@ import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import type { Difficulty } from "@/lib/api/types";
 import { problemsApiClient } from "@/lib/api/problems";
+import { questionsApiClient } from "@/lib/api/questions";
 import { useAuth } from "@/lib/hooks/useAuth";
 
 export default function ProblemsLibrary() {
-  const { user } = useAuth();
+  const { user, accessToken } = useAuth();
   const [page, setPage] = useState(1);
   const [difficulty, setDifficulty] = useState<Difficulty | "ALL">("ALL");
   const [search, setSearch] = useState("");
+  const [subjectId, setSubjectId] = useState<string>("");
+  const [topicId, setTopicId] = useState<string>("");
   const limit = 20;
 
   // Check if user is authorized to create problems
   const isAuthorized = user && ["LECTURER", "ADMIN"].includes(user.role);
 
   const { data, isLoading, error } = useQuery({
-    queryKey: ["problems", page, difficulty, search],
+    queryKey: ["problems", page, difficulty, search, subjectId, topicId],
     queryFn: () =>
       problemsApiClient.getProblems({
         page,
         limit,
         difficulty: difficulty === "ALL" ? undefined : difficulty,
         search: search || undefined,
+        subjectId: subjectId || undefined,
+        topicId: topicId || undefined,
         isPublished: true,
         sortBy: "createdAt",
         sortOrder: "desc",
       }),
+  });
+
+  // Fetch subjects for filter dropdown
+  const { data: subjects } = useQuery({
+    queryKey: ["subjects"],
+    queryFn: () => questionsApiClient.getSubjects(accessToken || undefined),
+  });
+
+  // Fetch topics for selected subject
+  const { data: topics } = useQuery({
+    queryKey: ["topics", subjectId],
+    queryFn: () =>
+      questionsApiClient.getTopicsBySubject(
+        subjectId,
+        accessToken || undefined,
+      ),
+    enabled: !!subjectId,
   });
 
   const getDifficultyColor = (diff: Difficulty) => {
@@ -73,7 +95,7 @@ export default function ProblemsLibrary() {
         </div>
         {isAuthorized && (
           <Link
-            href="/problems/create"
+            href="/question-bank/problems/create"
             className="px-5 py-2.5 bg-navy-600 text-white rounded-lg hover:bg-navy-700 transition font-medium text-sm flex items-center gap-2"
           >
             + Tạo bài tập
@@ -83,7 +105,7 @@ export default function ProblemsLibrary() {
 
       {/* Filters */}
       <div className="bg-white rounded-xl shadow-md p-6 mb-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           {/* Search */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -120,6 +142,52 @@ export default function ProblemsLibrary() {
               <option value="HARD">Khó</option>
             </select>
           </div>
+
+          {/* Subject Filter */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Môn học
+            </label>
+            <select
+              value={subjectId}
+              onChange={(e) => {
+                setSubjectId(e.target.value);
+                setTopicId("");
+                setPage(1);
+              }}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-navy-500 focus:border-transparent"
+            >
+              <option value="">Tất cả</option>
+              {subjects?.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Topic Filter */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Chủ đề
+            </label>
+            <select
+              value={topicId}
+              onChange={(e) => {
+                setTopicId(e.target.value);
+                setPage(1);
+              }}
+              disabled={!subjectId}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-navy-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
+            >
+              <option value="">Tất cả</option>
+              {topics?.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.name}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
       </div>
 
@@ -152,6 +220,12 @@ export default function ProblemsLibrary() {
                       Tiêu đề
                     </th>
                     <th className="px-6 py-4 text-center font-semibold">
+                      Môn học
+                    </th>
+                    <th className="px-6 py-4 text-center font-semibold">
+                      Chủ đề
+                    </th>
+                    <th className="px-6 py-4 text-center font-semibold">
                       Độ khó
                     </th>
                     <th className="px-6 py-4 text-center font-semibold">
@@ -173,11 +247,29 @@ export default function ProblemsLibrary() {
                       </td>
                       <td className="px-6 py-4">
                         <Link
-                          href={`/problems/${problem.slug}`}
+                          href={`/question-bank/problems/${problem.slug}`}
                           className="text-navy-600 hover:text-navy-700 font-medium hover:underline"
                         >
                           {problem.title}
                         </Link>
+                      </td>
+                      <td className="px-6 py-4 text-center">
+                        {problem.subject ? (
+                          <span className="inline-block px-2 py-1 rounded-full text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200">
+                            {problem.subject.name}
+                          </span>
+                        ) : (
+                          <span className="text-gray-400 text-sm">—</span>
+                        )}
+                      </td>
+                      <td className="px-6 py-4 text-center">
+                        {problem.topic ? (
+                          <span className="inline-block px-2 py-1 rounded-full text-xs font-medium bg-purple-50 text-purple-700 border border-purple-200">
+                            {problem.topic.name}
+                          </span>
+                        ) : (
+                          <span className="text-gray-400 text-sm">—</span>
+                        )}
                       </td>
                       <td className="px-6 py-4 text-center">
                         <span

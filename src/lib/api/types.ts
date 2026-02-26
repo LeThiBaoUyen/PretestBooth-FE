@@ -112,6 +112,10 @@ export interface Problem {
   acceptanceRate: number;
   isPublished: boolean;
   creatorId: string;
+  subjectId: string | null;
+  topicId: string | null;
+  subject?: { id: string; name: string } | null;
+  topic?: { id: string; name: string } | null;
   testCases?: TestCase[];
   sampleTestCases?: TestCase[];
   createdAt: string;
@@ -126,6 +130,10 @@ export interface ProblemListItem {
   acceptanceRate: number;
   totalSubmissions: number;
   isPublished: boolean;
+  subjectId: string | null;
+  topicId: string | null;
+  subject?: { id: string; name: string } | null;
+  topic?: { id: string; name: string } | null;
 }
 
 export interface PaginatedProblems {
@@ -144,6 +152,8 @@ export interface QueryProblemsParams {
   isPublished?: boolean;
   sortBy?: "createdAt" | "title" | "difficulty" | "acceptanceRate";
   sortOrder?: "asc" | "desc";
+  subjectId?: string;
+  topicId?: string;
 }
 
 export interface CreateTestCaseRequest {
@@ -170,6 +180,8 @@ export interface CreateProblemRequest {
   outputType?: string;
   argNames?: string[];
   isPublished?: boolean;
+  subjectId?: string | null;
+  topicId?: string | null;
   testCases?: CreateTestCaseRequest[];
 }
 
@@ -188,6 +200,8 @@ export interface UpdateProblemRequest {
   outputType?: string;
   argNames?: string[];
   isPublished?: boolean;
+  subjectId?: string | null;
+  topicId?: string | null;
 }
 
 // ==================== EXECUTION & SUBMISSIONS ====================

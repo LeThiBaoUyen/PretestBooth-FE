@@ -203,7 +203,7 @@ export default function AddProblemForm() {
       return problemsApiClient.createProblem(data, accessToken);
     },
     onSuccess: (problem) => {
-      router.push(`/problems/${problem.slug}`);
+      router.push(`/question-bank/problems/${problem.slug}`);
     },
     onError: (error) => {
       setFormError(
@@ -272,7 +272,7 @@ export default function AddProblemForm() {
           <p className="text-gray-500 mt-1">Điền thông tin bài tập lập trình</p>
         </div>
         <Link
-          href="/problems"
+          href="/question-bank/problems"
           className="flex items-center gap-2 px-4 py-2 text-gray-600 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition"
         >
           ← Quay lại
@@ -299,7 +299,7 @@ export default function AddProblemForm() {
             Chỉ giảng viên và quản trị viên mới có thể tạo bài tập.
           </p>
           <Link
-            href="/problems"
+            href="/question-bank/problems"
             className="inline-block mt-2 text-sm text-navy-600 hover:text-navy-700 font-medium"
           >
             Quay lại trang bài tập
@@ -913,7 +913,7 @@ export default function AddProblemForm() {
             {/* ==================== SUBMIT BUTTON ==================== */}
             <div className="mt-8 flex items-center justify-end gap-4">
               <Link
-                href="/problems"
+                href="/question-bank/problems"
                 className="px-6 py-2.5 border border-gray-300 text-gray-600 rounded-lg hover:bg-gray-50 transition font-medium"
               >
                 Hủy

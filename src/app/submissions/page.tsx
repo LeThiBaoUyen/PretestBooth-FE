@@ -161,7 +161,7 @@ export default function SubmissionsPage() {
                     >
                       <td className="px-6 py-4 whitespace-nowrap">
                         <Link
-                          href={`/problems/${submission.problemSlug}`}
+                          href={`/question-bank/problems/${submission.problemSlug}`}
                           className="text-blue-600 hover:text-blue-800 font-medium"
                           onClick={(e) => e.stopPropagation()}
                         >

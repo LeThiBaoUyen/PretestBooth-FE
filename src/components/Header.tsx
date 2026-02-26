@@ -54,22 +54,16 @@ export default function Header() {
               Trang chủ
             </Link>
             <Link
-              href="/problems"
+              href="/question-bank"
               className="text-gray-700 hover:text-navy-600 transition"
             >
-              Bài tập
+              Ngân hàng đề thi
             </Link>
             <Link
               href="/submissions"
               className="text-gray-700 hover:text-navy-600 transition"
             >
               Lịch sử nộp bài
-            </Link>
-            <Link
-              href="/questions"
-              className="text-gray-700 hover:text-navy-600 transition"
-            >
-              Ngân hàng câu hỏi
             </Link>
             <Link
               href="#about"
@@ -194,22 +188,16 @@ export default function Header() {
               Trang chủ
             </Link>
             <Link
-              href="/problems"
+              href="/question-bank"
               className="block text-gray-700 hover:text-navy-600 py-2 transition"
             >
-              Bài tập
+              Ngân hàng đề thi
             </Link>
             <Link
               href="/submissions"
               className="block text-gray-700 hover:text-navy-600 py-2 transition"
             >
               Lịch sử nộp bài
-            </Link>
-            <Link
-              href="/questions"
-              className="block text-gray-700 hover:text-navy-600 py-2 transition"
-            >
-              Ngân hàng câu hỏi
             </Link>
             <Link
               href="#about"

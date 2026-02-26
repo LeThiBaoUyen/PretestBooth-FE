@@ -84,7 +84,7 @@ export default function ProblemDetailPage() {
                 Bài tập này không tồn tại hoặc đã bị xóa.
               </p>
               <button
-                onClick={() => router.push("/problems")}
+                onClick={() => router.push("/question-bank/problems")}
                 className="bg-navy-600 text-white px-6 py-3 rounded-lg hover:bg-navy-700 transition"
               >
                 Quay lại danh sách
@@ -104,7 +104,7 @@ export default function ProblemDetailPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           {/* Back Button */}
           <button
-            onClick={() => router.push("/problems")}
+            onClick={() => router.push("/question-bank/problems")}
             className="mb-4 text-navy-600 hover:text-navy-700 font-medium flex items-center gap-2 transition"
           >
             <svg
@@ -151,7 +151,7 @@ export default function ProblemDetailPage() {
                 (user.id === problem.creatorId || user.role === "ADMIN") &&
                 ["LECTURER", "ADMIN"].includes(user.role) && (
                   <Link
-                    href={`/problems/${problem.slug}/edit`}
+                    href={`/question-bank/problems/${problem.slug}/edit`}
                     className="px-4 py-2 bg-navy-600 text-white rounded-lg hover:bg-navy-700 transition font-medium text-sm flex items-center gap-2 whitespace-nowrap"
                   >
                     ✏️ Chỉnh sửa

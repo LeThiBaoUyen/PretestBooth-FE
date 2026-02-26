@@ -11,6 +11,7 @@ interface InputProps {
   required?: boolean;
   pattern?: string;
   error?: string;
+  maxLength?: number;
 }
 
 export function FormInput({
@@ -22,6 +23,7 @@ export function FormInput({
   required = false,
   pattern,
   error,
+  maxLength,
 }: InputProps) {
   return (
     <div>
@@ -33,6 +35,7 @@ export function FormInput({
         onChange={onChange}
         required={required}
         pattern={pattern}
+        maxLength={maxLength}
         className={`text-gray-900 w-full px-4 py-3 rounded-lg border-2 focus:outline-none focus:ring-2 focus:ring-blue-400 transition ${
           error
             ? "border-red-500 bg-red-50"
