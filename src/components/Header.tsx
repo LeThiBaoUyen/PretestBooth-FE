@@ -66,6 +66,12 @@ export default function Header() {
               Lịch sử nộp bài
             </Link>
             <Link
+              href="/questions"
+              className="text-gray-700 hover:text-navy-600 transition"
+            >
+              Ngân hàng câu hỏi
+            </Link>
+            <Link
               href="#about"
               className="text-gray-700 hover:text-navy-600 transition"
             >
@@ -198,6 +204,12 @@ export default function Header() {
               className="block text-gray-700 hover:text-navy-600 py-2 transition"
             >
               Lịch sử nộp bài
+            </Link>
+            <Link
+              href="/questions"
+              className="block text-gray-700 hover:text-navy-600 py-2 transition"
+            >
+              Ngân hàng câu hỏi
             </Link>
             <Link
               href="#about"

@@ -354,3 +354,125 @@ export interface SubmissionStats {
   languageDistribution: Record<string, number>;
   statusDistribution: Record<SubmissionStatus, number>;
 }
+
+// ==================== QUESTION BANK ====================
+
+export type QuestionType = "SINGLE_CHOICE" | "MULTIPLE_CHOICE" | "SHORT_ANSWER";
+
+export interface Subject {
+  id: string;
+  name: string;
+  description: string | null;
+  topicCount?: number;
+  questionCount?: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Topic {
+  id: string;
+  name: string;
+  subjectId: string;
+  questionCount?: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface QuestionChoice {
+  id: string;
+  content: string;
+  isCorrect: boolean;
+  order: number;
+}
+
+export interface Question {
+  id: string;
+  content: string;
+  questionType: QuestionType;
+  difficulty: Difficulty;
+  correctAnswer: string | null;
+  explanation: string | null;
+  isPublished: boolean;
+  subjectId: string;
+  topicId: string | null;
+  creatorId: string;
+  subject?: Subject;
+  topic?: Topic | null;
+  choices?: QuestionChoice[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface QuestionListItem {
+  id: string;
+  content: string;
+  questionType: QuestionType;
+  difficulty: Difficulty;
+  isPublished: boolean;
+  subjectId: string;
+  topicId: string | null;
+  subject?: { id: string; name: string };
+  topic?: { id: string; name: string } | null;
+  choiceCount?: number;
+  createdAt: string;
+}
+
+export interface PaginatedQuestions {
+  data: QuestionListItem[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}
+
+export interface QueryQuestionsParams {
+  page?: number;
+  limit?: number;
+  questionType?: QuestionType;
+  difficulty?: Difficulty;
+  subjectId?: string;
+  topicId?: string;
+  search?: string;
+  isPublished?: boolean;
+  sortBy?: "createdAt" | "difficulty" | "questionType";
+  sortOrder?: "asc" | "desc";
+}
+
+export interface CreateChoiceRequest {
+  content: string;
+  isCorrect: boolean;
+  order?: number;
+}
+
+export interface CreateQuestionRequest {
+  content: string;
+  questionType: QuestionType;
+  difficulty: Difficulty;
+  subjectId: string;
+  topicId?: string | null;
+  explanation?: string | null;
+  isPublished?: boolean;
+  correctAnswer?: string | null;
+  choices?: CreateChoiceRequest[];
+}
+
+export interface UpdateQuestionRequest {
+  content?: string;
+  questionType?: QuestionType;
+  difficulty?: Difficulty;
+  subjectId?: string;
+  topicId?: string | null;
+  explanation?: string | null;
+  isPublished?: boolean;
+  correctAnswer?: string | null;
+  choices?: CreateChoiceRequest[];
+}
+
+export interface CreateSubjectRequest {
+  name: string;
+  description?: string | null;
+}
+
+export interface CreateTopicRequest {
+  name: string;
+}
