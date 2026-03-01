@@ -508,7 +508,6 @@ const QuizScreen = () => {
                   borderRadius: 18,
                   padding: "36px 72px 28px 72px",
                   margin: "32px auto 0 auto",
-                  boxShadow: "0 2px 16px #0002",
                   maxWidth: 900,
                   width: "100%",
                   display: "flex",

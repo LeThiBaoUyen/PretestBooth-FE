@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect, useMemo } from "react";
+import { useState, useCallback, useEffect, useMemo, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import {
@@ -66,7 +66,7 @@ function transformProblem(apiProblem: APIProblem): Problem {
   };
 }
 
-export default function ExamPage() {
+function ExamContent() {
   const searchParams = useSearchParams();
   const problemSlug = searchParams.get("problem") || "two-sum";
 
@@ -273,5 +273,19 @@ export default function ExamPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function ExamPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center bg-gray-900">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500" />
+        </div>
+      }
+    >
+      <ExamContent />
+    </Suspense>
   );
 }
