@@ -490,3 +490,216 @@ export interface CreateSubjectRequest {
 export interface CreateTopicRequest {
   name: string;
 }
+
+// ==================== EXAMS ====================
+
+export type ExamSection = "QUESTION" | "PROBLEM";
+export type ExamSessionStatus = "IN_PROGRESS" | "SUBMITTED" | "GRADED";
+
+export interface Exam {
+  id: string;
+  title: string;
+  description: string | null;
+  questionCount: number;
+  problemCount: number;
+  duration: number;
+  difficulty: Difficulty | null;
+  includeProblemsRelatedToQuestions: boolean;
+  shuffleQuestions: boolean;
+  shuffleChoices: boolean;
+  isPublished: boolean;
+  subjectId: string | null;
+  topicId: string | null;
+  subject?: { id: string; name: string } | null;
+  topic?: { id: string; name: string } | null;
+  creatorId: string;
+  items?: ExamItem[];
+  sessionCount?: number;
+  createdAt: string;
+  updatedAt?: string;
+}
+
+export interface ExamListItem {
+  id: string;
+  title: string;
+  description: string | null;
+  questionCount: number;
+  problemCount: number;
+  duration: number;
+  difficulty: Difficulty | null;
+  isPublished: boolean;
+  subjectId: string | null;
+  topicId: string | null;
+  subject?: { id: string; name: string } | null;
+  topic?: { id: string; name: string } | null;
+  creatorId: string;
+  totalItems: number;
+  sessionCount: number;
+  shuffleQuestions: boolean;
+  shuffleChoices: boolean;
+  createdAt: string;
+}
+
+export interface ExamItem {
+  id: string;
+  section: ExamSection;
+  order: number;
+  points: number;
+  questionId: string | null;
+  problemId: string | null;
+  question?: ExamQuestion | null;
+  problem?: ExamProblem | null;
+}
+
+export interface ExamQuestion {
+  id: string;
+  content: string;
+  questionType: QuestionType;
+  difficulty: Difficulty;
+  choices?: ExamChoice[];
+}
+
+export interface ExamChoice {
+  id: string;
+  content: string;
+  order: number;
+}
+
+export interface ExamProblem {
+  id: string;
+  title: string;
+  slug: string;
+  description: string;
+  difficulty: Difficulty;
+  starterCode: Record<string, string> | null;
+  constraints: string | null;
+  hints: string[];
+  timeLimit: number;
+  memoryLimit: number;
+  functionName: string;
+  inputTypes: string[];
+  outputType: string;
+  argNames: string[];
+}
+
+export interface PaginatedExams {
+  data: ExamListItem[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}
+
+export interface QueryExamsParams {
+  page?: number;
+  limit?: number;
+  subjectId?: string;
+  topicId?: string;
+  difficulty?: Difficulty;
+  search?: string;
+  isPublished?: boolean;
+  sortBy?: "createdAt" | "title" | "duration";
+  sortOrder?: "asc" | "desc";
+}
+
+export interface CreateExamRequest {
+  title: string;
+  description?: string | null;
+  subjectId?: string | null;
+  topicId?: string | null;
+  questionCount: number;
+  problemCount: number;
+  includeProblemsRelatedToQuestions?: boolean;
+  difficulty?: Difficulty | null;
+  duration: number;
+  questionIds?: string[];
+  problemIds?: string[];
+  shuffleQuestions?: boolean;
+  shuffleChoices?: boolean;
+}
+
+export interface UpdateExamRequest {
+  title?: string;
+  description?: string | null;
+  duration?: number;
+  isPublished?: boolean;
+  shuffleQuestions?: boolean;
+  shuffleChoices?: boolean;
+}
+
+// Shuffled session returned when starting/resuming an exam
+export interface ShuffledExamSession {
+  id: string;
+  examId: string;
+  examTitle: string;
+  duration: number;
+  status: ExamSessionStatus;
+  startedAt: string;
+  finishedAt: string | null;
+  score: number | null;
+  maxScore: number | null;
+  questionItems: ShuffledItem[];
+  problemItems: ShuffledItem[];
+  answers: SessionAnswer[];
+}
+
+export interface ShuffledItem {
+  id: string;
+  section: ExamSection;
+  order: number;
+  points: number;
+  question?: ExamQuestion | null;
+  problem?: ExamProblem | null;
+}
+
+export interface SessionAnswer {
+  id: string;
+  examItemId: string;
+  selectedChoiceIds: string[];
+  textAnswer: string | null;
+  submissionId: string | null;
+  isCorrect: boolean | null;
+  score: number | null;
+}
+
+export interface SaveAnswerRequest {
+  examItemId: string;
+  selectedChoiceIds?: string[];
+  textAnswer?: string | null;
+  submissionId?: string | null;
+}
+
+export interface SessionResult {
+  id: string;
+  examId: string;
+  examTitle: string;
+  status: ExamSessionStatus;
+  startedAt: string;
+  finishedAt: string | null;
+  score: number | null;
+  maxScore: number | null;
+  totalItems: number;
+  correctItems: number;
+  pendingItems: number;
+  items: SessionResultItem[];
+}
+
+export interface SessionResultItem {
+  examItemId: string;
+  section: ExamSection;
+  points: number;
+  isCorrect: boolean | null;
+  score: number | null;
+  questionContent?: string;
+  problemTitle?: string;
+  selectedChoiceIds: string[];
+  textAnswer: string | null;
+}
+
+export interface GradeSessionRequest {
+  items: {
+    examItemId: string;
+    score: number;
+    isCorrect: boolean;
+  }[];
+}
