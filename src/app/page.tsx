@@ -1,12 +1,9 @@
-"use client";
-import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import Link from "next/link";
 
 export default function Home() {
   return (
     <>
-      <Header />
       <main>
         {/* Hero Section */}
         <section className="bg-gradient-to-br from-rose-50 via-white to-rose-100 min-h-screen pt-20 pb-20">

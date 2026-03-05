@@ -26,7 +26,7 @@ export default function Header() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           {/* Logo */}
-          <Link href="/" className="flex items-center space-x-3">
+          <Link href={user ? "/dashboard" : "/"} className="flex items-center space-x-3">
             <div className="relative h-10 w-auto">
               <Image
                 src="/assets/iuhcm-logo.png"
@@ -48,23 +48,27 @@ export default function Header() {
           {/* Desktop Navigation */}
           <nav className="hidden md:flex space-x-8 items-center">
             <Link
-              href="/"
+              href={user ? "/dashboard" : "/"}
               className="text-gray-700 hover:text-navy-600 transition"
             >
               Trang chủ
             </Link>
-            <Link
-              href="/question-bank"
-              className="text-gray-700 hover:text-navy-600 transition"
-            >
-              Ngân hàng đề thi
-            </Link>
-            <Link
-              href="/submissions"
-              className="text-gray-700 hover:text-navy-600 transition"
-            >
-              Lịch sử nộp bài
-            </Link>
+            {user && (
+              <>
+                <Link
+                  href="/question-bank"
+                  className="text-gray-700 hover:text-navy-600 transition"
+                >
+                  Ngân hàng đề thi
+                </Link>
+                <Link
+                  href="/submissions"
+                  className="text-gray-700 hover:text-navy-600 transition"
+                >
+                  Lịch sử nộp bài
+                </Link>
+              </>
+            )}
             <Link
               href="#about"
               className="text-gray-700 hover:text-navy-600 transition"

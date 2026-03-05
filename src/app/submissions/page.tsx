@@ -57,6 +57,7 @@ export default function SubmissionsPage() {
 
   const submissions = data?.data || [];
   const totalPages = data?.totalPages || 1;
+  // Không cần import hoặc render Header ở đây, layout chung sẽ tự động render nav bar
 
   return (
     <div className="min-h-screen bg-gray-50 py-8">
