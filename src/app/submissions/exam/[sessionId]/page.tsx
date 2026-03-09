@@ -75,9 +75,7 @@ export default function ExamSessionDetailPage() {
           >
             ← Quay lại danh sách
           </button>
-          <h1 className="text-3xl font-bold text-gray-900">
-            Kết quả bài thi
-          </h1>
+          <h1 className="text-3xl font-bold text-gray-900">Kết quả bài thi</h1>
         </div>
 
         {/* Session Overview */}
@@ -93,10 +91,12 @@ export default function ExamSessionDetailPage() {
             </div>
             <span
               className={`px-4 py-2 rounded-full text-sm font-medium ${
-                STATUS_COLORS[result.status as ExamSessionStatus] || "bg-gray-100 text-gray-800"
+                STATUS_COLORS[result.status as ExamSessionStatus] ||
+                "bg-gray-100 text-gray-800"
               }`}
             >
-              {STATUS_LABELS[result.status as ExamSessionStatus] || result.status}
+              {STATUS_LABELS[result.status as ExamSessionStatus] ||
+                result.status}
             </span>
           </div>
 
@@ -112,7 +112,8 @@ export default function ExamSessionDetailPage() {
                       : "text-red-600"
                 }`}
               >
-                {result.score !== null ? result.score : "—"} / {result.maxScore || "—"}
+                {result.score !== null ? result.score : "—"} /{" "}
+                {result.maxScore || "—"}
               </p>
               {result.maxScore !== null && result.maxScore > 0 && (
                 <p className="text-sm text-gray-500 mt-1">{pct}%</p>
@@ -124,7 +125,9 @@ export default function ExamSessionDetailPage() {
               <p className="text-3xl font-bold mt-1 text-green-600">
                 {result.correctItems}
               </p>
-              <p className="text-sm text-gray-500 mt-1">/ {result.totalItems} câu</p>
+              <p className="text-sm text-gray-500 mt-1">
+                / {result.totalItems} câu
+              </p>
             </div>
 
             <div className="bg-gray-50 rounded-lg p-4 text-center">
@@ -199,9 +202,7 @@ function ItemCard({ item, index }: { item: SessionResultItem; index: number }) {
     >
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <span className="text-sm font-medium text-gray-500">
-            #{index}
-          </span>
+          <span className="text-sm font-medium text-gray-500">#{index}</span>
           <span
             className={`px-2 py-0.5 rounded text-xs font-medium ${
               item.section === "QUESTION"
@@ -240,13 +241,9 @@ function ItemCard({ item, index }: { item: SessionResultItem; index: number }) {
       {/* Show answers */}
       <div className="mt-3 text-sm text-gray-600">
         {item.selectedChoiceIds && item.selectedChoiceIds.length > 0 && (
-          <p>
-            Đáp án đã chọn: {item.selectedChoiceIds.length} lựa chọn
-          </p>
+          <p>Đáp án đã chọn: {item.selectedChoiceIds.length} lựa chọn</p>
         )}
-        {item.textAnswer && (
-          <p>Câu trả lời: {item.textAnswer}</p>
-        )}
+        {item.textAnswer && <p>Câu trả lời: {item.textAnswer}</p>}
       </div>
     </div>
   );

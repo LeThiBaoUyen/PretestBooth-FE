@@ -68,12 +68,15 @@ export default function SubmissionsPage() {
   const { data, isLoading, isError } = useQuery({
     queryKey: ["unified-submissions", page, type, !!accessToken],
     queryFn: () =>
-      submissionsApi.getUnifiedSubmissions({
-        page,
-        limit,
-        type: type as "ALL" | "PROBLEM" | "EXAM",
-        sortOrder: "desc",
-      }, accessToken || undefined),
+      submissionsApi.getUnifiedSubmissions(
+        {
+          page,
+          limit,
+          type: type as "ALL" | "PROBLEM" | "EXAM",
+          sortOrder: "desc",
+        },
+        accessToken || undefined,
+      ),
     enabled: !!accessToken,
   });
 
@@ -84,8 +87,15 @@ export default function SubmissionsPage() {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <p className="text-gray-600 text-lg">Vui lòng đăng nhập để xem lịch sử nộp bài</p>
-          <a href="/login" className="mt-4 inline-block text-blue-600 hover:underline font-medium">Đăng nhập</a>
+          <p className="text-gray-600 text-lg">
+            Vui lòng đăng nhập để xem lịch sử nộp bài
+          </p>
+          <a
+            href="/login"
+            className="mt-4 inline-block text-blue-600 hover:underline font-medium"
+          >
+            Đăng nhập
+          </a>
         </div>
       </div>
     );
@@ -114,7 +124,8 @@ export default function SubmissionsPage() {
     }
     // Exam type
     if (item.score !== null && item.maxScore !== null) {
-      const pct = item.maxScore > 0 ? Math.round((item.score / item.maxScore) * 100) : 0;
+      const pct =
+        item.maxScore > 0 ? Math.round((item.score / item.maxScore) * 100) : 0;
       return (
         <span
           className={
@@ -174,7 +185,9 @@ export default function SubmissionsPage() {
           {isLoading ? (
             <div className="p-12 text-center text-gray-500">Đang tải...</div>
           ) : isError ? (
-            <div className="p-12 text-center text-red-500">Không thể tải dữ liệu. Vui lòng thử lại.</div>
+            <div className="p-12 text-center text-red-500">
+              Không thể tải dữ liệu. Vui lòng thử lại.
+            </div>
           ) : submissions.length === 0 ? (
             <div className="p-12 text-center text-gray-500">
               Chưa có lần nộp bài nào
@@ -209,9 +222,7 @@ export default function SubmissionsPage() {
                     <tr
                       key={`${item.type}-${item.id}`}
                       className="hover:bg-gray-50 cursor-pointer"
-                      onClick={() =>
-                        (window.location.href = getLink(item))
-                      }
+                      onClick={() => (window.location.href = getLink(item))}
                     >
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span
@@ -237,12 +248,15 @@ export default function SubmissionsPage() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm">
                         {item.type === "PROBLEM" && item.difficulty ? (
-                          <span className={`font-medium ${DIFFICULTY_COLORS[item.difficulty]}`}>
+                          <span
+                            className={`font-medium ${DIFFICULTY_COLORS[item.difficulty]}`}
+                          >
                             {DIFFICULTY_LABELS[item.difficulty]}
                           </span>
                         ) : item.type === "EXAM" ? (
                           <span className="text-gray-600">
-                            {item.questionCount || 0} câu hỏi, {item.problemCount || 0} bài code
+                            {item.questionCount || 0} câu hỏi,{" "}
+                            {item.problemCount || 0} bài code
                           </span>
                         ) : (
                           <span className="text-gray-400">—</span>
@@ -251,7 +265,8 @@ export default function SubmissionsPage() {
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span
                           className={`px-3 py-1 rounded-full text-sm font-medium ${
-                            STATUS_COLORS[item.status] || "bg-gray-100 text-gray-800"
+                            STATUS_COLORS[item.status] ||
+                            "bg-gray-100 text-gray-800"
                           }`}
                         >
                           {STATUS_LABELS[item.status] || item.status}
