@@ -12,6 +12,8 @@ import type {
   QuerySubmissionsParams,
   PaginatedSubmissions,
   SubmissionStats,
+  QueryUnifiedSubmissionsParams,
+  PaginatedUnifiedSubmissions,
 } from "./types";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
@@ -309,6 +311,30 @@ class SubmissionsApiClient {
     return this.request<SubmissionResponse>(`/api/submissions/${id}`, {
       headers: { Authorization: `Bearer ${token}` },
     });
+  }
+
+  // Get unified list of both coding submissions and exam sessions
+  async getUnifiedSubmissions(
+    params: QueryUnifiedSubmissionsParams = {},
+    accessToken?: string,
+  ): Promise<PaginatedUnifiedSubmissions> {
+    const token = accessToken || getAccessToken();
+    if (!token) throw new Error("Access token required");
+
+    const searchParams = new URLSearchParams();
+
+    if (params.page) searchParams.append("page", params.page.toString());
+    if (params.limit) searchParams.append("limit", params.limit.toString());
+    if (params.type) searchParams.append("type", params.type);
+    if (params.sortOrder) searchParams.append("sortOrder", params.sortOrder);
+
+    const queryString = searchParams.toString();
+    return this.request<PaginatedUnifiedSubmissions>(
+      `/api/submissions/all${queryString ? `?${queryString}` : ""}`,
+      {
+        headers: { Authorization: `Bearer ${token}` },
+      },
+    );
   }
 }
 

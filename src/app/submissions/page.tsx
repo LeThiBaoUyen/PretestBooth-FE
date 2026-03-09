@@ -4,13 +4,14 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { submissionsApi } from "@/lib/api/execution";
+import { useAuth } from "@/lib/hooks";
 import type {
-  SubmissionStatus,
-  SubmissionListItem,
   Difficulty,
+  UnifiedSubmissionItem,
+  UnifiedSubmissionType,
 } from "@/lib/api/types";
 
-const STATUS_COLORS: Record<SubmissionStatus, string> = {
+const STATUS_COLORS: Record<string, string> = {
   ACCEPTED: "bg-green-100 text-green-800",
   WRONG_ANSWER: "bg-red-100 text-red-800",
   COMPILE_ERROR: "bg-orange-100 text-orange-800",
@@ -18,9 +19,12 @@ const STATUS_COLORS: Record<SubmissionStatus, string> = {
   TIME_LIMIT_EXCEEDED: "bg-yellow-100 text-yellow-800",
   MEMORY_LIMIT_EXCEEDED: "bg-yellow-100 text-yellow-800",
   PENDING: "bg-gray-100 text-gray-800",
+  IN_PROGRESS: "bg-blue-100 text-blue-800",
+  SUBMITTED: "bg-indigo-100 text-indigo-800",
+  GRADED: "bg-green-100 text-green-800",
 };
 
-const STATUS_LABELS: Record<SubmissionStatus, string> = {
+const STATUS_LABELS: Record<string, string> = {
   ACCEPTED: "Đạt",
   WRONG_ANSWER: "Sai",
   COMPILE_ERROR: "Lỗi biên dịch",
@@ -28,6 +32,9 @@ const STATUS_LABELS: Record<SubmissionStatus, string> = {
   TIME_LIMIT_EXCEEDED: "Quá thời gian",
   MEMORY_LIMIT_EXCEEDED: "Quá bộ nhớ",
   PENDING: "Đang chạy",
+  IN_PROGRESS: "Đang làm",
+  SUBMITTED: "Đã nộp",
+  GRADED: "Đã chấm",
 };
 
 const DIFFICULTY_COLORS: Record<Difficulty, string> = {
@@ -36,28 +43,97 @@ const DIFFICULTY_COLORS: Record<Difficulty, string> = {
   HARD: "text-red-600",
 };
 
+const DIFFICULTY_LABELS: Record<Difficulty, string> = {
+  EASY: "Dễ",
+  MEDIUM: "Trung bình",
+  HARD: "Khó",
+};
+
+const TYPE_COLORS: Record<UnifiedSubmissionType, string> = {
+  PROBLEM: "bg-cyan-100 text-cyan-800",
+  EXAM: "bg-violet-100 text-violet-800",
+};
+
+const TYPE_LABELS: Record<UnifiedSubmissionType, string> = {
+  PROBLEM: "Bài tập",
+  EXAM: "Bài thi",
+};
+
 export default function SubmissionsPage() {
+  const { accessToken } = useAuth();
   const [page, setPage] = useState(1);
-  const [status, setStatus] = useState<SubmissionStatus | "">("");
-  const [language, setLanguage] = useState("");
+  const [type, setType] = useState<"ALL" | "PROBLEM" | "EXAM">("ALL");
   const limit = 20;
 
-  const { data, isLoading } = useQuery({
-    queryKey: ["submissions", page, status, language],
+  const { data, isLoading, isError } = useQuery({
+    queryKey: ["unified-submissions", page, type, !!accessToken],
     queryFn: () =>
-      submissionsApi.getSubmissions({
+      submissionsApi.getUnifiedSubmissions({
         page,
         limit,
-        status: status || undefined,
-        language: language || undefined,
-        sortBy: "createdAt",
+        type: type as "ALL" | "PROBLEM" | "EXAM",
         sortOrder: "desc",
-      }),
+      }, accessToken || undefined),
+    enabled: !!accessToken,
   });
 
   const submissions = data?.data || [];
   const totalPages = data?.totalPages || 1;
-  // Không cần import hoặc render Header ở đây, layout chung sẽ tự động render nav bar
+
+  if (!accessToken) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-gray-600 text-lg">Vui lòng đăng nhập để xem lịch sử nộp bài</p>
+          <a href="/login" className="mt-4 inline-block text-blue-600 hover:underline font-medium">Đăng nhập</a>
+        </div>
+      </div>
+    );
+  }
+
+  const getLink = (item: UnifiedSubmissionItem) => {
+    if (item.type === "PROBLEM") {
+      return `/submissions/${item.id}`;
+    }
+    return `/submissions/exam/${item.id}`;
+  };
+
+  const renderScoreOrTestCases = (item: UnifiedSubmissionItem) => {
+    if (item.type === "PROBLEM") {
+      return (
+        <span
+          className={
+            item.passedTestCases === item.totalTestCases
+              ? "text-green-600 font-medium"
+              : "text-red-600 font-medium"
+          }
+        >
+          {item.passedTestCases}/{item.totalTestCases}
+        </span>
+      );
+    }
+    // Exam type
+    if (item.score !== null && item.maxScore !== null) {
+      const pct = item.maxScore > 0 ? Math.round((item.score / item.maxScore) * 100) : 0;
+      return (
+        <span
+          className={
+            pct >= 80
+              ? "text-green-600 font-medium"
+              : pct >= 50
+                ? "text-yellow-600 font-medium"
+                : "text-red-600 font-medium"
+          }
+        >
+          {item.score}/{item.maxScore} ({pct}%)
+        </span>
+      );
+    }
+    if (item.status === "IN_PROGRESS") {
+      return <span className="text-gray-500">Đang làm...</span>;
+    }
+    return <span className="text-gray-400">Chờ chấm</span>;
+  };
 
   return (
     <div className="min-h-screen bg-gray-50 py-8">
@@ -65,7 +141,9 @@ export default function SubmissionsPage() {
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900">Lịch sử nộp bài</h1>
-          <p className="mt-2 text-gray-600">Xem lại các lần nộp bài của bạn</p>
+          <p className="mt-2 text-gray-600">
+            Xem lại các lần nộp bài tập code và kết quả bài thi của bạn
+          </p>
         </div>
 
         {/* Filters */}
@@ -73,43 +151,19 @@ export default function SubmissionsPage() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Trạng thái
+                Loại
               </label>
               <select
-                value={status}
+                value={type}
                 onChange={(e) => {
-                  setStatus(e.target.value as SubmissionStatus | "");
+                  setType(e.target.value as "ALL" | "PROBLEM" | "EXAM");
                   setPage(1);
                 }}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               >
-                <option value="">Tất cả</option>
-                <option value="ACCEPTED">Đạt</option>
-                <option value="WRONG_ANSWER">Sai</option>
-                <option value="COMPILE_ERROR">Lỗi biên dịch</option>
-                <option value="RUNTIME_ERROR">Lỗi runtime</option>
-                <option value="TIME_LIMIT_EXCEEDED">Quá thời gian</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Ngôn ngữ
-              </label>
-              <select
-                value={language}
-                onChange={(e) => {
-                  setLanguage(e.target.value);
-                  setPage(1);
-                }}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              >
-                <option value="">Tất cả</option>
-                <option value="javascript">JavaScript</option>
-                <option value="python">Python</option>
-                <option value="java">Java</option>
-                <option value="c++">C++</option>
-                <option value="c">C</option>
+                <option value="ALL">Tất cả</option>
+                <option value="PROBLEM">Bài tập code</option>
+                <option value="EXAM">Bài thi</option>
               </select>
             </div>
           </div>
@@ -119,6 +173,8 @@ export default function SubmissionsPage() {
         <div className="bg-white rounded-lg shadow-sm overflow-hidden">
           {isLoading ? (
             <div className="p-12 text-center text-gray-500">Đang tải...</div>
+          ) : isError ? (
+            <div className="p-12 text-center text-red-500">Không thể tải dữ liệu. Vui lòng thử lại.</div>
           ) : submissions.length === 0 ? (
             <div className="p-12 text-center text-gray-500">
               Chưa có lần nộp bài nào
@@ -129,22 +185,19 @@ export default function SubmissionsPage() {
                 <thead className="bg-gray-50">
                   <tr>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Bài tập
+                      Loại
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Độ khó
+                      Tên
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Độ khó / Chi tiết
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Trạng thái
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Ngôn ngữ
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Test cases
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Thời gian
+                      Điểm / Test cases
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Ngày nộp
@@ -152,66 +205,63 @@ export default function SubmissionsPage() {
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {submissions.map((submission: SubmissionListItem) => (
+                  {submissions.map((item: UnifiedSubmissionItem) => (
                     <tr
-                      key={submission.id}
+                      key={`${item.type}-${item.id}`}
                       className="hover:bg-gray-50 cursor-pointer"
                       onClick={() =>
-                        (window.location.href = `/submissions/${submission.id}`)
+                        (window.location.href = getLink(item))
                       }
                     >
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <Link
-                          href={`/question-bank/problems/${submission.problemSlug}`}
-                          className="text-blue-600 hover:text-blue-800 font-medium"
-                          onClick={(e) => e.stopPropagation()}
+                        <span
+                          className={`px-2 py-1 rounded-full text-xs font-medium ${TYPE_COLORS[item.type]}`}
                         >
-                          {submission.problemTitle}
-                        </Link>
+                          {TYPE_LABELS[item.type]}
+                        </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <span
-                          className={`font-medium ${
-                            DIFFICULTY_COLORS[submission.problemDifficulty]
-                          }`}
-                        >
-                          {submission.problemDifficulty === "EASY"
-                            ? "Dễ"
-                            : submission.problemDifficulty === "MEDIUM"
-                              ? "Trung bình"
-                              : "Khó"}
-                        </span>
+                        {item.type === "PROBLEM" && item.slug ? (
+                          <Link
+                            href={`/question-bank/problems/${item.slug}`}
+                            className="text-blue-600 hover:text-blue-800 font-medium"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            {item.title}
+                          </Link>
+                        ) : (
+                          <span className="font-medium text-gray-900">
+                            {item.title}
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm">
+                        {item.type === "PROBLEM" && item.difficulty ? (
+                          <span className={`font-medium ${DIFFICULTY_COLORS[item.difficulty]}`}>
+                            {DIFFICULTY_LABELS[item.difficulty]}
+                          </span>
+                        ) : item.type === "EXAM" ? (
+                          <span className="text-gray-600">
+                            {item.questionCount || 0} câu hỏi, {item.problemCount || 0} bài code
+                          </span>
+                        ) : (
+                          <span className="text-gray-400">—</span>
+                        )}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span
                           className={`px-3 py-1 rounded-full text-sm font-medium ${
-                            STATUS_COLORS[submission.status]
+                            STATUS_COLORS[item.status] || "bg-gray-100 text-gray-800"
                           }`}
                         >
-                          {STATUS_LABELS[submission.status]}
+                          {STATUS_LABELS[item.status] || item.status}
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {submission.language}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        <span
-                          className={
-                            submission.passedTestCases ===
-                            submission.totalTestCases
-                              ? "text-green-600 font-medium"
-                              : "text-red-600 font-medium"
-                          }
-                        >
-                          {submission.passedTestCases}/
-                          {submission.totalTestCases}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {submission.executionTime}ms
+                        {renderScoreOrTestCases(item)}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {new Date(submission.createdAt).toLocaleString("vi-VN")}
+                        {new Date(item.date).toLocaleString("vi-VN")}
                       </td>
                     </tr>
                   ))}
@@ -263,14 +313,13 @@ export default function SubmissionsPage() {
                           Math.abs(p - page) <= 2,
                       )
                       .map((p, idx, arr) => (
-                        <>
+                        <span key={`page-${p}`}>
                           {idx > 0 && arr[idx - 1] !== p - 1 && (
                             <span className="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700">
                               ...
                             </span>
                           )}
                           <button
-                            key={p}
                             onClick={() => setPage(p)}
                             className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${
                               p === page
@@ -280,7 +329,7 @@ export default function SubmissionsPage() {
                           >
                             {p}
                           </button>
-                        </>
+                        </span>
                       ))}
                     <button
                       onClick={() =>

@@ -658,6 +658,9 @@ export interface SessionAnswer {
   selectedChoiceIds: string[];
   textAnswer: string | null;
   submissionId: string | null;
+  sourceCode: string | null;
+  language: string | null;
+  languageVersion: string | null;
   isCorrect: boolean | null;
   score: number | null;
 }
@@ -667,6 +670,9 @@ export interface SaveAnswerRequest {
   selectedChoiceIds?: string[];
   textAnswer?: string | null;
   submissionId?: string | null;
+  sourceCode?: string | null;
+  language?: string | null;
+  languageVersion?: string | null;
 }
 
 export interface SessionResult {
@@ -702,4 +708,79 @@ export interface GradeSessionRequest {
     score: number;
     isCorrect: boolean;
   }[];
+}
+
+// ==================== EXAM SESSIONS LIST ====================
+
+export interface ExamSessionListItem {
+  id: string;
+  examId: string;
+  examTitle: string;
+  status: ExamSessionStatus;
+  startedAt: string;
+  finishedAt: string | null;
+  score: number | null;
+  maxScore: number | null;
+  totalItems: number;
+  correctItems: number;
+  pendingItems: number;
+  questionCount: number;
+  problemCount: number;
+}
+
+export interface PaginatedExamSessions {
+  data: ExamSessionListItem[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}
+
+export interface QueryExamSessionsParams {
+  page?: number;
+  limit?: number;
+  status?: ExamSessionStatus;
+  sortBy?: "startedAt" | "score" | "finishedAt";
+  sortOrder?: "asc" | "desc";
+}
+
+// ==================== UNIFIED SUBMISSIONS ====================
+
+export type UnifiedSubmissionType = "PROBLEM" | "EXAM";
+
+export interface UnifiedSubmissionItem {
+  id: string;
+  type: UnifiedSubmissionType;
+  title: string;
+  slug: string | null;
+  difficulty: Difficulty | null;
+  status: string;
+  language: string | null;
+  totalTestCases: number | null;
+  passedTestCases: number | null;
+  executionTime: number | null;
+  score: number | null;
+  maxScore: number | null;
+  totalItems: number | null;
+  correctItems: number | null;
+  pendingItems: number | null;
+  questionCount: number | null;
+  problemCount: number | null;
+  examId: string | null;
+  date: string;
+}
+
+export interface PaginatedUnifiedSubmissions {
+  data: UnifiedSubmissionItem[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}
+
+export interface QueryUnifiedSubmissionsParams {
+  page?: number;
+  limit?: number;
+  type?: "PROBLEM" | "EXAM" | "ALL";
+  sortOrder?: "asc" | "desc";
 }

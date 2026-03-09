@@ -9,6 +9,8 @@ import type {
   SaveAnswerRequest,
   SessionResult,
   GradeSessionRequest,
+  PaginatedExamSessions,
+  QueryExamSessionsParams,
 } from "./types";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
@@ -195,6 +197,30 @@ class ExamsApiClient {
         method: "PATCH",
         headers: { Authorization: `Bearer ${accessToken}` },
         body: JSON.stringify(data),
+      },
+    );
+  }
+
+  // ==================== EXAM SESSIONS LIST ====================
+
+  async listSessions(
+    params?: QueryExamSessionsParams,
+    accessToken?: string,
+  ): Promise<PaginatedExamSessions> {
+    const searchParams = new URLSearchParams();
+    if (params?.page) searchParams.append("page", params.page.toString());
+    if (params?.limit) searchParams.append("limit", params.limit.toString());
+    if (params?.status) searchParams.append("status", params.status);
+    if (params?.sortBy) searchParams.append("sortBy", params.sortBy);
+    if (params?.sortOrder) searchParams.append("sortOrder", params.sortOrder);
+
+    const queryString = searchParams.toString();
+    return this.request<PaginatedExamSessions>(
+      `/api/exams/sessions${queryString ? `?${queryString}` : ""}`,
+      {
+        headers: accessToken
+          ? { Authorization: `Bearer ${accessToken}` }
+          : undefined,
       },
     );
   }

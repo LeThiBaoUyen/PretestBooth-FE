@@ -2,11 +2,15 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { examsApiClient } from "@/lib/api/exams";
+import { executionApi } from "@/lib/api/execution";
 import { useAuth } from "@/lib/hooks";
+import CodeEditor from "@/components/exam/CodeEditor";
 import type {
   ShuffledExamSession,
   ShuffledItem,
   SessionResult,
+  ExecuteCodeResponse,
+  LanguageInfo,
 } from "@/lib/api/types";
 
 const QuizScreen = () => {
@@ -22,9 +26,9 @@ const QuizScreen = () => {
 
   // All items combined (questions first, then problems)
   const [allItems, setAllItems] = useState<ShuffledItem[]>([]);
-  // Map: examItemId -> { selectedChoiceIds, textAnswer }
+  // Map: examItemId -> { selectedChoiceIds, textAnswer, sourceCode, language, languageVersion }
   const [answerMap, setAnswerMap] = useState<
-    Record<string, { selectedChoiceIds: string[]; textAnswer: string | null }>
+    Record<string, { selectedChoiceIds: string[]; textAnswer: string | null; sourceCode?: string; language?: string; languageVersion?: string }>
   >({});
 
   const [current, setCurrent] = useState(0);
@@ -33,9 +37,13 @@ const QuizScreen = () => {
   const [showResult, setShowResult] = useState(false);
   const [result, setResult] = useState<SessionResult | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [languages, setLanguages] = useState<LanguageInfo[]>([]);
+  const [codeOutput, setCodeOutput] = useState<ExecuteCodeResponse | null>(null);
+  const [runningCode, setRunningCode] = useState(false);
 
   // Save debounce ref
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const codeSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Fetch session
   useEffect(() => {
@@ -54,13 +62,30 @@ const QuizScreen = () => {
         // Restore previously saved answers
         const map: Record<
           string,
-          { selectedChoiceIds: string[]; textAnswer: string | null }
+          { selectedChoiceIds: string[]; textAnswer: string | null; sourceCode?: string; language?: string; languageVersion?: string }
         > = {};
         for (const ans of data.answers || []) {
           map[ans.examItemId] = {
             selectedChoiceIds: ans.selectedChoiceIds || [],
             textAnswer: ans.textAnswer || null,
+            sourceCode: ans.sourceCode || undefined,
+            language: ans.language || undefined,
+            languageVersion: ans.languageVersion || undefined,
           };
+        }
+        // Set default code for problem items without saved code
+        for (const item of items) {
+          if (item.problem && !map[item.id]?.sourceCode) {
+            const defaultLang = Object.keys(item.problem.starterCode || {})[0] || "python";
+            map[item.id] = {
+              ...map[item.id],
+              selectedChoiceIds: map[item.id]?.selectedChoiceIds || [],
+              textAnswer: map[item.id]?.textAnswer || null,
+              sourceCode: item.problem.starterCode?.[defaultLang] || "",
+              language: defaultLang,
+              languageVersion: "*",
+            };
+          }
         }
         setAnswerMap(map);
 
@@ -77,6 +102,16 @@ const QuizScreen = () => {
     }
     fetchSession();
   }, [sessionId, accessToken]);
+
+  // Fetch available languages
+  useEffect(() => {
+    executionApi.getLanguages().then(setLanguages).catch(() => {});
+  }, []);
+
+  // Clear code output when navigating between items
+  useEffect(() => {
+    setCodeOutput(null);
+  }, [current]);
 
   // Timer
   useEffect(() => {
@@ -102,6 +137,9 @@ const QuizScreen = () => {
       examItemId: string,
       selectedChoiceIds: string[],
       textAnswer: string | null,
+      sourceCode?: string | null,
+      language?: string | null,
+      languageVersion?: string | null,
     ) => {
       if (!sessionId || !accessToken) return;
       if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
@@ -109,7 +147,7 @@ const QuizScreen = () => {
         try {
           await examsApiClient.saveAnswer(
             sessionId,
-            { examItemId, selectedChoiceIds, textAnswer },
+            { examItemId, selectedChoiceIds, textAnswer, sourceCode, language, languageVersion },
             accessToken,
           );
         } catch {
@@ -138,6 +176,7 @@ const QuizScreen = () => {
     const newMap = {
       ...answerMap,
       [item.id]: {
+        ...answerMap[item.id],
         selectedChoiceIds: newSelected,
         textAnswer: answerMap[item.id]?.textAnswer || null,
       },
@@ -152,12 +191,74 @@ const QuizScreen = () => {
     const newMap = {
       ...answerMap,
       [item.id]: {
+        ...answerMap[item.id],
         selectedChoiceIds: answerMap[item.id]?.selectedChoiceIds || [],
         textAnswer: text,
       },
     };
     setAnswerMap(newMap);
     saveAnswer(item.id, newMap[item.id].selectedChoiceIds, text);
+  };
+
+  const handleCodeChange = (value: string | undefined) => {
+    const item = allItems[current];
+    if (!item) return;
+    const code = value || "";
+    const prev = answerMap[item.id] || { selectedChoiceIds: [], textAnswer: null };
+    const newMap = {
+      ...answerMap,
+      [item.id]: { ...prev, sourceCode: code },
+    };
+    setAnswerMap(newMap);
+    // Debounced save for code
+    if (codeSaveTimeoutRef.current) clearTimeout(codeSaveTimeoutRef.current);
+    codeSaveTimeoutRef.current = setTimeout(() => {
+      const a = newMap[item.id];
+      saveAnswer(item.id, a.selectedChoiceIds, a.textAnswer, code, a.language, a.languageVersion);
+    }, 800);
+  };
+
+  const handleLanguageChange = (lang: string) => {
+    const item = allItems[current];
+    if (!item) return;
+    const matched = languages.find((l) => l.language === lang);
+    const ver = matched?.version || "*";
+    const prev = answerMap[item.id] || { selectedChoiceIds: [], textAnswer: null };
+    // If problem has starterCode for this language and current code is empty or matches old starter, swap to new starter
+    const starterCode = item.problem?.starterCode?.[lang] || "";
+    const oldStarter = item.problem?.starterCode?.[prev.language || ""] || "";
+    const currentCode = prev.sourceCode || "";
+    const useStarter = !currentCode || currentCode === oldStarter;
+    const newMap = {
+      ...answerMap,
+      [item.id]: { ...prev, language: lang, languageVersion: ver, sourceCode: useStarter ? starterCode : currentCode },
+    };
+    setAnswerMap(newMap);
+    const a = newMap[item.id];
+    saveAnswer(item.id, a.selectedChoiceIds, a.textAnswer, a.sourceCode, lang, ver);
+  };
+
+  const handleRunCode = async () => {
+    const item = allItems[current];
+    if (!item?.problem) return;
+    const ans = answerMap[item.id];
+    if (!ans?.sourceCode || !ans?.language) return;
+    setRunningCode(true);
+    setCodeOutput(null);
+    try {
+      const res = await executionApi.executeCode({
+        language: ans.language,
+        version: ans.languageVersion || undefined,
+        source: ans.sourceCode,
+        functionName: item.problem.functionName || undefined,
+        inputTypes: item.problem.inputTypes || undefined,
+      }, accessToken || undefined);
+      setCodeOutput(res);
+    } catch (err: any) {
+      setCodeOutput({ language: ans.language, version: "", stdout: "", stderr: err.message || "Lỗi thực thi", output: "", exitCode: 1, signal: null, isSuccess: false, isCompileError: false, executionTime: 0, networkTime: 0, totalTime: 0 });
+    } finally {
+      setRunningCode(false);
+    }
   };
 
   const handleNext = () => {
@@ -206,7 +307,7 @@ const QuizScreen = () => {
   const isAnswered = (item: ShuffledItem) => {
     const ans = answerMap[item.id];
     if (!ans) return false;
-    return ans.selectedChoiceIds?.length > 0 || !!ans.textAnswer;
+    return ans.selectedChoiceIds?.length > 0 || !!ans.textAnswer || !!ans.sourceCode;
   };
 
   // Loading & error states
@@ -797,83 +898,114 @@ const QuizScreen = () => {
 
                     {/* Problem content */}
                     {currentItem.problem && (
-                      <div>
+                      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                         <div
                           style={{
                             fontWeight: 900,
-                            marginBottom: 16,
                             fontSize: 22,
                             color: "#0d47a1",
                             lineHeight: 1.3,
                           }}
                         >
-                          <span
-                            style={{
-                              color: "#0d47a1",
-                              fontWeight: 900,
-                              fontSize: 24,
-                            }}
-                          >
+                          <span style={{ color: "#0d47a1", fontWeight: 900, fontSize: 24 }}>
                             Câu {current + 1}:
                           </span>{" "}
-                          <span
-                            style={{
-                              fontWeight: 600,
-                              color: "#222",
-                              fontSize: 22,
-                            }}
-                          >
+                          <span style={{ fontWeight: 600, color: "#222", fontSize: 22 }}>
                             {currentItem.problem.title}
                           </span>
                         </div>
-                        <div
-                          style={{
-                            fontSize: 16,
-                            color: "#444",
-                            marginBottom: 16,
-                            lineHeight: 1.6,
-                            whiteSpace: "pre-wrap",
-                          }}
-                          dangerouslySetInnerHTML={{
-                            __html: currentItem.problem.description,
-                          }}
-                        />
-                        {currentItem.problem.constraints && (
-                          <div
+                        {/* Collapsible description */}
+                        <details style={{ background: "#f8f9fa", borderRadius: 10, border: "1px solid #e0e0e0" }}>
+                          <summary style={{ padding: "10px 16px", cursor: "pointer", fontWeight: 700, color: "#1976d2", fontSize: 15 }}>
+                            📋 Xem đề bài &amp; ràng buộc
+                          </summary>
+                          <div style={{ padding: "0 16px 12px 16px" }}>
+                            <div
+                              style={{ fontSize: 15, color: "#444", lineHeight: 1.6, whiteSpace: "pre-wrap", marginBottom: 8 }}
+                              dangerouslySetInnerHTML={{ __html: currentItem.problem.description }}
+                            />
+                            {currentItem.problem.constraints && (
+                              <div style={{ fontSize: 13, color: "#666", marginBottom: 4 }}>
+                                <strong>Ràng buộc:</strong> {currentItem.problem.constraints}
+                              </div>
+                            )}
+                            <div style={{ fontSize: 12, color: "#888" }}>
+                              ⏱ Time limit: {currentItem.problem.timeLimit}ms | 💾 Memory: {currentItem.problem.memoryLimit}MB
+                            </div>
+                          </div>
+                        </details>
+
+                        {/* Code Editor */}
+                        <div style={{ height: 320, borderRadius: 12, overflow: "hidden" }}>
+                          <CodeEditor
+                            code={answerMap[currentItem.id]?.sourceCode || ""}
+                            language={answerMap[currentItem.id]?.language || "python"}
+                            onChange={handleCodeChange}
+                            onLanguageChange={handleLanguageChange}
+                          />
+                        </div>
+
+                        {/* Run button + output */}
+                        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                          <button
+                            onClick={handleRunCode}
+                            disabled={runningCode || !answerMap[currentItem.id]?.sourceCode}
                             style={{
+                              padding: "8px 20px",
+                              borderRadius: 8,
+                              border: "none",
+                              background: runningCode ? "#90caf9" : "linear-gradient(90deg, #1976d2, #2196f3)",
+                              color: "#fff",
+                              fontWeight: 800,
                               fontSize: 14,
-                              color: "#666",
-                              marginBottom: 12,
+                              cursor: runningCode ? "not-allowed" : "pointer",
+                              transition: "all 0.15s",
                             }}
                           >
-                            <strong>Ràng buộc:</strong>{" "}
-                            {currentItem.problem.constraints}
+                            {runningCode ? "⏳ Đang chạy..." : "▶ Chạy thử"}
+                          </button>
+                          <span style={{ fontSize: 12, color: "#888" }}>
+                            Code được tự động lưu • Chấm điểm khi nộp bài
+                          </span>
+                        </div>
+
+                        {/* Code output */}
+                        {codeOutput && (
+                          <div
+                            style={{
+                              background: "#1e1e1e",
+                              borderRadius: 10,
+                              padding: "12px 16px",
+                              maxHeight: 160,
+                              overflowY: "auto",
+                              fontSize: 13,
+                              fontFamily: "'Fira Code', 'Consolas', monospace",
+                            }}
+                          >
+                            <div style={{ color: codeOutput.isSuccess ? "#4caf50" : "#ef5350", fontWeight: 700, marginBottom: 6, fontSize: 12 }}>
+                              {codeOutput.isSuccess ? "✅ Thành công" : codeOutput.isCompileError ? "❌ Lỗi biên dịch" : "❌ Lỗi thực thi"}
+                              {codeOutput.executionTime > 0 && <span style={{ color: "#888", fontWeight: 400 }}> • {codeOutput.executionTime}ms</span>}
+                            </div>
+                            {codeOutput.stdout && (
+                              <div style={{ color: "#e0e0e0", whiteSpace: "pre-wrap", marginBottom: 4 }}>
+                                {codeOutput.stdout}
+                              </div>
+                            )}
+                            {codeOutput.stderr && (
+                              <div style={{ color: "#ef5350", whiteSpace: "pre-wrap" }}>
+                                {codeOutput.stderr}
+                              </div>
+                            )}
+                            {codeOutput.compileOutput && (
+                              <div style={{ color: "#ff9800", whiteSpace: "pre-wrap" }}>
+                                {codeOutput.compileOutput}
+                              </div>
+                            )}
+                            {!codeOutput.stdout && !codeOutput.stderr && !codeOutput.compileOutput && (
+                              <div style={{ color: "#888" }}>Không có output</div>
+                            )}
                           </div>
                         )}
-                        <div
-                          style={{
-                            fontSize: 13,
-                            color: "#888",
-                            marginBottom: 8,
-                          }}
-                        >
-                          ⏱ Time limit: {currentItem.problem.timeLimit}ms | 💾
-                          Memory: {currentItem.problem.memoryLimit}MB
-                        </div>
-                        <div
-                          style={{
-                            background: "#fffde7",
-                            borderRadius: 10,
-                            padding: 16,
-                            fontSize: 14,
-                            color: "#666",
-                            border: "1px solid #fff9c4",
-                          }}
-                        >
-                          💡 Bài code cần được giải trên trang{" "}
-                          <strong>/exam</strong>. Bạn có thể ghi chú ở đây hoặc
-                          bấm nộp bài cuối cùng.
-                        </div>
                       </div>
                     )}
                   </div>
