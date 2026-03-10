@@ -2,7 +2,7 @@
 import { useState, useEffect, use } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import Header from "@/components/Header";
+// ...existing code...
 import Footer from "@/components/Footer";
 import { examsApiClient } from "@/lib/api/exams";
 import { useAuth } from "@/lib/hooks";
@@ -77,7 +77,7 @@ export default function ExamDetailPage({
 
   return (
     <>
-      <Header />
+      {/* Header removed, handled by layout.tsx */}
       <main className="min-h-screen bg-gradient-to-br from-rose-50 via-white to-rose-100 pt-16 pb-20">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           {/* Back button */}

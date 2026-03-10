@@ -3,7 +3,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import Header from "@/components/Header";
+// ...existing code...
 import Footer from "@/components/Footer";
 import { questionsApiClient } from "@/lib/api/questions";
 import { useAuth } from "@/lib/hooks";
@@ -102,7 +102,7 @@ export default function QuestionDetailPage() {
   if (isLoading) {
     return (
       <>
-        <Header />
+        {/* Header removed, handled by layout.tsx */}
         <main className="min-h-screen bg-gradient-to-br from-rose-50 via-white to-navy-50 pt-16 pb-20">
           <div className="flex justify-center items-center py-20">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-navy-600"></div>
@@ -116,7 +116,7 @@ export default function QuestionDetailPage() {
   if (error || !question) {
     return (
       <>
-        <Header />
+        {/* Header removed, handled by layout.tsx */}
         <main className="min-h-screen bg-gradient-to-br from-rose-50 via-white to-navy-50 pt-16 pb-20">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
             <div className="bg-red-50 border border-red-200 rounded-lg p-12 text-center">
@@ -143,7 +143,7 @@ export default function QuestionDetailPage() {
 
   return (
     <>
-      <Header />
+      {/* Header removed, handled by layout.tsx */}
       <main className="min-h-screen bg-gradient-to-br from-rose-50 via-white to-navy-50 pt-16 pb-20">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           {/* Back */}

@@ -1,6 +1,6 @@
 "use client";
 
-import Header from "@/components/Header";
+// ...existing code...
 import Footer from "@/components/Footer";
 import EditQuestionForm from "./EditQuestionForm";
 

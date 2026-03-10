@@ -779,9 +779,9 @@ const QuizScreen = () => {
                 style={{
                   display: "flex",
                   alignItems: "center",
-                  marginBottom: 32,
+                  marginBottom: 12,
                   justifyContent: "center",
-                  minHeight: 90,
+                  minHeight: 40,
                 }}
               >
                 <img
@@ -812,8 +812,8 @@ const QuizScreen = () => {
                   style={{
                     background: "#fff",
                     borderRadius: 18,
-                    padding: "36px 72px 28px 72px",
-                    margin: "32px auto 0 auto",
+                    padding: "24px 48px 18px 48px",
+                    margin: "8px auto 0 auto",
                     maxWidth: 900,
                     width: "100%",
                     display: "flex",
@@ -823,6 +823,10 @@ const QuizScreen = () => {
                     border: "2.5px solid #e0e0e0",
                     boxShadow: "0 2px 16px #0003",
                     backgroundClip: "padding-box",
+                    overflowY:
+                      currentItem && currentItem.problem ? "auto" : undefined,
+                    maxHeight:
+                      currentItem && currentItem.problem ? "80vh" : undefined,
                   }}
                 >
                   <div

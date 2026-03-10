@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import Header from "@/components/Header";
+// ...existing code...
 import Footer from "@/components/Footer";
 import { FormInput, SubmitButton } from "@/components/FormComponents";
 import { apiClient } from "@/lib/api/auth";
@@ -83,7 +83,7 @@ export default function LoginPage() {
 
   return (
     <>
-      <Header />
+      {/* Header removed, handled by layout.tsx */}
       <main className="min-h-screen bg-gradient-to-br from-rose-50 via-white to-navy-50 py-12 px-4">
         <div className="max-w-md mx-auto">
           <div className="bg-white rounded-2xl shadow-xl p-8">
