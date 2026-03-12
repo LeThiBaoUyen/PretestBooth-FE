@@ -1,11 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import type { Difficulty, QuestionType } from "@/lib/api/types";
 import { questionsApiClient } from "@/lib/api/questions";
 import { useAuth } from "@/lib/hooks/useAuth";
+import { getTokenManager } from "@/lib/auth/tokenManager";
+import { Upload } from "lucide-react";
 
 export default function QuestionsLibrary() {
   const { user, accessToken } = useAuth();
@@ -14,6 +16,8 @@ export default function QuestionsLibrary() {
   const [questionType, setQuestionType] = useState<QuestionType | "ALL">("ALL");
   const [subjectId, setSubjectId] = useState<string>("ALL");
   const [search, setSearch] = useState("");
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const limit = 20;
 
   const isAuthorized = user && ["LECTURER", "ADMIN"].includes(user.role);
@@ -42,6 +46,38 @@ export default function QuestionsLibrary() {
         accessToken || undefined,
       ),
   });
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const formData = new FormData();
+    formData.append("file", file);
+
+    setIsUploading(true);
+    try {
+      const token = getTokenManager().getAccessToken();
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000"}/api/questions/import`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`
+        },
+        body: formData,
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "Import failed");
+
+      alert(`Import thành công! Đã xử lý ${data.totalProcessed || 0} dòng.`);
+      // Reload query data or just refresh page
+      window.location.reload();
+    } catch (err: any) {
+      alert(err.message || "Lỗi khi upload file");
+    } finally {
+      setIsUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
 
   const getDifficultyColor = (diff: Difficulty) => {
     switch (diff) {
@@ -111,12 +147,33 @@ export default function QuestionsLibrary() {
           </p>
         </div>
         {isAuthorized && (
-          <Link
-            href="/question-bank/questions/create"
-            className="px-5 py-2.5 bg-navy-600 text-white rounded-lg hover:bg-navy-700 transition font-medium text-sm flex items-center gap-2"
-          >
-            + Tạo câu hỏi
-          </Link>
+          <div className="flex items-center space-x-3">
+            <input 
+              type="file" 
+              ref={fileInputRef} 
+              className="hidden" 
+              accept=".csv, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel"
+              onChange={handleFileUpload}
+            />
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              disabled={isUploading}
+              className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition font-medium text-sm flex items-center gap-2 shadow-sm disabled:opacity-50"
+            >
+              {isUploading ? (
+                <span className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></span>
+              ) : (
+                <Upload className="w-4 h-4" />
+              )}
+              Import Excel
+            </button>
+            <Link
+              href="/question-bank/questions/create"
+              className="px-5 py-2.5 bg-navy-600 text-white rounded-lg hover:bg-navy-700 transition font-medium text-sm flex items-center gap-2 shadow-sm"
+            >
+              + Tạo câu hỏi
+            </Link>
+          </div>
         )}
       </div>
 

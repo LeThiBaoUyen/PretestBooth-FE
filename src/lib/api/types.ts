@@ -784,3 +784,118 @@ export interface QueryUnifiedSubmissionsParams {
   type?: "PROBLEM" | "EXAM" | "ALL";
   sortOrder?: "asc" | "desc";
 }
+
+// ==================== NEW MODULES (PHASE 1) ====================
+
+// Booths
+export type BoothStatus = "ACTIVE" | "MAINTENANCE" | "INACTIVE";
+
+export interface Booth {
+  id: string;
+  name: string;
+  description: string | null;
+  location: string | null;
+  status: BoothStatus;
+  _count?: { bookings: number };
+  createdAt: string;
+  updatedAt: string;
+}
+
+// Bookings
+export type BookingStatus = "PENDING" | "CONFIRMED" | "CHECKED_IN" | "COMPLETED" | "CANCELLED" | "NO_SHOW";
+export type BookingType = "PRACTICE" | "EXAM";
+
+export interface Booking {
+  id: string;
+  userId: string;
+  boothId: string;
+  date: string;
+  startTime: string;
+  endTime: string;
+  status: BookingStatus;
+  type: BookingType;
+  checkedInAt: string | null;
+  checkedOutAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  booth?: Booth;
+  user?: Partial<User>;
+}
+
+export interface AvailableTimeSlot {
+  startTime: string;
+  endTime: string;
+  totalBooths: number;
+  bookedBooths: number;
+  availableBooths: number;
+  bookedBoothIds: string[];
+}
+
+export interface AvailabilityResponse {
+  date: string;
+  booths: Booth[];
+  slots: AvailableTimeSlot[];
+}
+
+// Practice
+export interface PracticeSession {
+  id: string;
+  userId: string;
+  duration: number;
+  totalItems: number;
+  difficulty: Difficulty | null;
+  subjectId: string | null;
+  topicId: string | null;
+  categoryId: string | null;
+  status: "IN_PROGRESS" | "COMPLETED";
+  startedAt: string;
+  finishedAt: string | null;
+  score: number | null;
+  maxScore: number | null;
+  items?: PracticeSessionItem[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PracticeSessionItem {
+  id: string;
+  sessionId: string;
+  questionId: string | null;
+  problemId: string | null;
+  order: number;
+  points: number;
+  question?: Question | null;
+  problem?: Problem | null;
+  answers?: PracticeSessionAnswer[];
+}
+
+export interface PracticeSessionAnswer {
+  id: string;
+  itemId: string;
+  selectedChoiceIds: string[];
+  textAnswer: string | null;
+  sourceCode: string | null;
+  language: string | null;
+  languageVersion: string | null;
+  isCorrect: boolean | null;
+  score: number | null;
+}
+
+// Dashboard
+export interface StudentStats {
+  points: number;
+  completedExams: number;
+  completedPractices: number;
+  submissionAccuracy: number;
+  totalSubmissions: number;
+  upcomingBookings: Booking[];
+}
+
+export interface AdminStats {
+  totalStudents: number;
+  activeBooths: number;
+  todayBookings: number;
+  totalExams: number;
+  boothUtilizationPercent: number;
+  recentProctoringEvents: any[];
+}

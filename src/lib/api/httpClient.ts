@@ -137,7 +137,8 @@ class HttpClient {
         );
       }
 
-      return data as T;
+      // Auto-unwrap the backend's TransformInterceptor payload if present
+      return (data.data !== undefined ? data.data : data) as T;
     } catch (error) {
       if (error instanceof Error) {
         throw error;
