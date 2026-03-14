@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { FolderTree, Folder, ChevronRight, Plus, Edit, Trash2 } from "lucide-react";
+import { FolderTree, Folder, Plus, Trash2 } from "lucide-react";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { useAuth } from "@/lib/hooks";

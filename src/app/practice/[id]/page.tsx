@@ -1,13 +1,12 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { Clock, Send, CheckCircle2, AlertTriangle, ArrowLeft, ArrowRight, BookOpen } from "lucide-react";
+import { Clock, Send, CheckCircle2, ArrowLeft, ArrowRight, BookOpen } from "lucide-react";
 import { useAuth } from "@/lib/hooks";
 import { practiceApi } from "@/lib/api/practice";
-import type { PracticeSession, PracticeSessionItem } from "@/lib/api/types";
+import type { PracticeSession } from "@/lib/api/types";
 import Editor from "@monaco-editor/react";
-import ProctoringOverlay from "@/components/ProctoringOverlay";
 
 export default function PracticeExecutionPage() {
   const { id } = useParams() as { id: string };

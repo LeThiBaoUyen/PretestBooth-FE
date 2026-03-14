@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react";
 import { format } from "date-fns";
-import { vi } from "date-fns/locale";
 import { useAuth } from "@/lib/hooks";
 import { boothsApi } from "@/lib/api/booths";
 import { bookingsApi } from "@/lib/api/bookings";
@@ -13,8 +12,7 @@ import {
   PowerOff, 
   CheckCircle2, 
   LogOut,
-  Calendar,
-  AlertCircle
+  Calendar
 } from "lucide-react";
 
 export default function AdminBoothsPage() {

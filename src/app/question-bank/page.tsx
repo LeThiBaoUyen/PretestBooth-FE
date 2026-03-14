@@ -1,6 +1,5 @@
 "use client";
 
-import Footer from "@/components/Footer";
 import QuestionBankHome from "./QuestionBankHome";
 
 export default function QuestionBankPage() {

@@ -3,12 +3,11 @@
 import { useState, useEffect, useRef } from "react";
 import { 
   Search, 
-  Upload, 
   UserX, 
   UserCheck, 
-  Download,
   AlertCircle,
-  FileSpreadsheet
+  FileSpreadsheet,
+  CheckCircle
 } from "lucide-react";
 import { useAuth } from "@/lib/hooks";
 import { usersApi } from "@/lib/api/users";
