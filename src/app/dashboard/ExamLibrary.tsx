@@ -4,15 +4,17 @@ import { examsApiClient } from "@/lib/api/exams";
 import { questionsApiClient } from "@/lib/api/questions";
 import { useAuth } from "@/lib/hooks";
 import type { ExamListItem, Subject } from "@/lib/api/types";
+import { BookOpen, Filter, RefreshCw, Sparkles } from "lucide-react";
 
 import ExamSelection from "./ExamSelection";
 import Link from "next/link";
 
 export default function ExamLibrary() {
-  const { accessToken, user } = useAuth();
+  const { accessToken, user, userLoading } = useAuth();
   const [selectedSubject, setSelectedSubject] = useState("Tất cả");
   const [search, setSearch] = useState("");
-  const [activeTab, setActiveTab] = useState("all");
+  const [activeTab, setActiveTab] = useState<"all" | "published" | "custom">("all");
+  const [error, setError] = useState<string | null>(null);
 
   // Data
   const [exams, setExams] = useState<ExamListItem[]>([]);
@@ -25,17 +27,19 @@ export default function ExamLibrary() {
   const canManage = (exam: ExamListItem) =>
     user?.role === "ADMIN" ||
     (user?.role === "LECTURER" && exam.creatorId === user.id);
+  const canCreateExam = user?.role === "ADMIN" || user?.role === "LECTURER";
 
   // Fetch subjects
   useEffect(() => {
     async function fetchSubjects() {
       try {
+        if (!accessToken) return;
         const data = await questionsApiClient.getSubjects(
-          accessToken || undefined,
+          accessToken,
         );
         setSubjects(data);
       } catch {
-        // ignore
+        setSubjects([]);
       }
     }
     fetchSubjects();
@@ -43,7 +47,15 @@ export default function ExamLibrary() {
 
   // Fetch exams
   const fetchExams = useCallback(async () => {
+    if (!accessToken) {
+      setLoading(false);
+      setExams([]);
+      setTotal(0);
+      return;
+    }
+
     setLoading(true);
+    setError(null);
     try {
       const subjectMatch =
         selectedSubject !== "Tất cả"
@@ -56,17 +68,20 @@ export default function ExamLibrary() {
           limit: 12,
           subjectId: subjectMatch?.id,
           search: search || undefined,
+          isPublished: activeTab === "published" ? true : undefined,
         },
-        accessToken || undefined,
+        accessToken,
       );
       setExams(result.data);
       setTotal(result.total);
-    } catch {
+    } catch (err: any) {
       setExams([]);
+      setTotal(0);
+      setError(err?.message || "Không thể tải danh sách đề thi.");
     } finally {
       setLoading(false);
     }
-  }, [page, selectedSubject, search, subjects, accessToken]);
+  }, [page, selectedSubject, search, subjects, accessToken, activeTab]);
 
   useEffect(() => {
     fetchExams();
@@ -74,9 +89,49 @@ export default function ExamLibrary() {
 
   const subjectNames = ["Tất cả", ...subjects.map((s) => s.name)];
 
+  if (userLoading) {
+    return (
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center text-gray-500">
+          Đang kiểm tra phiên đăng nhập...
+        </div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        <div className="rounded-2xl border border-slate-200 bg-white p-10 text-center">
+          <BookOpen className="mx-auto h-10 w-10 text-slate-300" />
+          <h2 className="mt-4 text-2xl font-bold text-slate-900">Bạn cần đăng nhập để xem đề thi</h2>
+          <p className="mt-2 text-slate-600">API exam yêu cầu xác thực, vui lòng đăng nhập rồi thử lại.</p>
+          <Link
+            href="/login"
+            className="mt-6 inline-block rounded-lg bg-navy-600 px-5 py-2.5 font-semibold text-white hover:bg-navy-700"
+          >
+            Đi tới đăng nhập
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <h1 className="text-3xl font-bold text-navy-600 mb-6">Thư viện đề thi</h1>
+      <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm mb-6">
+        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-navy-700">Thư viện đề thi</h1>
+            <p className="mt-1 text-sm text-slate-600">Duyệt đề đã công bố, tìm theo môn học và bắt đầu phiên thi ngay.</p>
+          </div>
+          <div className="inline-flex items-center gap-2 rounded-full bg-navy-50 px-3 py-1 text-xs font-bold text-navy-700">
+            <Sparkles className="h-3.5 w-3.5" />
+            {user.role}
+          </div>
+        </div>
+      </div>
+
       <div className="flex flex-wrap gap-2 mb-6">
         {subjectNames.map((subject) => (
           <button
@@ -95,6 +150,7 @@ export default function ExamLibrary() {
           </button>
         ))}
       </div>
+
       <div className="flex items-center gap-2 mb-8">
         <input
           type="text"
@@ -112,30 +168,48 @@ export default function ExamLibrary() {
         >
           Tìm kiếm
         </button>
+        <button
+          className="p-2 border border-slate-300 rounded-lg text-slate-600 hover:bg-slate-50"
+          onClick={() => fetchExams()}
+          title="Tải lại"
+        >
+          <RefreshCw className="h-4 w-4" />
+        </button>
       </div>
+
       {/* Tabs */}
       <div className="flex gap-6 border-b border-navy-100 mb-8">
         <button
           className={`pb-2 font-semibold text-lg border-b-2 transition ${activeTab === "all" ? "border-navy-600 text-navy-600" : "border-transparent text-gray-500"}`}
           onClick={() => setActiveTab("all")}
         >
-          Tất cả
+          Tất cả đề
         </button>
         <button
-          className={`pb-2 font-semibold text-lg border-b-2 transition ${activeTab === "compact" ? "border-navy-600 text-navy-600" : "border-transparent text-gray-500"}`}
-          onClick={() => setActiveTab("compact")}
+          className={`pb-2 font-semibold text-lg border-b-2 transition ${activeTab === "published" ? "border-navy-600 text-navy-600" : "border-transparent text-gray-500"}`}
+          onClick={() => setActiveTab("published")}
         >
-          Đề rút gọn
+          Chỉ đề công bố
         </button>
-        <button
-          className={`pb-2 font-semibold text-lg border-b-2 transition ${activeTab === "custom" ? "border-navy-600 text-navy-600" : "border-transparent text-gray-500"}`}
-          onClick={() => setActiveTab("custom")}
-        >
-          Sinh viên tự tạo bộ đề
-        </button>
+        {canCreateExam && (
+          <button
+            className={`pb-2 font-semibold text-lg border-b-2 transition ${activeTab === "custom" ? "border-navy-600 text-navy-600" : "border-transparent text-gray-500"}`}
+            onClick={() => setActiveTab("custom")}
+          >
+            Tạo đề mới
+          </button>
+        )}
       </div>
+
+      {error && activeTab !== "custom" && (
+        <div className="mb-6 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+          <div className="font-semibold">Không tải được dữ liệu đề thi</div>
+          <div className="mt-1">{error}</div>
+        </div>
+      )}
+
       {/* Tab content */}
-      {activeTab === "custom" ? (
+      {activeTab === "custom" && canCreateExam ? (
         <ExamSelection
           onExamCreated={() => {
             setActiveTab("all");
@@ -150,7 +224,7 @@ export default function ExamLibrary() {
             {exams.map((exam) => (
               <div
                 key={exam.id}
-                className="bg-white rounded-xl shadow-md p-5 flex flex-col justify-between border border-navy-100 relative"
+                className="bg-white rounded-xl shadow-sm p-5 flex flex-col justify-between border border-slate-200 relative hover:shadow-md transition"
               >
                 <div>
                   <h2 className="text-lg font-bold text-navy-700 mb-2 line-clamp-2">
@@ -180,6 +254,10 @@ export default function ExamLibrary() {
                   <div className="text-xs text-gray-400 mb-2">
                     Trắc nghiệm: {exam.questionCount} | Code:{" "}
                     {exam.problemCount}
+                  </div>
+                  <div className="text-xs text-gray-500 mb-2 flex items-center gap-2">
+                    <Filter className="h-3 w-3" />
+                    {exam.isPublished ? "Công bố" : "Nháp"}
                   </div>
                 </div>
                 <Link

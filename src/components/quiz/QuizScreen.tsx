@@ -1,168 +1,103 @@
 "use client";
-import { useState, useEffect, useCallback, useRef } from "react";
+
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { examsApiClient } from "@/lib/api/exams";
 import { executionApi } from "@/lib/api/execution";
 import { useAuth } from "@/lib/hooks";
 import CodeEditor from "@/components/exam/CodeEditor";
 import type {
-  ShuffledExamSession,
-  ShuffledItem,
-  SessionResult,
   ExecuteCodeResponse,
   LanguageInfo,
+  SessionResult,
+  ShuffledExamSession,
+  ShuffledItem,
 } from "@/lib/api/types";
+
+type AnswerValue = {
+  selectedChoiceIds: string[];
+  textAnswer: string | null;
+  sourceCode?: string;
+  language?: string;
+  languageVersion?: string;
+};
+
+function formatTime(totalSeconds: number) {
+  const minutes = Math.floor(totalSeconds / 60)
+    .toString()
+    .padStart(2, "0");
+  const seconds = (totalSeconds % 60).toString().padStart(2, "0");
+  return `${minutes}:${seconds}`;
+}
+
+function getDifficultyBadge(difficulty?: string) {
+  if (!difficulty) return "bg-slate-100 text-slate-600";
+  if (difficulty === "EASY") return "bg-emerald-100 text-emerald-700";
+  if (difficulty === "MEDIUM") return "bg-amber-100 text-amber-700";
+  return "bg-red-100 text-red-700";
+}
 
 const QuizScreen = () => {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { accessToken, userLoading } = useAuth();
   const sessionId = searchParams.get("sessionId");
-  const { accessToken } = useAuth();
 
-  // Session data
   const [session, setSession] = useState<ShuffledExamSession | null>(null);
+  const [items, setItems] = useState<ShuffledItem[]>([]);
+  const [answerMap, setAnswerMap] = useState<Record<string, AnswerValue>>({});
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  // All items combined (questions first, then problems)
-  const [allItems, setAllItems] = useState<ShuffledItem[]>([]);
-  // Map: examItemId -> { selectedChoiceIds, textAnswer, sourceCode, language, languageVersion }
-  const [answerMap, setAnswerMap] = useState<
-    Record<
-      string,
-      {
-        selectedChoiceIds: string[];
-        textAnswer: string | null;
-        sourceCode?: string;
-        language?: string;
-        languageVersion?: string;
-      }
-    >
-  >({});
-
-  const [current, setCurrent] = useState(0);
+  const [currentIndex, setCurrentIndex] = useState(0);
   const [timeLeft, setTimeLeft] = useState(0);
+
   const [showConfirm, setShowConfirm] = useState(false);
   const [showResult, setShowResult] = useState(false);
   const [result, setResult] = useState<SessionResult | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const [languages, setLanguages] = useState<LanguageInfo[]>([]);
-  const [codeOutput, setCodeOutput] = useState<ExecuteCodeResponse | null>(
-    null,
-  );
-  const [runningCode, setRunningCode] = useState(false);
 
-  // Save debounce ref
+  const [languages, setLanguages] = useState<LanguageInfo[]>([]);
+  const [runningCode, setRunningCode] = useState(false);
+  const [codeOutput, setCodeOutput] = useState<ExecuteCodeResponse | null>(null);
+
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const codeSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const submittingRef = useRef(false);
 
-  // Fetch session
-  useEffect(() => {
-    if (!sessionId || !accessToken) return;
-    async function fetchSession() {
-      setLoading(true);
-      try {
-        const data = await examsApiClient.getSession(sessionId!, accessToken!);
-        setSession(data);
-        const items = [
-          ...(data.questionItems || []),
-          ...(data.problemItems || []),
-        ];
-        setAllItems(items);
+  const currentItem = items[currentIndex];
+  const currentAnswer = currentItem ? answerMap[currentItem.id] : undefined;
 
-        // Restore previously saved answers
-        const map: Record<
-          string,
-          {
-            selectedChoiceIds: string[];
-            textAnswer: string | null;
-            sourceCode?: string;
-            language?: string;
-            languageVersion?: string;
-          }
-        > = {};
-        for (const ans of data.answers || []) {
-          map[ans.examItemId] = {
-            selectedChoiceIds: ans.selectedChoiceIds || [],
-            textAnswer: ans.textAnswer || null,
-            sourceCode: ans.sourceCode || undefined,
-            language: ans.language || undefined,
-            languageVersion: ans.languageVersion || undefined,
-          };
+  const answeredCount = useMemo(
+    () => items.filter((item) => {
+      const ans = answerMap[item.id];
+      if (!ans) return false;
+
+      if (item.question) {
+        if (item.question.questionType === "SHORT_ANSWER") {
+          return Boolean(ans.textAnswer && ans.textAnswer.trim().length > 0);
         }
-        // Set default code for problem items without saved code
-        for (const item of items) {
-          if (item.problem && !map[item.id]?.sourceCode) {
-            const defaultLang =
-              Object.keys(item.problem.starterCode || {})[0] || "python";
-            map[item.id] = {
-              ...map[item.id],
-              selectedChoiceIds: map[item.id]?.selectedChoiceIds || [],
-              textAnswer: map[item.id]?.textAnswer || null,
-              sourceCode: item.problem.starterCode?.[defaultLang] || "",
-              language: defaultLang,
-              languageVersion: "*",
-            };
-          }
-        }
-        setAnswerMap(map);
-
-        // Calculate remaining time
-        const startedAt = new Date(data.startedAt).getTime();
-        const elapsed = Math.floor((Date.now() - startedAt) / 1000);
-        const totalSeconds = data.duration * 60;
-        setTimeLeft(Math.max(0, totalSeconds - elapsed));
-      } catch (err: any) {
-        setError(err.message || "Không thể tải phiên thi.");
-      } finally {
-        setLoading(false);
+        return (ans.selectedChoiceIds?.length || 0) > 0;
       }
-    }
-    fetchSession();
-  }, [sessionId, accessToken]);
 
-  // Fetch available languages
-  useEffect(() => {
-    executionApi
-      .getLanguages()
-      .then(setLanguages)
-      .catch(() => {});
-  }, []);
+      if (item.problem) {
+        const language = ans.language || "";
+        const starter = item.problem.starterCode?.[language] || "";
+        const current = ans.sourceCode || "";
+        return Boolean(current.trim().length > 0 && current.trim() !== starter.trim());
+      }
 
-  // Clear code output when navigating between items
-  useEffect(() => {
-    setCodeOutput(null);
-  }, [current]);
+      return false;
+    }).length,
+    [items, answerMap],
+  );
 
-  // Timer
-  useEffect(() => {
-    if (timeLeft <= 0 || showResult) return;
-    const timer = setInterval(() => {
-      setTimeLeft((prev) => {
-        if (prev <= 1) {
-          clearInterval(timer);
-          // Auto-submit when time runs out
-          handleConfirmSubmit();
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-    return () => clearInterval(timer);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [timeLeft > 0, showResult]);
-
-  // Save answer to API (debounced)
   const saveAnswer = useCallback(
-    (
-      examItemId: string,
-      selectedChoiceIds: string[],
-      textAnswer: string | null,
-      sourceCode?: string | null,
-      language?: string | null,
-      languageVersion?: string | null,
-    ) => {
+    (examItemId: string, value: AnswerValue, debounceMs = 500) => {
       if (!sessionId || !accessToken) return;
+
       if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
       saveTimeoutRef.current = setTimeout(async () => {
         try {
@@ -170,152 +105,276 @@ const QuizScreen = () => {
             sessionId,
             {
               examItemId,
-              selectedChoiceIds,
-              textAnswer,
-              sourceCode,
-              language,
-              languageVersion,
+              selectedChoiceIds: value.selectedChoiceIds,
+              textAnswer: value.textAnswer,
+              sourceCode: value.sourceCode,
+              language: value.language,
+              languageVersion: value.languageVersion,
             },
             accessToken,
           );
         } catch {
-          // silently ignore save errors
+          // Keep silent to avoid interrupting quiz flow.
         }
-      }, 500);
+      }, debounceMs);
     },
     [sessionId, accessToken],
   );
 
-  const handleChoiceSelect = (choiceId: string) => {
-    const item = allItems[current];
-    if (!item) return;
-    const prev = answerMap[item.id]?.selectedChoiceIds || [];
-    // For multiple-choice, toggle; for single-answer questions, we do single select
-    // Since we don't know if multi-select, use single-select for MULTIPLE_CHOICE
-    const isSelected = prev.includes(choiceId);
-    let newSelected: string[];
-    if (item.question?.questionType === "MULTIPLE_CHOICE") {
-      newSelected = isSelected
-        ? prev.filter((id) => id !== choiceId)
-        : [...prev, choiceId];
-    } else {
-      newSelected = isSelected ? [] : [choiceId];
+  const handleConfirmSubmit = useCallback(async () => {
+    if (!sessionId || !accessToken || submittingRef.current) return;
+    const token = accessToken;
+
+    submittingRef.current = true;
+    setSubmitting(true);
+    setShowConfirm(false);
+
+    try {
+      const res = await examsApiClient.submitSession(sessionId, token);
+      setResult(res);
+      setShowResult(true);
+    } catch (err: any) {
+      setError(err?.message || "Không thể nộp bài.");
+    } finally {
+      submittingRef.current = false;
+      setSubmitting(false);
     }
-    const newMap = {
-      ...answerMap,
-      [item.id]: {
-        ...answerMap[item.id],
-        selectedChoiceIds: newSelected,
-        textAnswer: answerMap[item.id]?.textAnswer || null,
-      },
-    };
-    setAnswerMap(newMap);
-    saveAnswer(item.id, newSelected, newMap[item.id].textAnswer);
-  };
+  }, [sessionId, accessToken]);
 
-  const handleTextAnswer = (text: string) => {
-    const item = allItems[current];
-    if (!item) return;
-    const newMap = {
-      ...answerMap,
-      [item.id]: {
-        ...answerMap[item.id],
-        selectedChoiceIds: answerMap[item.id]?.selectedChoiceIds || [],
-        textAnswer: text,
-      },
-    };
-    setAnswerMap(newMap);
-    saveAnswer(item.id, newMap[item.id].selectedChoiceIds, text);
-  };
+  useEffect(() => {
+    const sid = sessionId ?? "";
+    const token = accessToken ?? "";
+    if (!sid || !token) return;
 
-  const handleCodeChange = (value: string | undefined) => {
-    const item = allItems[current];
-    if (!item) return;
-    const code = value || "";
-    const prev = answerMap[item.id] || {
+    async function fetchSession() {
+      setLoading(true);
+      setError("");
+
+      try {
+        const data = await examsApiClient.getSession(sid, token);
+        setSession(data);
+
+        const mergedItems = [...(data.questionItems || []), ...(data.problemItems || [])];
+        setItems(mergedItems);
+
+        const initialAnswers: Record<string, AnswerValue> = {};
+
+        for (const ans of data.answers || []) {
+          initialAnswers[ans.examItemId] = {
+            selectedChoiceIds: ans.selectedChoiceIds || [],
+            textAnswer: ans.textAnswer || null,
+            sourceCode: ans.sourceCode || undefined,
+            language: ans.language || undefined,
+            languageVersion: ans.languageVersion || undefined,
+          };
+        }
+
+        for (const item of mergedItems) {
+          if (!item.problem) continue;
+
+          const existing = initialAnswers[item.id];
+          if (existing?.sourceCode) continue;
+
+          const langs = Object.keys(item.problem.starterCode || {});
+          const defaultLang = langs[0] || "python";
+          initialAnswers[item.id] = {
+            selectedChoiceIds: existing?.selectedChoiceIds || [],
+            textAnswer: existing?.textAnswer || null,
+            language: existing?.language || defaultLang,
+            languageVersion: existing?.languageVersion || "*",
+            sourceCode: item.problem.starterCode?.[defaultLang] || "",
+          };
+        }
+
+        setAnswerMap(initialAnswers);
+
+        const startedAt = new Date(data.startedAt).getTime();
+        const elapsedSec = Math.floor((Date.now() - startedAt) / 1000);
+        const remain = Math.max(0, data.duration * 60 - elapsedSec);
+        setTimeLeft(remain);
+
+        if (data.status !== "IN_PROGRESS") {
+          try {
+            const existingResult = await examsApiClient.getResults(sid, token);
+            setResult(existingResult);
+            setShowResult(true);
+          } catch {
+            // If results are not available yet, keep on quiz screen.
+          }
+        }
+      } catch (err: any) {
+        setError(err?.message || "Không thể tải phiên thi.");
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchSession();
+  }, [sessionId, accessToken]);
+
+  useEffect(() => {
+    executionApi
+      .getLanguages()
+      .then(setLanguages)
+      .catch(() => setLanguages([]));
+  }, []);
+
+  useEffect(() => {
+    setCodeOutput(null);
+  }, [currentIndex]);
+
+  useEffect(() => {
+    if (loading || showResult || submitting || timeLeft <= 0) return;
+
+    const timer = setTimeout(() => {
+      setTimeLeft((prev) => {
+        if (prev <= 1) {
+          handleConfirmSubmit();
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearTimeout(timer);
+  }, [timeLeft, showResult, submitting, loading, handleConfirmSubmit]);
+
+  useEffect(() => {
+    return () => {
+      if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+      if (codeSaveTimeoutRef.current) clearTimeout(codeSaveTimeoutRef.current);
+    };
+  }, []);
+
+  const handleChoiceSelect = (choiceId: string) => {
+    if (!currentItem?.question) return;
+
+    const prev = answerMap[currentItem.id] || {
       selectedChoiceIds: [],
       textAnswer: null,
     };
-    const newMap = {
-      ...answerMap,
-      [item.id]: { ...prev, sourceCode: code },
+
+    const isMultiple = currentItem.question.questionType === "MULTIPLE_CHOICE";
+    const currentlySelected = prev.selectedChoiceIds || [];
+    const isSelected = currentlySelected.includes(choiceId);
+
+    const selectedChoiceIds = isMultiple
+      ? isSelected
+        ? currentlySelected.filter((id) => id !== choiceId)
+        : [...currentlySelected, choiceId]
+      : isSelected
+        ? []
+        : [choiceId];
+
+    const nextValue: AnswerValue = {
+      ...prev,
+      selectedChoiceIds,
+      textAnswer: prev.textAnswer || null,
     };
-    setAnswerMap(newMap);
-    // Debounced save for code
+
+    setAnswerMap((old) => ({ ...old, [currentItem.id]: nextValue }));
+    saveAnswer(currentItem.id, nextValue);
+  };
+
+  const handleTextAnswer = (text: string) => {
+    if (!currentItem?.question) return;
+
+    const prev = answerMap[currentItem.id] || {
+      selectedChoiceIds: [],
+      textAnswer: null,
+    };
+
+    const nextValue: AnswerValue = {
+      ...prev,
+      textAnswer: text,
+      selectedChoiceIds: prev.selectedChoiceIds || [],
+    };
+
+    setAnswerMap((old) => ({ ...old, [currentItem.id]: nextValue }));
+    saveAnswer(currentItem.id, nextValue);
+  };
+
+  const handleCodeChange = (value: string | undefined) => {
+    if (!currentItem?.problem) return;
+
+    const prev = answerMap[currentItem.id] || {
+      selectedChoiceIds: [],
+      textAnswer: null,
+      language: "python",
+      languageVersion: "*",
+    };
+
+    const nextValue: AnswerValue = {
+      ...prev,
+      sourceCode: value || "",
+    };
+
+    setAnswerMap((old) => ({ ...old, [currentItem.id]: nextValue }));
+
     if (codeSaveTimeoutRef.current) clearTimeout(codeSaveTimeoutRef.current);
     codeSaveTimeoutRef.current = setTimeout(() => {
-      const a = newMap[item.id];
-      saveAnswer(
-        item.id,
-        a.selectedChoiceIds,
-        a.textAnswer,
-        code,
-        a.language,
-        a.languageVersion,
-      );
+      saveAnswer(currentItem.id, nextValue, 0);
     }, 800);
   };
 
   const handleLanguageChange = (lang: string) => {
-    const item = allItems[current];
-    if (!item) return;
-    const matched = languages.find((l) => l.language === lang);
-    const ver = matched?.version || "*";
-    const prev = answerMap[item.id] || {
+    if (!currentItem?.problem) return;
+
+    const prev = answerMap[currentItem.id] || {
       selectedChoiceIds: [],
       textAnswer: null,
+      sourceCode: "",
     };
-    // If problem has starterCode for this language and current code is empty or matches old starter, swap to new starter
-    const starterCode = item.problem?.starterCode?.[lang] || "";
-    const oldStarter = item.problem?.starterCode?.[prev.language || ""] || "";
+
+    const matched = languages.find((l) => l.language === lang);
+    const version = matched?.version || "*";
+
+    const oldLanguage = prev.language || "";
+    const oldStarter = currentItem.problem.starterCode?.[oldLanguage] || "";
+    const nextStarter = currentItem.problem.starterCode?.[lang] || "";
     const currentCode = prev.sourceCode || "";
-    const useStarter = !currentCode || currentCode === oldStarter;
-    const newMap = {
-      ...answerMap,
-      [item.id]: {
-        ...prev,
-        language: lang,
-        languageVersion: ver,
-        sourceCode: useStarter ? starterCode : currentCode,
-      },
+
+    const shouldReplaceWithStarter = !currentCode || currentCode === oldStarter;
+
+    const nextValue: AnswerValue = {
+      ...prev,
+      language: lang,
+      languageVersion: version,
+      sourceCode: shouldReplaceWithStarter ? nextStarter : currentCode,
     };
-    setAnswerMap(newMap);
-    const a = newMap[item.id];
-    saveAnswer(
-      item.id,
-      a.selectedChoiceIds,
-      a.textAnswer,
-      a.sourceCode,
-      lang,
-      ver,
-    );
+
+    setAnswerMap((old) => ({ ...old, [currentItem.id]: nextValue }));
+    saveAnswer(currentItem.id, nextValue);
   };
 
   const handleRunCode = async () => {
-    const item = allItems[current];
-    if (!item?.problem) return;
-    const ans = answerMap[item.id];
-    if (!ans?.sourceCode || !ans?.language) return;
+    if (!currentItem?.problem) return;
+
+    const answer = answerMap[currentItem.id];
+    if (!answer?.sourceCode || !answer.language) return;
+
     setRunningCode(true);
     setCodeOutput(null);
+
     try {
-      const res = await executionApi.executeCode(
+      const output = await executionApi.executeCode(
         {
-          language: ans.language,
-          version: ans.languageVersion || undefined,
-          source: ans.sourceCode,
-          functionName: item.problem.functionName || undefined,
-          inputTypes: item.problem.inputTypes || undefined,
+          language: answer.language,
+          version: answer.languageVersion || undefined,
+          source: answer.sourceCode,
+          functionName: currentItem.problem.functionName || undefined,
+          inputTypes: currentItem.problem.inputTypes || undefined,
         },
         accessToken || undefined,
       );
-      setCodeOutput(res);
+
+      setCodeOutput(output);
     } catch (err: any) {
       setCodeOutput({
-        language: ans.language,
-        version: "",
+        language: answer.language,
+        version: answer.languageVersion || "",
         stdout: "",
-        stderr: err.message || "Lỗi thực thi",
+        stderr: err?.message || "Lỗi thực thi",
         output: "",
         exitCode: 1,
         signal: null,
@@ -330,1045 +389,331 @@ const QuizScreen = () => {
     }
   };
 
-  const handleNext = () => {
-    if (current < allItems.length - 1) setCurrent(current + 1);
-  };
+  const goPrev = () => setCurrentIndex((v) => Math.max(0, v - 1));
+  const goNext = () => setCurrentIndex((v) => Math.min(items.length - 1, v + 1));
 
-  const handlePrev = () => {
-    if (current > 0) setCurrent(current - 1);
-  };
-
-  const handleSubmit = () => {
-    setShowConfirm(true);
-  };
-
-  const handleConfirmSubmit = async () => {
-    if (!sessionId || !accessToken) return;
-    setSubmitting(true);
-    setShowConfirm(false);
-    try {
-      const res = await examsApiClient.submitSession(sessionId, accessToken);
-      setResult(res);
-      setShowResult(true);
-    } catch (err: any) {
-      alert(err.message || "Không thể nộp bài.");
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const handleCancelSubmit = () => {
-    setShowConfirm(false);
-  };
-
-  const handleFinish = () => {
-    router.push("/dashboard");
-  };
-
-  const formatTime = (sec: number) => {
-    const m = Math.floor(sec / 60)
-      .toString()
-      .padStart(2, "0");
-    const s = (sec % 60).toString().padStart(2, "0");
-    return `${m}:${s}`;
-  };
-
-  const isAnswered = (item: ShuffledItem) => {
-    const ans = answerMap[item.id];
-    if (!ans) return false;
-    return (
-      ans.selectedChoiceIds?.length > 0 || !!ans.textAnswer || !!ans.sourceCode
-    );
-  };
-
-  // Loading & error states
   if (!sessionId) {
     return (
-      <div
-        style={{
-          minHeight: "100vh",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          background: "#f4faff",
-        }}
-      >
-        <div
-          style={{
-            textAlign: "center",
-            color: "#0d47a1",
-            fontWeight: 700,
-            fontSize: 20,
-          }}
-        >
-          Không tìm thấy phiên thi.{" "}
-          <a href="/dashboard" style={{ color: "#1976d2" }}>
-            Quay lại
-          </a>
+      <div className="min-h-[calc(100vh-64px)] bg-slate-50 px-4 py-12">
+        <div className="mx-auto max-w-xl rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-sm">
+          <h2 className="text-2xl font-bold text-slate-900">Không tìm thấy phiên thi</h2>
+          <p className="mt-2 text-slate-600">Liên kết phiên thi không hợp lệ hoặc đã hết hạn.</p>
+          <Link
+            href="/exams"
+            className="mt-6 inline-block rounded-lg bg-navy-600 px-5 py-2.5 font-semibold text-white hover:bg-navy-700"
+          >
+            Quay lại danh sách đề
+          </Link>
         </div>
       </div>
     );
   }
 
-  if (loading) {
+  if (userLoading || loading) {
     return (
-      <div
-        style={{
-          minHeight: "100vh",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          background: "#f4faff",
-        }}
-      >
-        <div style={{ color: "#0d47a1", fontWeight: 700, fontSize: 20 }}>
+      <div className="min-h-[calc(100vh-64px)] bg-slate-50 px-4 py-12">
+        <div className="mx-auto max-w-xl rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-sm text-slate-600">
           Đang tải phiên thi...
         </div>
       </div>
     );
   }
 
-  if (error) {
+  if (!accessToken) {
     return (
-      <div
-        style={{
-          minHeight: "100vh",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          background: "#f4faff",
-        }}
-      >
-        <div
-          style={{
-            textAlign: "center",
-            color: "#e53935",
-            fontWeight: 700,
-            fontSize: 18,
-          }}
-        >
-          {error} <br />
-          <a href="/dashboard" style={{ color: "#1976d2" }}>
-            Quay lại
-          </a>
+      <div className="min-h-[calc(100vh-64px)] bg-slate-50 px-4 py-12">
+        <div className="mx-auto max-w-xl rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-sm">
+          <h2 className="text-2xl font-bold text-slate-900">Bạn cần đăng nhập</h2>
+          <p className="mt-2 text-slate-600">Hãy đăng nhập để tiếp tục làm bài thi.</p>
+          <Link
+            href="/login"
+            className="mt-6 inline-block rounded-lg bg-navy-600 px-5 py-2.5 font-semibold text-white hover:bg-navy-700"
+          >
+            Đi tới đăng nhập
+          </Link>
         </div>
       </div>
     );
   }
 
-  const currentItem = allItems[current];
-  const currentAnswer = currentItem ? answerMap[currentItem.id] : null;
+  if (error && !session) {
+    return (
+      <div className="min-h-[calc(100vh-64px)] bg-slate-50 px-4 py-12">
+        <div className="mx-auto max-w-xl rounded-2xl border border-red-200 bg-red-50 p-8 text-center">
+          <h2 className="text-xl font-bold text-red-700">Không thể tải phiên thi</h2>
+          <p className="mt-2 text-red-600">{error}</p>
+          <Link
+            href="/exams"
+            className="mt-6 inline-block rounded-lg bg-navy-600 px-5 py-2.5 font-semibold text-white hover:bg-navy-700"
+          >
+            Quay lại danh sách đề
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div
-      style={{
-        background: "linear-gradient(90deg, #0d47a1 0%, #1976d2 100%)",
-        minHeight: "100vh",
-        width: "100vw",
-        height: "100vh",
-        position: "fixed",
-        left: 0,
-        top: 0,
-        zIndex: 0,
-        overflow: "auto",
-      }}
-    >
-      <div
-        style={{
-          width: "100vw",
-          height: "100vh",
-          display: "flex",
-          alignItems: "stretch",
-          justifyContent: "stretch",
-        }}
-      >
-        {/* Modal xác nhận nộp bài */}
-        {showConfirm && (
-          <div
-            style={{
-              position: "fixed",
-              left: 0,
-              top: 0,
-              width: "100vw",
-              height: "100vh",
-              background: "rgba(0,0,0,0.18)",
-              zIndex: 1000,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-          >
-            <div
-              style={{
-                background: "#fff",
-                borderRadius: 18,
-                boxShadow: "0 2px 24px #0003",
-                minWidth: 420,
-                maxWidth: 480,
-                width: "100%",
-                padding: "32px 28px 28px 28px",
-                border: "2.5px solid #e3f2fd",
-                textAlign: "center",
-              }}
-            >
-              <div
-                style={{
-                  fontWeight: 900,
-                  fontSize: 24,
-                  color: "#0d47a1",
-                  marginBottom: 18,
-                }}
-              >
-                Xác nhận nộp bài
-              </div>
-              <div style={{ color: "#333", fontSize: 17, marginBottom: 18 }}>
-                Bạn đã trả lời các câu sau:
-              </div>
-              <div
-                style={{
-                  display: "flex",
-                  flexWrap: "wrap",
-                  gap: 8,
-                  justifyContent: "center",
-                  marginBottom: 12,
-                }}
-              >
-                {allItems.map((item, idx) => (
+    <div className="min-h-[calc(100vh-64px)] bg-gradient-to-br from-slate-50 via-white to-blue-50">
+      {showConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+          <div className="w-full max-w-lg rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl">
+            <h3 className="text-2xl font-bold text-slate-900">Xác nhận nộp bài</h3>
+            <p className="mt-2 text-slate-600">Bạn đã hoàn thành {answeredCount}/{items.length} câu.</p>
+            <div className="mt-4 grid grid-cols-8 gap-2">
+              {items.map((item, idx) => {
+                const answered = !!answerMap[item.id] && (answerMap[item.id].selectedChoiceIds.length > 0 || !!answerMap[item.id].textAnswer || !!answerMap[item.id].sourceCode);
+                return (
                   <span
                     key={item.id}
-                    style={{
-                      display: "inline-block",
-                      minWidth: 32,
-                      height: 32,
-                      borderRadius: 8,
-                      background: isAnswered(item) ? "#43a047" : "#e53935",
-                      color: "#fff",
-                      fontWeight: 900,
-                      fontSize: 17,
-                      lineHeight: "32px",
-                      textAlign: "center",
-                      boxShadow: isAnswered(item)
-                        ? "0 1px 4px #43a04733"
-                        : "0 1px 4px #e5393533",
-                    }}
+                    className={`inline-flex h-8 items-center justify-center rounded-md text-sm font-bold ${answered ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-700"}`}
                   >
                     {idx + 1}
                   </span>
-                ))}
-              </div>
-              <div style={{ color: "#888", fontSize: 15, marginBottom: 18 }}>
-                <span style={{ color: "#43a047", fontWeight: 700 }}>Xanh</span>:
-                Đã làm &nbsp;|&nbsp;{" "}
-                <span style={{ color: "#e53935", fontWeight: 700 }}>Đỏ</span>:
-                Chưa làm
-              </div>
-              <div
-                style={{
-                  display: "flex",
-                  gap: 16,
-                  marginTop: 18,
-                  justifyContent: "center",
-                }}
-              >
-                <button
-                  onClick={handleCancelSubmit}
-                  style={{
-                    flex: 1,
-                    padding: "12px 0",
-                    borderRadius: 10,
-                    border: "none",
-                    background: "#fff",
-                    color: "#1976d2",
-                    fontWeight: 900,
-                    fontSize: 17,
-                    boxShadow: "0 1px 4px #0001",
-                    borderLeft: "6px solid #1976d2",
-                    minWidth: 0,
-                    transition: "all 0.15s",
-                    marginRight: 8,
-                    borderBottom: "3px solid #1976d2",
-                    cursor: "pointer",
-                  }}
-                >
-                  Huỷ
-                </button>
-                <button
-                  onClick={handleConfirmSubmit}
-                  style={{
-                    flex: 1,
-                    padding: "12px 0",
-                    borderRadius: 10,
-                    border: "none",
-                    background:
-                      "linear-gradient(90deg, #1976d2 0%, #2196f3 100%)",
-                    color: "#fff",
-                    fontWeight: 900,
-                    fontSize: 17,
-                    minWidth: 0,
-                    boxShadow: "0 1px 4px #0001",
-                    transition: "all 0.15s",
-                    marginLeft: 8,
-                    borderBottom: "3px solid #1976d2",
-                    cursor: "pointer",
-                  }}
-                >
-                  Xác nhận nộp bài
-                </button>
-              </div>
+                );
+              })}
             </div>
-          </div>
-        )}
-        {/* Modal kết quả */}
-        {showResult && result && (
-          <div
-            style={{
-              position: "fixed",
-              left: 0,
-              top: 0,
-              width: "100vw",
-              height: "100vh",
-              background: "rgba(0,0,0,0.18)",
-              zIndex: 1000,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-          >
-            <div
-              style={{
-                background:
-                  "linear-gradient(180deg, #fafdff 80%, #e3f2fd 100%)",
-                borderRadius: 18,
-                boxShadow: "0 2px 24px #0003",
-                minWidth: 420,
-                maxWidth: 480,
-                width: "100%",
-                padding: "36px 32px 32px 32px",
-                border: "2.5px solid #e3f2fd",
-                textAlign: "center",
-              }}
-            >
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 12,
-                  justifyContent: "center",
-                  marginBottom: 18,
-                }}
-              >
-                <img
-                  src="/assets/iuhcm-logo.png"
-                  alt="logo"
-                  style={{
-                    width: 72,
-                    height: 72,
-                    objectFit: "contain",
-                    borderRadius: 12,
-                    background: "#fff",
-                  }}
-                />
-                <span
-                  style={{
-                    color: "#0d47a1",
-                    fontWeight: 900,
-                    fontSize: 28,
-                    textShadow: "0 2px 8px #0001",
-                    letterSpacing: 0.5,
-                  }}
-                >
-                  Kết quả bài thi
-                </span>
-              </div>
-              <div
-                style={{
-                  fontWeight: 900,
-                  fontSize: 22,
-                  color: "#0d47a1",
-                  margin: "18px 0 8px 0",
-                }}
-              >
-                Điểm số của bạn:{" "}
-                <span
-                  style={{ color: "#43a047", fontWeight: 900, fontSize: 28 }}
-                >
-                  {result.score ?? "?"}/{result.maxScore ?? "?"}
-                </span>
-              </div>
-              <div
-                style={{
-                  fontWeight: 900,
-                  fontSize: 22,
-                  color: "#0d47a1",
-                  margin: "8px 0 18px 0",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: 10,
-                }}
-              >
-                <span style={{ color: "#43a047", fontSize: 26 }}>✔</span>
-                Đúng: {result.correctItems}/{result.totalItems}
-                {result.pendingItems > 0 && (
-                  <span
-                    style={{ color: "#ff9800", fontSize: 16, fontWeight: 600 }}
-                  >
-                    {" "}
-                    (chờ chấm: {result.pendingItems})
-                  </span>
-                )}
-              </div>
-              <div
-                style={{ color: "#444", fontSize: 17, margin: "12px 0 8px 0" }}
-              >
-                Chúc mừng bạn đã hoàn thành bài thi!
-              </div>
-              <div style={{ color: "#444", fontSize: 16, marginBottom: 24 }}>
-                {result.examTitle}
-              </div>
+            <div className="mt-6 flex gap-3">
               <button
-                onClick={handleFinish}
-                style={{
-                  marginTop: 8,
-                  padding: "14px 0",
-                  width: "100%",
-                  borderRadius: 10,
-                  border: "none",
-                  background:
-                    "linear-gradient(90deg, #1976d2 0%, #2196f3 100%)",
-                  color: "#fff",
-                  fontWeight: 900,
-                  fontSize: 20,
-                  boxShadow: "0 1px 8px #0001",
-                  letterSpacing: 0.5,
-                  transition: "all 0.15s",
-                  cursor: "pointer",
-                }}
+                onClick={() => setShowConfirm(false)}
+                className="flex-1 rounded-lg border border-slate-300 px-4 py-2.5 font-semibold text-slate-700 hover:bg-slate-50"
               >
-                Hoàn tất
+                Huỷ
+              </button>
+              <button
+                onClick={handleConfirmSubmit}
+                className="flex-1 rounded-lg bg-navy-600 px-4 py-2.5 font-semibold text-white hover:bg-navy-700"
+              >
+                Xác nhận nộp
               </button>
             </div>
           </div>
-        )}
-        <div
-          style={{
-            width: "100vw",
-            maxWidth: "100vw",
-            minHeight: "100vh",
-            background: "#f4faff",
-            borderRadius: 0,
-            boxShadow: "none",
-            display: "flex",
-            padding: 0,
-            overflow: "hidden",
-          }}
-        >
-          {/* Left: Question / Problem */}
-          <div
-            style={{
-              flex: 2.2,
-              padding: "48px 40px 40px 0",
-              display: "flex",
-              flexDirection: "column",
-              justifyContent: "space-between",
-              minWidth: 0,
-            }}
-          >
-            <div>
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  marginBottom: 32,
-                  justifyContent: "center",
-                  minHeight: 90,
-                }}
-              >
-                <img
-                  src="/assets/iuhcm-logo.png"
-                  alt="logo"
-                  style={{
-                    width: 72,
-                    height: 72,
-                    marginRight: 18,
-                    objectFit: "contain",
-                  }}
-                />
-                <h2
-                  style={{
-                    color: "#0d47a1",
-                    fontWeight: 900,
-                    fontSize: 32,
-                    textShadow: "0 2px 8px #0001",
-                    letterSpacing: 0.5,
-                    lineHeight: 1.1,
-                  }}
-                >
-                  {session?.examTitle || "Làm bài thi"}
-                </h2>
+        </div>
+      )}
+
+      {showResult && result && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+          <div className="w-full max-w-lg rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-2xl">
+            <h3 className="text-3xl font-bold text-slate-900">Kết quả bài thi</h3>
+            <p className="mt-2 text-slate-600">{result.examTitle}</p>
+
+            <div className="mt-6 rounded-xl bg-slate-50 p-4">
+              <p className="text-sm text-slate-600">Điểm số</p>
+              <p className="text-4xl font-extrabold text-emerald-600">
+                {result.score ?? 0}/{result.maxScore ?? 0}
+              </p>
+              <p className="mt-2 text-sm text-slate-600">
+                Đúng {result.correctItems}/{result.totalItems}
+                {result.pendingItems > 0 && ` • Chờ chấm: ${result.pendingItems}`}
+              </p>
+            </div>
+
+            <button
+              onClick={() => router.push("/exams")}
+              className="mt-6 w-full rounded-lg bg-navy-600 px-4 py-3 font-semibold text-white hover:bg-navy-700"
+            >
+              Hoàn tất
+            </button>
+          </div>
+        </div>
+      )}
+
+      <div className="mx-auto grid max-w-7xl grid-cols-1 gap-5 px-4 py-5 lg:grid-cols-12 lg:px-6">
+        <section className="lg:col-span-8">
+          <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
+            <div className="border-b border-slate-100 px-5 py-4 sm:px-6">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Phiên thi</p>
+                  <h1 className="text-xl font-bold text-slate-900">{session?.examTitle || "Làm bài thi"}</h1>
+                </div>
+                <div className="inline-flex w-fit items-center gap-2 rounded-full bg-amber-50 px-3 py-1 text-sm font-bold text-amber-700">
+                  Còn lại: {formatTime(timeLeft)}
+                </div>
               </div>
-              {currentItem && (
-                <div
-                  style={{
-                    background: "#fff",
-                    borderRadius: 18,
-                    padding: "36px 72px 28px 72px",
-                    margin: "32px auto 0 auto",
-                    maxWidth: 900,
-                    width: "100%",
-                    display: "flex",
-                    flexDirection: "column",
-                    justifyContent: "flex-start",
-                    minHeight: 0,
-                    border: "2.5px solid #e0e0e0",
-                    boxShadow: "0 2px 16px #0003",
-                    backgroundClip: "padding-box",
-                  }}
-                >
-                  <div
-                    style={{
-                      flex: "unset",
-                      display: "flex",
-                      flexDirection: "column",
-                      justifyContent: "flex-start",
-                    }}
-                  >
-                    {/* Section badge */}
-                    <div style={{ marginBottom: 12 }}>
-                      <span
-                        style={{
-                          background:
-                            currentItem.section === "QUESTION"
-                              ? "#e3f2fd"
-                              : "#fff3e0",
-                          color:
-                            currentItem.section === "QUESTION"
-                              ? "#1976d2"
-                              : "#e65100",
-                          padding: "4px 12px",
-                          borderRadius: 8,
-                          fontWeight: 700,
-                          fontSize: 14,
-                        }}
-                      >
-                        {currentItem.section === "QUESTION"
-                          ? "Trắc nghiệm"
-                          : "Bài code"}{" "}
-                        • {currentItem.points} điểm
-                      </span>
+            </div>
+
+            {currentItem && (
+              <div className="p-5 sm:p-6">
+                <div className="mb-4 flex items-center gap-2">
+                  <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${currentItem.section === "QUESTION" ? "bg-blue-100 text-blue-700" : "bg-orange-100 text-orange-700"}`}>
+                    {currentItem.section === "QUESTION" ? "Trắc nghiệm" : "Bài code"}
+                  </span>
+                  <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600">
+                    {currentItem.points} điểm
+                  </span>
+                  {currentItem.question?.difficulty && (
+                    <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${getDifficultyBadge(currentItem.question.difficulty)}`}>
+                      {currentItem.question.difficulty}
+                    </span>
+                  )}
+                </div>
+
+                {currentItem.question && (
+                  <div>
+                    <h2 className="text-xl font-bold text-slate-900">
+                      Câu {currentIndex + 1}: {currentItem.question.content}
+                    </h2>
+
+                    {(currentItem.question.questionType === "SINGLE_CHOICE" ||
+                      currentItem.question.questionType === "MULTIPLE_CHOICE") &&
+                      currentItem.question.choices && (
+                        <div className="mt-4 space-y-3">
+                          {currentItem.question.choices.map((choice, idx) => {
+                            const selected = currentAnswer?.selectedChoiceIds?.includes(choice.id) || false;
+                            return (
+                              <button
+                                key={choice.id}
+                                type="button"
+                                onClick={() => handleChoiceSelect(choice.id)}
+                                className={`w-full rounded-xl border px-4 py-3 text-left transition ${selected ? "border-blue-500 bg-blue-50 text-blue-700" : "border-slate-200 bg-white text-slate-700 hover:border-slate-300"}`}
+                              >
+                                <span className="mr-2 font-bold">{String.fromCharCode(65 + idx)}.</span>
+                                {choice.content}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
+
+                    {currentItem.question.questionType === "SHORT_ANSWER" && (
+                      <textarea
+                        rows={6}
+                        className="mt-4 w-full rounded-xl border border-slate-200 px-4 py-3 text-slate-800 outline-none focus:border-navy-500 focus:ring-2 focus:ring-navy-100"
+                        placeholder="Nhập câu trả lời..."
+                        value={currentAnswer?.textAnswer || ""}
+                        onChange={(e) => handleTextAnswer(e.target.value)}
+                      />
+                    )}
+                  </div>
+                )}
+
+                {currentItem.problem && (
+                  <div>
+                    <h2 className="text-xl font-bold text-slate-900">
+                      Câu {currentIndex + 1}: {currentItem.problem.title}
+                    </h2>
+
+                    <details className="mt-4 rounded-xl border border-slate-200 bg-slate-50">
+                      <summary className="cursor-pointer px-4 py-3 text-sm font-semibold text-slate-700">
+                        Xem đề bài và ràng buộc
+                      </summary>
+                      <div className="border-t border-slate-200 px-4 py-3 text-sm text-slate-700">
+                        <p className="whitespace-pre-wrap leading-relaxed">{currentItem.problem.description}</p>
+                        {currentItem.problem.constraints && (
+                          <p className="mt-2 text-slate-600">
+                            <span className="font-semibold">Ràng buộc:</span> {currentItem.problem.constraints}
+                          </p>
+                        )}
+                        <p className="mt-2 text-xs text-slate-500">
+                          Time limit: {currentItem.problem.timeLimit}ms • Memory: {currentItem.problem.memoryLimit}MB
+                        </p>
+                      </div>
+                    </details>
+
+                    <div className="mt-4 h-[360px]">
+                      <CodeEditor
+                        code={currentAnswer?.sourceCode || ""}
+                        language={currentAnswer?.language || "python"}
+                        onChange={handleCodeChange}
+                        onLanguageChange={handleLanguageChange}
+                      />
                     </div>
 
-                    {/* Question content */}
-                    {currentItem.question && (
-                      <>
-                        <div
-                          style={{
-                            fontWeight: 900,
-                            marginBottom: 22,
-                            fontSize: 22,
-                            color: "#0d47a1",
-                            lineHeight: 1.3,
-                            wordBreak: "break-word",
-                          }}
-                        >
-                          <span
-                            style={{
-                              color: "#0d47a1",
-                              fontWeight: 900,
-                              fontSize: 24,
-                            }}
-                          >
-                            Câu {current + 1}:
-                          </span>{" "}
-                          <span
-                            style={{
-                              fontWeight: 600,
-                              color: "#222",
-                              fontSize: 22,
-                            }}
-                          >
-                            {currentItem.question.content}
-                          </span>
-                        </div>
-                        {currentItem.question.choices && (
-                          <div>
-                            {currentItem.question.choices.map((choice, idx) => {
-                              const isSelected =
-                                currentAnswer?.selectedChoiceIds?.includes(
-                                  choice.id,
-                                ) ?? false;
-                              return (
-                                <div
-                                  key={choice.id}
-                                  style={{ marginBottom: 14 }}
-                                >
-                                  <label
-                                    style={{
-                                      display: "flex",
-                                      alignItems: "center",
-                                      cursor: "pointer",
-                                      background: isSelected
-                                        ? "#e3f2fd"
-                                        : "transparent",
-                                      borderRadius: 12,
-                                      padding: "12px 24px",
-                                      fontWeight: isSelected ? 900 : 700,
-                                      color: isSelected ? "#1976d2" : "#222",
-                                      border: isSelected
-                                        ? "2.5px solid #1976d2"
-                                        : "1.5px solid #e0e0e0",
-                                      boxShadow: isSelected
-                                        ? "0 2px 8px #1976d233"
-                                        : "none",
-                                      fontSize: 22,
-                                      minHeight: 38,
-                                      transition: "all 0.15s",
-                                    }}
-                                    onClick={() =>
-                                      handleChoiceSelect(choice.id)
-                                    }
-                                  >
-                                    <span
-                                      style={{
-                                        fontWeight: 900,
-                                        width: 38,
-                                        display: "inline-block",
-                                        color: "#1976d2",
-                                        fontSize: 22,
-                                      }}
-                                    >
-                                      {String.fromCharCode(65 + idx)}.
-                                    </span>{" "}
-                                    {choice.content}
-                                  </label>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        )}
-                        {/* Short answer (TEXT type) */}
-                        {currentItem.question.questionType ===
-                          "SHORT_ANSWER" && (
-                          <textarea
-                            rows={4}
-                            style={{
-                              width: "100%",
-                              padding: "12px 16px",
-                              borderRadius: 12,
-                              border: "1.5px solid #e0e0e0",
-                              fontSize: 18,
-                              resize: "vertical",
-                            }}
-                            placeholder="Nhập câu trả lời..."
-                            value={currentAnswer?.textAnswer || ""}
-                            onChange={(e) => handleTextAnswer(e.target.value)}
-                          />
-                        )}
-                      </>
-                    )}
-
-                    {/* Problem content */}
-                    {currentItem.problem && (
-                      <div
-                        style={{
-                          display: "flex",
-                          flexDirection: "column",
-                          gap: 12,
-                        }}
+                    <div className="mt-3 flex flex-wrap items-center gap-3">
+                      <button
+                        type="button"
+                        onClick={handleRunCode}
+                        disabled={runningCode || !currentAnswer?.sourceCode}
+                        className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
                       >
-                        <div
-                          style={{
-                            fontWeight: 900,
-                            fontSize: 22,
-                            color: "#0d47a1",
-                            lineHeight: 1.3,
-                          }}
-                        >
-                          <span
-                            style={{
-                              color: "#0d47a1",
-                              fontWeight: 900,
-                              fontSize: 24,
-                            }}
-                          >
-                            Câu {current + 1}:
-                          </span>{" "}
-                          <span
-                            style={{
-                              fontWeight: 600,
-                              color: "#222",
-                              fontSize: 22,
-                            }}
-                          >
-                            {currentItem.problem.title}
-                          </span>
-                        </div>
-                        {/* Collapsible description */}
-                        <details
-                          style={{
-                            background: "#f8f9fa",
-                            borderRadius: 10,
-                            border: "1px solid #e0e0e0",
-                          }}
-                        >
-                          <summary
-                            style={{
-                              padding: "10px 16px",
-                              cursor: "pointer",
-                              fontWeight: 700,
-                              color: "#1976d2",
-                              fontSize: 15,
-                            }}
-                          >
-                            📋 Xem đề bài &amp; ràng buộc
-                          </summary>
-                          <div style={{ padding: "0 16px 12px 16px" }}>
-                            <div
-                              style={{
-                                fontSize: 15,
-                                color: "#444",
-                                lineHeight: 1.6,
-                                whiteSpace: "pre-wrap",
-                                marginBottom: 8,
-                              }}
-                              dangerouslySetInnerHTML={{
-                                __html: currentItem.problem.description,
-                              }}
-                            />
-                            {currentItem.problem.constraints && (
-                              <div
-                                style={{
-                                  fontSize: 13,
-                                  color: "#666",
-                                  marginBottom: 4,
-                                }}
-                              >
-                                <strong>Ràng buộc:</strong>{" "}
-                                {currentItem.problem.constraints}
-                              </div>
-                            )}
-                            <div style={{ fontSize: 12, color: "#888" }}>
-                              ⏱ Time limit: {currentItem.problem.timeLimit}ms |
-                              💾 Memory: {currentItem.problem.memoryLimit}MB
-                            </div>
-                          </div>
-                        </details>
+                        {runningCode ? "Đang chạy..." : "Chạy thử"}
+                      </button>
+                      <span className="text-xs text-slate-500">Code được tự động lưu, bài code sẽ được chấm khi nộp.</span>
+                    </div>
 
-                        {/* Code Editor */}
-                        <div
-                          style={{
-                            height: 320,
-                            borderRadius: 12,
-                            overflow: "hidden",
-                          }}
-                        >
-                          <CodeEditor
-                            code={answerMap[currentItem.id]?.sourceCode || ""}
-                            language={
-                              answerMap[currentItem.id]?.language || "python"
-                            }
-                            onChange={handleCodeChange}
-                            onLanguageChange={handleLanguageChange}
-                          />
-                        </div>
-
-                        {/* Run button + output */}
-                        <div
-                          style={{
-                            display: "flex",
-                            alignItems: "center",
-                            gap: 12,
-                          }}
-                        >
-                          <button
-                            onClick={handleRunCode}
-                            disabled={
-                              runningCode ||
-                              !answerMap[currentItem.id]?.sourceCode
-                            }
-                            style={{
-                              padding: "8px 20px",
-                              borderRadius: 8,
-                              border: "none",
-                              background: runningCode
-                                ? "#90caf9"
-                                : "linear-gradient(90deg, #1976d2, #2196f3)",
-                              color: "#fff",
-                              fontWeight: 800,
-                              fontSize: 14,
-                              cursor: runningCode ? "not-allowed" : "pointer",
-                              transition: "all 0.15s",
-                            }}
-                          >
-                            {runningCode ? "⏳ Đang chạy..." : "▶ Chạy thử"}
-                          </button>
-                          <span style={{ fontSize: 12, color: "#888" }}>
-                            Code được tự động lưu • Chấm điểm khi nộp bài
-                          </span>
-                        </div>
-
-                        {/* Code output */}
-                        {codeOutput && (
-                          <div
-                            style={{
-                              background: "#1e1e1e",
-                              borderRadius: 10,
-                              padding: "12px 16px",
-                              maxHeight: 160,
-                              overflowY: "auto",
-                              fontSize: 13,
-                              fontFamily: "'Fira Code', 'Consolas', monospace",
-                            }}
-                          >
-                            <div
-                              style={{
-                                color: codeOutput.isSuccess
-                                  ? "#4caf50"
-                                  : "#ef5350",
-                                fontWeight: 700,
-                                marginBottom: 6,
-                                fontSize: 12,
-                              }}
-                            >
-                              {codeOutput.isSuccess
-                                ? "✅ Thành công"
-                                : codeOutput.isCompileError
-                                  ? "❌ Lỗi biên dịch"
-                                  : "❌ Lỗi thực thi"}
-                              {codeOutput.executionTime > 0 && (
-                                <span
-                                  style={{ color: "#888", fontWeight: 400 }}
-                                >
-                                  {" "}
-                                  • {codeOutput.executionTime}ms
-                                </span>
-                              )}
-                            </div>
-                            {codeOutput.stdout && (
-                              <div
-                                style={{
-                                  color: "#e0e0e0",
-                                  whiteSpace: "pre-wrap",
-                                  marginBottom: 4,
-                                }}
-                              >
-                                {codeOutput.stdout}
-                              </div>
-                            )}
-                            {codeOutput.stderr && (
-                              <div
-                                style={{
-                                  color: "#ef5350",
-                                  whiteSpace: "pre-wrap",
-                                }}
-                              >
-                                {codeOutput.stderr}
-                              </div>
-                            )}
-                            {codeOutput.compileOutput && (
-                              <div
-                                style={{
-                                  color: "#ff9800",
-                                  whiteSpace: "pre-wrap",
-                                }}
-                              >
-                                {codeOutput.compileOutput}
-                              </div>
-                            )}
-                            {!codeOutput.stdout &&
-                              !codeOutput.stderr &&
-                              !codeOutput.compileOutput && (
-                                <div style={{ color: "#888" }}>
-                                  Không có output
-                                </div>
-                              )}
-                          </div>
+                    {codeOutput && (
+                      <div className="mt-3 rounded-xl bg-[#111827] p-4 text-xs text-slate-200">
+                        <p className={`mb-2 font-semibold ${codeOutput.isSuccess ? "text-emerald-400" : "text-red-400"}`}>
+                          {codeOutput.isSuccess ? "Thành công" : "Lỗi thực thi"}
+                          {codeOutput.executionTime > 0 && ` • ${codeOutput.executionTime}ms`}
+                        </p>
+                        {codeOutput.stdout && <pre className="whitespace-pre-wrap">{codeOutput.stdout}</pre>}
+                        {codeOutput.stderr && <pre className="whitespace-pre-wrap text-red-300">{codeOutput.stderr}</pre>}
+                        {codeOutput.compileOutput && (
+                          <pre className="whitespace-pre-wrap text-amber-300">{codeOutput.compileOutput}</pre>
+                        )}
+                        {!codeOutput.stdout && !codeOutput.stderr && !codeOutput.compileOutput && (
+                          <p className="text-slate-400">Không có output</p>
                         )}
                       </div>
                     )}
                   </div>
-                  <div
-                    style={{
-                      display: "flex",
-                      gap: 16,
-                      marginTop: 18,
-                      justifyContent: "space-between",
-                      width: "100%",
-                    }}
+                )}
+
+                <div className="mt-6 flex flex-col gap-2 sm:flex-row">
+                  <button
+                    type="button"
+                    onClick={goPrev}
+                    disabled={currentIndex === 0}
+                    className="rounded-lg border border-slate-300 px-4 py-2.5 text-sm font-semibold text-slate-700 disabled:opacity-50"
                   >
-                    <button
-                      onClick={handlePrev}
-                      disabled={current === 0}
-                      style={{
-                        flex: 1,
-                        padding: "12px 0",
-                        borderRadius: 10,
-                        border: "none",
-                        background: "#fff",
-                        color: "#1976d2",
-                        fontWeight: 900,
-                        fontSize: 17,
-                        boxShadow: "0 1px 4px #0001",
-                        borderLeft: "6px solid #1976d2",
-                        minWidth: 0,
-                        transition: "all 0.15s",
-                        marginRight: 8,
-                        borderBottom: "3px solid #1976d2",
-                      }}
-                    >
-                      ◀ Quay lại
-                    </button>
-                    <button
-                      onClick={handleNext}
-                      disabled={current === allItems.length - 1}
-                      style={{
-                        flex: 1,
-                        padding: "12px 0",
-                        borderRadius: 10,
-                        border: "none",
-                        background: "#fff",
-                        color: "#1976d2",
-                        fontWeight: 900,
-                        fontSize: 17,
-                        boxShadow: "0 1px 4px #0001",
-                        borderLeft: "6px solid #1976d2",
-                        minWidth: 0,
-                        transition: "all 0.15s",
-                        marginRight: 8,
-                        marginLeft: 8,
-                        borderBottom: "3px solid #1976d2",
-                      }}
-                    >
-                      Câu tiếp theo
-                    </button>
-                    <button
-                      onClick={handleSubmit}
-                      disabled={submitting}
-                      style={{
-                        flex: 1,
-                        padding: "12px 0",
-                        borderRadius: 10,
-                        border: "none",
-                        background: "#43a047",
-                        color: "#fff",
-                        fontWeight: 900,
-                        fontSize: 17,
-                        minWidth: 0,
-                        boxShadow: "0 1px 4px #0001",
-                        transition: "all 0.15s",
-                        marginLeft: 8,
-                        borderBottom: "3px solid #388e3c",
-                      }}
-                    >
-                      {submitting ? "ĐANG NỘP..." : "NỘP BÀI"}
-                    </button>
-                  </div>
+                    Câu trước
+                  </button>
+                  <button
+                    type="button"
+                    onClick={goNext}
+                    disabled={currentIndex === items.length - 1}
+                    className="rounded-lg border border-slate-300 px-4 py-2.5 text-sm font-semibold text-slate-700 disabled:opacity-50"
+                  >
+                    Câu tiếp
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirm(true)}
+                    disabled={submitting}
+                    className="sm:ml-auto rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-50"
+                  >
+                    {submitting ? "Đang nộp..." : "Nộp bài"}
+                  </button>
                 </div>
-              )}
-            </div>
-          </div>
-          {/* Right: Sidebar */}
-          <div
-            style={{
-              flex: 1,
-              background: "transparent",
-              minWidth: 320,
-              maxWidth: 340,
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              justifyContent: "center",
-              borderLeft: "2.5px solid #e3f2fd",
-            }}
-          >
-            <div
-              style={{
-                textAlign: "center",
-                fontWeight: 900,
-                color: "#0d47a1",
-                marginBottom: 32,
-                fontSize: 26,
-                textShadow: "0 2px 8px #0001",
-                letterSpacing: 0.5,
-              }}
-            >
-              Thời gian còn lại:{" "}
-              <span
-                style={{
-                  color: timeLeft < 60 ? "#e53935" : "#ffb300",
-                  fontWeight: 900,
-                }}
-              >
-                {formatTime(timeLeft)}
-              </span>
-            </div>
-            <div
-              style={{
-                background:
-                  "linear-gradient(180deg, #e3f2fd 60%, #bbdefb 100%)",
-                borderRadius: 22,
-                padding: 32,
-                boxShadow: "0 1px 8px #0001",
-                width: "100%",
-                maxWidth: 260,
-              }}
-            >
-              <div
-                style={{
-                  fontWeight: 900,
-                  marginBottom: 18,
-                  color: "#1976d2",
-                  fontSize: 20,
-                  textAlign: "center",
-                }}
-              >
-                Câu hỏi
               </div>
-              <div
-                style={{
-                  display: "flex",
-                  flexWrap: "wrap",
-                  gap: 16,
-                  justifyContent: "center",
-                }}
-              >
-                {allItems.map((item, idx) => (
+            )}
+          </div>
+        </section>
+
+        <aside className="lg:col-span-4">
+          <div className="sticky top-24 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+            <h3 className="text-sm font-bold uppercase tracking-wider text-slate-400">Tiến độ</h3>
+            <p className="mt-2 text-lg font-bold text-slate-900">
+              {answeredCount}/{items.length} câu đã làm
+            </p>
+            <div className="mt-4 grid grid-cols-6 gap-2">
+              {items.map((item, idx) => {
+                const active = idx === currentIndex;
+                const ans = answerMap[item.id];
+                const answered = !!ans && (ans.selectedChoiceIds.length > 0 || !!ans.textAnswer || !!ans.sourceCode);
+
+                return (
                   <button
                     key={item.id}
-                    onClick={() => setCurrent(idx)}
-                    style={{
-                      width: 44,
-                      height: 44,
-                      borderRadius: "50%",
-                      border:
-                        current === idx
-                          ? "3.5px solid #1976d2"
-                          : "2.5px solid #90caf9",
-                      background: isAnswered(item)
-                        ? current === idx
-                          ? "#1976d2"
-                          : "#fffde7"
-                        : "#fff",
-                      color:
-                        current === idx
-                          ? "#fff"
-                          : isAnswered(item)
-                            ? "#1976d2"
-                            : "#1976d2",
-                      fontWeight: 900,
-                      fontSize: 20,
-                      boxShadow:
-                        current === idx ? "0 2px 8px #1976d233" : "none",
-                      transition: "all 0.2s",
-                    }}
+                    type="button"
+                    onClick={() => setCurrentIndex(idx)}
+                    className={`h-10 rounded-lg text-sm font-bold transition ${active ? "bg-navy-600 text-white" : answered ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-200" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`}
                   >
                     {idx + 1}
                   </button>
-                ))}
-              </div>
+                );
+              })}
             </div>
+
+            {error && (
+              <div className="mt-4 rounded-lg border border-red-200 bg-red-50 p-3 text-xs text-red-700">
+                {error}
+              </div>
+            )}
           </div>
-        </div>
+        </aside>
       </div>
     </div>
   );
