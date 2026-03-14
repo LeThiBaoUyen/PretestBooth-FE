@@ -16,35 +16,41 @@ import {
 } from "lucide-react";
 
 export default function AdminBoothsPage() {
-  const { user } = useAuth();
+  const { user, userLoading } = useAuth();
   
   const [booths, setBooths] = useState<Booth[]>([]);
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
-  const [date, setDate] = useState(format(new Date(), "yyyy-MM-dd"));
+  const [date, setDate] = useState("");
+  const [error, setError] = useState<string | null>(null);
+
+  const canViewPage = user?.role === "ADMIN" || user?.role === "LECTURER";
+  const canManageBooths = user?.role === "ADMIN";
   
   // Refresh Data
   const fetchData = async () => {
     setLoading(true);
+    setError(null);
     try {
       const [boothsRes, bookingsRes] = await Promise.all([
         boothsApi.getBooths(),
-        bookingsApi.getBookings({ date, limit: 100, sortOrder: "asc" })
+        bookingsApi.getBookings({ page: 1, date: date || undefined, limit: 50, sortOrder: "desc" })
       ]);
-      setBooths(boothsRes);
-      setBookings(bookingsRes.data);
+      setBooths(Array.isArray(boothsRes) ? boothsRes : []);
+      setBookings(Array.isArray(bookingsRes?.data) ? bookingsRes.data : []);
     } catch (e) {
       console.error(e);
+      setError("Không thể tải dữ liệu booth hoặc lịch đặt. Vui lòng thử lại.");
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    if (user?.role === "ADMIN") {
+    if (canViewPage) {
       fetchData();
     }
-  }, [user, date]);
+  }, [canViewPage, date]);
 
   // Actions
   const handleCheckIn = async (id: string) => {
@@ -66,6 +72,8 @@ export default function AdminBoothsPage() {
   };
 
   const handleToggleBoothStatus = async (booth: Booth) => {
+    if (!canManageBooths) return;
+
     const newStatus = booth.status === "ACTIVE" ? "MAINTENANCE" : 
                      booth.status === "MAINTENANCE" ? "INACTIVE" : "ACTIVE";
     try {
@@ -76,7 +84,23 @@ export default function AdminBoothsPage() {
     }
   };
 
-  if (!user || user.role !== "ADMIN") return null;
+  if (userLoading) {
+    return (
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        <div className="text-center text-gray-500">Đang kiểm tra quyền truy cập...</div>
+      </div>
+    );
+  }
+
+  if (!canViewPage) {
+    return (
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        <div className="bg-white rounded-xl border border-gray-200 p-6 text-center text-gray-600">
+          Bạn không có quyền truy cập trang quản lý booth.
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -94,6 +118,11 @@ export default function AdminBoothsPage() {
             value={date}
             onChange={(e) => setDate(e.target.value)}
           />
+          {date && (
+            <button onClick={() => setDate("")} className="text-xs text-gray-400 hover:text-navy-600 pr-3 font-medium border-l border-gray-200 pl-3">
+              Hiện tất cả
+            </button>
+          )}
         </div>
       </div>
 
@@ -107,6 +136,8 @@ export default function AdminBoothsPage() {
           
           {loading ? (
             <div className="text-center py-8 text-gray-500">Đang tải...</div>
+          ) : error ? (
+            <div className="text-center py-8 text-red-500 bg-red-50 rounded-xl border border-red-100">{error}</div>
           ) : booths.length === 0 ? (
             <div className="text-center py-8 text-gray-500 bg-white rounded-xl border border-gray-100">Chưa có booth nào.</div>
           ) : (
@@ -120,7 +151,8 @@ export default function AdminBoothsPage() {
                   <button 
                     onClick={() => handleToggleBoothStatus(booth)}
                     title="Chuyển trạng thái"
-                    className="p-1.5 rounded-md hover:bg-gray-100 text-gray-400 hover:text-navy-600 transition"
+                    disabled={!canManageBooths}
+                    className="p-1.5 rounded-md hover:bg-gray-100 text-gray-400 hover:text-navy-600 transition disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {booth.status === "ACTIVE" ? <MonitorPlay className="w-4 h-4 text-emerald-500" /> :
                      booth.status === "MAINTENANCE" ? <Settings className="w-4 h-4 text-orange-500" /> :
@@ -149,7 +181,7 @@ export default function AdminBoothsPage() {
         <div className="lg:col-span-3">
           <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
             <h2 className="text-lg font-bold text-navy-700 mb-6 flex items-center justify-between">
-              <span>Lịch trình ngày {format(new Date(date), "dd/MM/yyyy")}</span>
+              <span>{date ? `Lịch trình ngày ${format(new Date(date), "dd/MM/yyyy")}` : "Tất cả lịch trình"}</span>
               <span className="bg-navy-50 text-navy-600 px-3 py-1 rounded-full text-sm font-semibold">
                 {bookings.length} ca
               </span>
@@ -157,10 +189,12 @@ export default function AdminBoothsPage() {
 
             {loading ? (
               <div className="text-center py-20 text-gray-500">Đang tải dữ liệu...</div>
+            ) : error ? (
+              <div className="text-center py-20 text-red-500">{error}</div>
             ) : bookings.length === 0 ? (
               <div className="text-center py-20 text-gray-500 flex flex-col items-center">
                 <Calendar className="w-12 h-12 text-gray-300 mb-4" />
-                Không có lịch đặt nào trong ngày này.
+                Không có lịch đặt nào {date ? "trong ngày này" : "được tìm thấy"}.
               </div>
             ) : (
               <div className="overflow-x-auto">
@@ -183,8 +217,8 @@ export default function AdminBoothsPage() {
                       return (
                         <tr key={booking.id} className="hover:bg-gray-50 transition">
                           <td className="py-4 px-4">
-                            <div className="font-bold text-gray-900">{format(start, "HH:mm")}</div>
-                            <div className="text-xs text-gray-500">{format(end, "HH:mm")}</div>
+                            <div className="text-xs text-gray-500 mb-1">{format(start, "dd/MM/yyyy")}</div>
+                            <div className="font-bold text-gray-900">{format(start, "HH:mm")} - {format(end, "HH:mm")}</div>
                           </td>
                           <td className="py-4 px-4 font-medium text-navy-700">
                             {booking.booth?.name}
