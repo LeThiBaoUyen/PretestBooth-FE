@@ -2,8 +2,6 @@
 import { useState, useEffect, use } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import Header from "@/components/Header";
-import Footer from "@/components/Footer";
 import { examsApiClient } from "@/lib/api/exams";
 import { useAuth } from "@/lib/hooks";
 import type { Exam } from "@/lib/api/types";
@@ -59,7 +57,7 @@ export default function ExamDetailPage({
     setDeleting(true);
     try {
       await examsApiClient.deleteExam(exam.id, accessToken);
-      router.push("/dashboard");
+      router.push("/exams");
     } catch (err: any) {
       alert(err.message || "Không thể xóa đề thi");
       setDeleting(false);
@@ -76,13 +74,10 @@ export default function ExamDetailPage({
           : null;
 
   return (
-    <>
-      <Header />
-      <main className="min-h-screen bg-gradient-to-br from-rose-50 via-white to-rose-100 pt-16 pb-20">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           {/* Back button */}
           <Link
-            href="/dashboard"
+            href="/exams"
             className="mb-6 inline-flex items-center text-navy-600 hover:text-navy-700 font-semibold"
           >
             ← Quay lại
@@ -94,7 +89,7 @@ export default function ExamDetailPage({
             <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
               <p className="text-red-600 font-semibold">{error}</p>
               <Link
-                href="/dashboard"
+                href="/exams"
                 className="mt-4 inline-block px-4 py-2 bg-navy-600 text-white rounded-lg font-bold hover:bg-navy-700"
               >
                 Quay lại trang chủ
@@ -266,7 +261,7 @@ export default function ExamDetailPage({
                 {canManage && (
                   <>
                     <Link
-                      href={`/dashboard/exams/${exam.id}/edit`}
+                      href={`/exams/${exam.id}/edit`}
                       className="flex-1 px-6 py-3 rounded-lg font-bold text-navy-600 border border-navy-200 hover:bg-navy-50 transition text-center"
                     >
                       ✏️ Chỉnh sửa
@@ -319,9 +314,6 @@ export default function ExamDetailPage({
               </div>
             </div>
           )}
-        </div>
-      </main>
-      <Footer />
-    </>
+    </div>
   );
 }

@@ -4,7 +4,6 @@ import { useState, useEffect } from "react";
 import { format, addDays, isSameDay } from "date-fns";
 import { vi } from "date-fns/locale";
 import { CalendarDays, Clock, CheckCircle, AlertCircle } from "lucide-react";
-import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { useAuth } from "@/lib/hooks";
 import { bookingsApi } from "@/lib/api/bookings";
@@ -118,7 +117,6 @@ export default function BookingPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
-      <Header />
       <main className="flex-1 py-12 px-4 sm:px-6 lg:px-8 max-w-5xl mx-auto w-full">
         <div className="bg-white shadow rounded-2xl p-6 sm:p-10 border border-gray-100">
           

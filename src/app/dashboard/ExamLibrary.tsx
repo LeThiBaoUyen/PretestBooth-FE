@@ -183,7 +183,7 @@ export default function ExamLibrary() {
                   </div>
                 </div>
                 <Link
-                  href={`/dashboard/exams/${exam.id}`}
+                  href={`/exams/${exam.id}`}
                   className="mt-2 w-full bg-navy-600 text-white py-2 rounded-lg font-bold hover:bg-navy-700 transition block text-center"
                 >
                   Chi tiết
@@ -191,7 +191,7 @@ export default function ExamLibrary() {
                 {canManage(exam) && (
                   <div className="flex gap-2 mt-2">
                     <Link
-                      href={`/dashboard/exams/${exam.id}/edit`}
+                      href={`/exams/${exam.id}/edit`}
                       className="flex-1 px-3 py-1.5 rounded-lg text-sm font-semibold border border-navy-200 text-navy-600 hover:bg-navy-50 transition text-center"
                     >
                       ✏️ Sửa

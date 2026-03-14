@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react";
 import { FolderTree, Folder, Plus, Trash2 } from "lucide-react";
-import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { useAuth } from "@/lib/hooks";
 import { httpClient } from "@/lib/api/httpClient";
@@ -17,6 +16,7 @@ interface Category {
 
 export default function CategoryTreePage() {
   const { user } = useAuth();
+  const canManage = user?.role === "ADMIN" || user?.role === "LECTURER";
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -47,7 +47,7 @@ export default function CategoryTreePage() {
   };
 
   useEffect(() => {
-    if (user?.role === "ADMIN" || user?.role === "LECTURER") {
+    if (user) {
       fetchCategories();
     }
   }, [user]);
@@ -94,14 +94,16 @@ export default function CategoryTreePage() {
             <span className="font-bold text-gray-800">{c.name}</span>
             <span className="ml-3 text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded">/{c.slug}</span>
           </div>
-          <div className="flex items-center space-x-2 opacity-0 group-hover:opacity-100 transition">
-            <button onClick={() => handleCreateNode(c.id)} className="p-1.5 text-navy-600 hover:bg-navy-100 rounded" title="Thêm danh mục con">
-              <Plus className="w-4 h-4" />
-            </button>
-            <button onClick={() => handleDelete(c.id)} className="p-1.5 text-red-500 hover:bg-red-50 rounded" title="Xóa">
-              <Trash2 className="w-4 h-4" />
-            </button>
-          </div>
+          {canManage && (
+            <div className="flex items-center space-x-2 opacity-0 group-hover:opacity-100 transition">
+              <button onClick={() => handleCreateNode(c.id)} className="p-1.5 text-navy-600 hover:bg-navy-100 rounded" title="Thêm danh mục con">
+                <Plus className="w-4 h-4" />
+              </button>
+              <button onClick={() => handleDelete(c.id)} className="p-1.5 text-red-500 hover:bg-red-50 rounded" title="Xóa">
+                <Trash2 className="w-4 h-4" />
+              </button>
+            </div>
+          )}
         </div>
         {c.children && c.children.length > 0 && (
           <div className="w-full">
@@ -112,24 +114,28 @@ export default function CategoryTreePage() {
     ));
   };
 
-  if (!user || (user.role !== "ADMIN" && user.role !== "LECTURER")) return null;
+  if (!user) return null;
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
-      <Header />
       <main className="flex-1 max-w-5xl mx-auto w-full px-4 py-8">
         
         <div className="flex justify-between items-center mb-6">
           <div>
             <h1 className="text-2xl font-bold text-navy-600">Cây Danh Mục (Category Tree)</h1>
             <p className="text-gray-500 text-sm mt-1">Phân loại câu hỏi đa tầng, không giới hạn độ sâu.</p>
+            {!canManage && (
+              <p className="text-xs text-amber-700 mt-1">Bạn đang ở chế độ xem, chỉ giảng viên/quản trị viên mới có thể chỉnh sửa.</p>
+            )}
           </div>
-          <button 
-            onClick={() => handleCreateNode(null)}
-            className="flex items-center bg-navy-600 hover:bg-navy-700 text-white px-4 py-2 rounded-lg font-bold transition shadow-sm"
-          >
-            <Plus className="w-4 h-4 mr-2" /> Thêm Danh Mục Gốc
-          </button>
+          {canManage && (
+            <button 
+              onClick={() => handleCreateNode(null)}
+              className="flex items-center bg-navy-600 hover:bg-navy-700 text-white px-4 py-2 rounded-lg font-bold transition shadow-sm"
+            >
+              <Plus className="w-4 h-4 mr-2" /> Thêm Danh Mục Gốc
+            </button>
+          )}
         </div>
 
         <div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">

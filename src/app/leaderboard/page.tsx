@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react";
 import { Trophy, Medal, Crown, History, ArrowUpCircle, ArrowDownCircle } from "lucide-react";
-import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { pointsApi } from "@/lib/api/points";
 import { useAuth } from "@/lib/hooks";
@@ -56,7 +55,6 @@ export default function LeaderboardPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
-      <Header />
       <main className="flex-1 max-w-5xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-12">
         
         <div className="text-center mb-10">

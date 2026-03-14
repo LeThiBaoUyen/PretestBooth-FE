@@ -4,7 +4,6 @@ import { useState, useEffect, Suspense } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useSearchParams, useRouter } from "next/navigation";
-import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { apiClient } from "@/lib/api/auth";
 
@@ -70,7 +69,6 @@ function VerifyEmailContent() {
 
   return (
     <>
-      <Header />
       <main className="min-h-screen bg-gradient-to-br from-rose-50 via-white to-navy-50 py-12 px-4">
         <div className="max-w-md mx-auto">
           <div className="bg-white rounded-2xl shadow-xl p-8">
@@ -204,7 +202,6 @@ export default function VerifyEmailPage() {
     <Suspense
       fallback={
         <>
-          <Header />
           <main className="min-h-screen flex items-center justify-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-navy-600" />
           </main>
