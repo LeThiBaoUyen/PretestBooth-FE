@@ -43,6 +43,12 @@ const dashboardNavItems: NavItem[] = [
     roles: ["LECTURER", "ADMIN"],
   },
   {
+    label: "Lịch trình Booth",
+    href: "/admin/booths/schedule",
+    icon: CalendarDays,
+    roles: ["LECTURER", "ADMIN"],
+  },
+  {
     label: "Quản lý Sinh viên",
     href: "/admin/users",
     icon: Users,
@@ -78,7 +84,8 @@ function isItemActive(pathname: string, href: string) {
 
 function getSectionTitle(pathname: string) {
   if (pathname.startsWith("/exams")) return "Quản lý và làm đề thi";
-  if (pathname.startsWith("/admin/booths")) return "Điều phối booth";
+  if (pathname.startsWith("/admin/booths/schedule")) return "Lịch trình Booth";
+  if (pathname.startsWith("/admin/booths")) return "Quản lý Booth";
   if (pathname.startsWith("/admin/users")) return "Quản trị người dùng";
   if (pathname.startsWith("/question-bank")) return "Ngân hàng câu hỏi";
   if (pathname.startsWith("/submissions")) return "Lịch sử nộp bài";

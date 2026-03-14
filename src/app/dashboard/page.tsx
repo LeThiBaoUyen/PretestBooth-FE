@@ -47,6 +47,12 @@ export default function DashboardPage() {
             icon: Monitor,
           },
           {
+            label: "Lịch trình Booth",
+            description: "Theo dõi danh sách đặt chỗ theo ngày và xử lý check-in/check-out.",
+            href: "/admin/booths/schedule",
+            icon: CalendarDays,
+          },
+          {
             label: "Quản lý Sinh viên",
             description: "Tìm kiếm, khóa tài khoản và import dữ liệu sinh viên.",
             href: "/admin/users",
@@ -60,6 +66,12 @@ export default function DashboardPage() {
               description: "Theo dõi lịch sử dụng booth và thao tác check-in/check-out.",
               href: "/admin/booths",
               icon: Monitor,
+            },
+            {
+              label: "Lịch trình Booth",
+              description: "Xem lịch đặt theo ngày và xử lý trạng thái sử dụng booth.",
+              href: "/admin/booths/schedule",
+              icon: CalendarDays,
             },
           ]
         : [
