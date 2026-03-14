@@ -358,9 +358,11 @@ export default function AdminUsersPage() {
       "studentCode,email,name,dateOfBirth",
       "21000001,21000001@student.iuh.edu.vn,Nguyen Van A,2003-08-15",
       "21000002,21000002@student.iuh.edu.vn,Tran Thi B,15/09/2003",
-    ].join("\n");
+    ].join("\r\n");
 
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const csvWithBom = `\uFEFF${csv}`;
+
+    const blob = new Blob([csvWithBom], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;

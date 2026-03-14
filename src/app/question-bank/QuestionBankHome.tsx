@@ -36,10 +36,20 @@ export default function QuestionBankHome() {
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       {/* Header */}
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-navy-600">Ngân hàng câu hỏi</h1>
-        <p className="text-gray-500 mt-1">
-          Quản lý bài tập lập trình và câu hỏi trắc nghiệm tập trung
-        </p>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-navy-600">Ngân hàng câu hỏi</h1>
+            <p className="text-gray-500 mt-1">
+              Quản lý bài tập lập trình và câu hỏi trắc nghiệm tập trung
+            </p>
+          </div>
+          <Link
+            href="/question-bank/categories"
+            className="inline-flex w-fit items-center rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+          >
+            Quản lý Subject và Topic
+          </Link>
+        </div>
       </div>
 
       {/* Stats Overview */}
@@ -111,6 +121,16 @@ export default function QuestionBankHome() {
             Xem danh sách →
           </div>
         </Link>
+      </div>
+
+      <div className="mb-8 rounded-xl border border-slate-200 bg-white p-4">
+        <p className="text-sm text-slate-700">
+          Bạn có thể quản lý Subject và Topic tại
+          <Link href="/question-bank/categories" className="ml-1 font-semibold text-navy-700 hover:underline">
+            trang phân loại
+          </Link>
+          để dùng tham chiếu thân thiện khi import dữ liệu.
+        </p>
       </div>
 
       {/* Subjects Overview */}
