@@ -1,34 +1,177 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
-import { 
-  Search, 
-  UserX, 
-  UserCheck, 
+import { useEffect, useRef, useState } from "react";
+import * as XLSX from "xlsx";
+import {
   AlertCircle,
+  CheckCircle,
+  CircleAlert,
+  CircleCheck,
+  Download,
   FileSpreadsheet,
-  CheckCircle
+  Search,
+  Upload,
+  UserCheck,
+  UserX,
 } from "lucide-react";
 import { useAuth } from "@/lib/hooks";
 import { usersApi } from "@/lib/api/users";
 import { getTokenManager } from "@/lib/auth/tokenManager";
 
+type PreviewRow = {
+  rowNumber: number;
+  studentCode: string;
+  email: string;
+  name: string;
+  dateOfBirth: string;
+  isValid: boolean;
+  errors: string[];
+};
+
+type ImportResult = {
+  total: number;
+  success: number;
+  failed: number;
+  errors: string[];
+};
+
+const REQUIRED_COLUMNS = ["studentCode", "email", "name"];
+
+function normalizeHeaderKey(header: string) {
+  const normalized = header.replace(/\s+/g, "").replace(/[_-]/g, "").toLowerCase();
+  if (normalized === "studentcode" || normalized === "mssv") return "studentCode";
+  if (normalized === "email") return "email";
+  if (normalized === "name" || normalized === "fullname" || normalized === "hoten") return "name";
+  if (normalized === "dateofbirth" || normalized === "dob" || normalized === "ngaysinh") return "dateOfBirth";
+  return header;
+}
+
+function excelSerialToDate(serial: number) {
+  const utcDays = Math.floor(serial - 25569);
+  const utcValue = utcDays * 86400;
+  const dateInfo = new Date(utcValue * 1000);
+  return new Date(dateInfo.getUTCFullYear(), dateInfo.getUTCMonth(), dateInfo.getUTCDate());
+}
+
+function formatDateForDisplay(raw: unknown) {
+  if (raw === null || raw === undefined || raw === "") return "";
+
+  if (typeof raw === "number") {
+    const date = excelSerialToDate(raw);
+    if (Number.isNaN(date.getTime())) return "";
+    const dd = date.getDate().toString().padStart(2, "0");
+    const mm = (date.getMonth() + 1).toString().padStart(2, "0");
+    return `${dd}/${mm}/${date.getFullYear()}`;
+  }
+
+  const text = String(raw).trim();
+  return text;
+}
+
+function parseCsvLine(line: string) {
+  const result: string[] = [];
+  let current = "";
+  let inQuotes = false;
+
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+
+    if (ch === '"') {
+      if (inQuotes && line[i + 1] === '"') {
+        current += '"';
+        i++;
+      } else {
+        inQuotes = !inQuotes;
+      }
+      continue;
+    }
+
+    if (ch === "," && !inQuotes) {
+      result.push(current.trim());
+      current = "";
+      continue;
+    }
+
+    current += ch;
+  }
+
+  result.push(current.trim());
+  return result;
+}
+
+function validatePreviewRow(row: PreviewRow) {
+  const errors: string[] = [];
+
+  if (!row.studentCode) errors.push("Thiếu MSSV");
+  if (!row.email) errors.push("Thiếu email");
+  if (!row.name) errors.push("Thiếu tên");
+  if (row.email && !row.email.endsWith("@student.iuh.edu.vn")) {
+    errors.push("Email phải có đuôi @student.iuh.edu.vn");
+  }
+
+  return {
+    ...row,
+    isValid: errors.length === 0,
+    errors,
+  };
+}
+
+function parseCsvContent(content: string) {
+  const lines = content
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0);
+
+  if (lines.length === 0) {
+    return { headers: [] as string[], rows: [] as Record<string, unknown>[] };
+  }
+
+  const rawHeaders = parseCsvLine(lines[0]);
+  const headers = rawHeaders.map((h) => normalizeHeaderKey(h));
+
+  const rows: Record<string, unknown>[] = [];
+  for (let i = 1; i < lines.length; i++) {
+    const cells = parseCsvLine(lines[i]);
+    const row: Record<string, unknown> = {};
+    headers.forEach((header, idx) => {
+      row[header] = cells[idx] ?? "";
+    });
+    rows.push(row);
+  }
+
+  return { headers, rows };
+}
+
 export default function AdminUsersPage() {
   const { user } = useAuth();
-  
+
   const [users, setUsers] = useState<any[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
+
+  const [isParsingFile, setIsParsingFile] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
-  
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [previewRows, setPreviewRows] = useState<PreviewRow[]>([]);
+  const [previewError, setPreviewError] = useState<string | null>(null);
+  const [importResult, setImportResult] = useState<ImportResult | null>(null);
+
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const validRowsCount = previewRows.filter((row) => row.isValid).length;
+  const invalidRowsCount = previewRows.length - validRowsCount;
 
   const fetchUsers = async () => {
     setLoading(true);
     try {
-      const res = await usersApi.getUsers({ page, limit: 12, search: search || undefined, role: "STUDENT" });
+      const res = await usersApi.getUsers({
+        page,
+        limit: 12,
+        search: search || undefined,
+        role: "STUDENT",
+      });
       setUsers(res.data);
       setTotal(res.total);
     } catch (e) {
@@ -46,10 +189,11 @@ export default function AdminUsersPage() {
 
   const handleToggleLock = async (id: string, currentlyLocked: boolean) => {
     if (!confirm(currentlyLocked ? "Mở khóa tài khoản này?" : "Khóa tài khoản này?")) return;
+
     try {
-      await usersApi.updateUser(id, { 
-        isLocked: !currentlyLocked, 
-        lockedReason: !currentlyLocked ? "Quản trị viên khóa" : undefined 
+      await usersApi.updateUser(id, {
+        isLocked: !currentlyLocked,
+        lockedReason: !currentlyLocked ? "Quản trị viên khóa" : undefined,
       });
       fetchUsers();
     } catch (e: any) {
@@ -57,69 +201,387 @@ export default function AdminUsersPage() {
     }
   };
 
+  const toPreviewRows = (rows: Record<string, unknown>[]) => {
+    return rows.map((row, index) => {
+      const previewRow: PreviewRow = {
+        rowNumber: index + 2,
+        studentCode: String(row.studentCode ?? "").trim(),
+        email: String(row.email ?? "").trim().toLowerCase(),
+        name: String(row.name ?? "").trim(),
+        dateOfBirth: formatDateForDisplay(row.dateOfBirth),
+        isValid: true,
+        errors: [],
+      };
+
+      return validatePreviewRow(previewRow);
+    });
+  };
+
+  const parseFileForPreview = async (file: File) => {
+    const fileName = file.name.toLowerCase();
+
+    if (fileName.endsWith(".csv")) {
+      const text = await file.text();
+      const parsed = parseCsvContent(text);
+      return {
+        headers: parsed.headers,
+        rows: toPreviewRows(parsed.rows),
+      };
+    }
+
+    if (fileName.endsWith(".xlsx") || fileName.endsWith(".xls")) {
+      const buffer = await file.arrayBuffer();
+      const workbook = XLSX.read(buffer, { type: "array" });
+      const firstSheet = workbook.SheetNames[0];
+      if (!firstSheet) {
+        return { headers: [] as string[], rows: [] as PreviewRow[] };
+      }
+
+      const sheet = workbook.Sheets[firstSheet];
+      const rawRows = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, {
+        defval: "",
+      });
+
+      const headerSet = new Set<string>();
+      const normalizedRows = rawRows.map((row) => {
+        const normalized: Record<string, unknown> = {};
+        Object.entries(row).forEach(([key, value]) => {
+          const normalizedKey = normalizeHeaderKey(String(key));
+          normalized[normalizedKey] = value;
+          headerSet.add(normalizedKey);
+        });
+        return normalized;
+      });
+
+      return {
+        headers: Array.from(headerSet),
+        rows: toPreviewRows(normalizedRows),
+      };
+    }
+
+    throw new Error("Định dạng không hỗ trợ. Chỉ nhận .csv, .xlsx, .xls");
+  };
+
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    setSelectedFile(file);
+    setPreviewRows([]);
+    setPreviewError(null);
+    setImportResult(null);
+    setIsParsingFile(true);
+
+    try {
+      const parsed = await parseFileForPreview(file);
+
+      if (parsed.rows.length === 0) {
+        setPreviewError("File không có dữ liệu.");
+        return;
+      }
+
+      const missingColumns = REQUIRED_COLUMNS.filter((col) => !parsed.headers.includes(col));
+      if (missingColumns.length > 0) {
+        setPreviewError(`Thiếu cột bắt buộc: ${missingColumns.join(", ")}`);
+        return;
+      }
+
+      setPreviewRows(parsed.rows);
+    } catch (err: any) {
+      setPreviewError(err.message || "Không thể đọc file để xem trước.");
+    } finally {
+      setIsParsingFile(false);
+    }
+  };
+
+  const handleConfirmImport = async () => {
+    if (!selectedFile) return;
+
     const formData = new FormData();
-    formData.append("file", file);
+    formData.append("file", selectedFile);
 
     setIsUploading(true);
+    setImportResult(null);
+
     try {
       const token = getTokenManager().getAccessToken();
       const res = await fetch(usersApi.getImportUrl(), {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${token}`
+          Authorization: `Bearer ${token}`,
         },
         body: formData,
       });
 
       const data = await res.json();
-      if (!res.ok) throw new Error(data.message || "Import failed");
+      if (!res.ok) {
+        throw new Error(data?.message || "Import thất bại");
+      }
 
-      alert(`Import thành công! Đã xử lý ${data.totalProcessed} dòng. Thành công: ${data.successCount}, Thất bại: ${data.failedCount}`);
+      const payload = data?.data ?? data;
+      const total = Number(payload?.total ?? payload?.totalProcessed ?? 0);
+      const success = Number(payload?.success ?? payload?.successCount ?? 0);
+      const failed = Number(payload?.failed ?? payload?.failedCount ?? 0);
+      const errors = Array.isArray(payload?.errors)
+        ? payload.errors
+        : Array.isArray(payload?.failedRows)
+          ? payload.failedRows
+          : [];
+
+      setImportResult({
+        total,
+        success,
+        failed,
+        errors,
+      });
+
       fetchUsers();
     } catch (err: any) {
-      alert(err.message || "Lỗi khi upload file");
+      alert(err.message || "Lỗi khi import file");
     } finally {
       setIsUploading(false);
-      if (fileInputRef.current) fileInputRef.current.value = "";
     }
+  };
+
+  const handleResetImport = () => {
+    setSelectedFile(null);
+    setPreviewRows([]);
+    setPreviewError(null);
+    setImportResult(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
+
+  const handleDownloadTemplate = () => {
+    const csv = [
+      "studentCode,email,name,dateOfBirth",
+      "21000001,21000001@student.iuh.edu.vn,Nguyen Van A,2003-08-15",
+      "21000002,21000002@student.iuh.edu.vn,Tran Thi B,15/09/2003",
+    ].join("\n");
+
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "student-import-template.csv";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   };
 
   if (!user || user.role !== "ADMIN") return null;
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <div className="flex flex-col md:flex-row md:items-center justify-between mb-8">
+      <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-3">
         <div>
           <h1 className="text-3xl font-bold text-navy-600">Quản lý Sinh viên</h1>
-          <p className="text-gray-600 mt-2">Tìm kiếm, khóa tài khoản, hoặc import danh sách sinh viên mới từ Excel/CSV.</p>
+          <p className="text-gray-600 mt-2">
+            Tìm kiếm, khóa tài khoản và import danh sách sinh viên bằng quy trình xem trước trước khi xác nhận.
+          </p>
         </div>
-        
-        <div className="mt-4 md:mt-0 flex items-center space-x-3">
-          <input 
-            type="file" 
-            ref={fileInputRef} 
-            className="hidden" 
+
+        <div className="flex items-center gap-3">
+          <button
+            onClick={handleDownloadTemplate}
+            className="flex items-center px-4 py-2 bg-white border border-slate-200 text-slate-700 font-bold rounded-lg hover:bg-slate-50 transition"
+          >
+            <Download className="w-5 h-5 mr-2" />
+            Tải file mẫu CSV
+          </button>
+
+          <input
+            type="file"
+            ref={fileInputRef}
+            className="hidden"
             accept=".csv, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel"
             onChange={handleFileUpload}
           />
-          <button 
+
+          <button
             onClick={() => fileInputRef.current?.click()}
-            disabled={isUploading}
+            disabled={isParsingFile || isUploading}
             className="flex items-center px-4 py-2 bg-emerald-600 text-white font-bold rounded-lg hover:bg-emerald-700 transition disabled:bg-gray-400"
           >
-            {isUploading ? (
+            {isParsingFile ? (
               <span className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></span>
             ) : (
-              <FileSpreadsheet className="w-5 h-5 mr-2" />
+              <Upload className="w-5 h-5 mr-2" />
             )}
-            Import Excel/CSV
+            Chọn file import
           </button>
         </div>
       </div>
+
+      <div className="mb-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        <h2 className="text-lg font-bold text-slate-900">Cấu trúc file import</h2>
+        <p className="mt-1 text-sm text-slate-600">
+          Cột bắt buộc: <span className="font-semibold">studentCode</span>, <span className="font-semibold">email</span>, <span className="font-semibold">name</span>. Cột <span className="font-semibold">dateOfBirth</span> là tùy chọn.
+        </p>
+        <div className="mt-3 overflow-x-auto rounded-lg border border-slate-200">
+          <table className="w-full text-left text-sm">
+            <thead className="bg-slate-50">
+              <tr>
+                <th className="px-3 py-2 font-semibold text-slate-700">Cột</th>
+                <th className="px-3 py-2 font-semibold text-slate-700">Bắt buộc</th>
+                <th className="px-3 py-2 font-semibold text-slate-700">Định dạng</th>
+                <th className="px-3 py-2 font-semibold text-slate-700">Ghi chú</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              <tr>
+                <td className="px-3 py-2 font-medium">studentCode</td>
+                <td className="px-3 py-2">Có</td>
+                <td className="px-3 py-2">Chuỗi</td>
+                <td className="px-3 py-2">MSSV duy nhất</td>
+              </tr>
+              <tr>
+                <td className="px-3 py-2 font-medium">email</td>
+                <td className="px-3 py-2">Có</td>
+                <td className="px-3 py-2">user@student.iuh.edu.vn</td>
+                <td className="px-3 py-2">Bắt buộc đúng đuôi @student.iuh.edu.vn</td>
+              </tr>
+              <tr>
+                <td className="px-3 py-2 font-medium">name</td>
+                <td className="px-3 py-2">Có</td>
+                <td className="px-3 py-2">Chuỗi</td>
+                <td className="px-3 py-2">Họ tên sinh viên</td>
+              </tr>
+              <tr>
+                <td className="px-3 py-2 font-medium">dateOfBirth</td>
+                <td className="px-3 py-2">Không</td>
+                <td className="px-3 py-2">YYYY-MM-DD hoặc DD/MM/YYYY</td>
+                <td className="px-3 py-2">Nếu hợp lệ, mật khẩu mặc định sẽ là DDMM</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {(selectedFile || previewError) && (
+        <div className="mb-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <div>
+              <h2 className="text-lg font-bold text-slate-900">Xem trước dữ liệu import</h2>
+              {selectedFile && (
+                <p className="mt-1 text-sm text-slate-600">
+                  File: <span className="font-semibold">{selectedFile.name}</span>
+                </p>
+              )}
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                onClick={handleResetImport}
+                disabled={isUploading}
+                className="rounded-lg border border-slate-300 px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-60"
+              >
+                Chọn lại file
+              </button>
+              <button
+                onClick={handleConfirmImport}
+                disabled={isUploading || previewRows.length === 0}
+                className="inline-flex items-center rounded-lg bg-emerald-600 px-4 py-2 text-xs font-bold text-white hover:bg-emerald-700 disabled:opacity-60"
+              >
+                {isUploading ? (
+                  <>
+                    <span className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></span>
+                    Đang import...
+                  </>
+                ) : (
+                  <>
+                    <FileSpreadsheet className="w-4 h-4 mr-2" />
+                    Xác nhận import
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+
+          {previewError && (
+            <div className="mt-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+              {previewError}
+            </div>
+          )}
+
+          {previewRows.length > 0 && (
+            <>
+              <div className="mt-4 flex flex-wrap gap-3 text-sm">
+                <span className="inline-flex items-center rounded-full bg-slate-100 px-3 py-1 font-semibold text-slate-700">
+                  Tổng dòng: {previewRows.length}
+                </span>
+                <span className="inline-flex items-center rounded-full bg-emerald-100 px-3 py-1 font-semibold text-emerald-700">
+                  <CircleCheck className="mr-1 h-4 w-4" /> Hợp lệ: {validRowsCount}
+                </span>
+                <span className="inline-flex items-center rounded-full bg-red-100 px-3 py-1 font-semibold text-red-700">
+                  <CircleAlert className="mr-1 h-4 w-4" /> Lỗi: {invalidRowsCount}
+                </span>
+              </div>
+
+              <div className="mt-4 overflow-x-auto rounded-lg border border-slate-200">
+                <table className="w-full text-left text-sm">
+                  <thead className="bg-slate-50">
+                    <tr>
+                      <th className="px-3 py-2 font-semibold text-slate-700">Dòng</th>
+                      <th className="px-3 py-2 font-semibold text-slate-700">MSSV</th>
+                      <th className="px-3 py-2 font-semibold text-slate-700">Email</th>
+                      <th className="px-3 py-2 font-semibold text-slate-700">Tên</th>
+                      <th className="px-3 py-2 font-semibold text-slate-700">Ngày sinh</th>
+                      <th className="px-3 py-2 font-semibold text-slate-700">Trạng thái</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {previewRows.slice(0, 20).map((row) => (
+                      <tr key={row.rowNumber} className={row.isValid ? "" : "bg-red-50/50"}>
+                        <td className="px-3 py-2 font-medium">{row.rowNumber}</td>
+                        <td className="px-3 py-2">{row.studentCode || "--"}</td>
+                        <td className="px-3 py-2">{row.email || "--"}</td>
+                        <td className="px-3 py-2">{row.name || "--"}</td>
+                        <td className="px-3 py-2">{row.dateOfBirth || "--"}</td>
+                        <td className="px-3 py-2">
+                          {row.isValid ? (
+                            <span className="font-semibold text-emerald-700">Hợp lệ</span>
+                          ) : (
+                            <span className="font-semibold text-red-700">{row.errors.join("; ")}</span>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {previewRows.length > 20 && (
+                <p className="mt-2 text-xs text-slate-500">Hiển thị 20 dòng đầu tiên để kiểm tra nhanh.</p>
+              )}
+            </>
+          )}
+        </div>
+      )}
+
+      {importResult && (
+        <div className="mb-6 rounded-2xl border border-emerald-200 bg-emerald-50 p-5 shadow-sm">
+          <h3 className="text-lg font-bold text-emerald-800">Kết quả import</h3>
+          <p className="mt-2 text-sm text-emerald-900">
+            Tổng dòng: {importResult.total} | Thành công: {importResult.success} | Thất bại: {importResult.failed}
+          </p>
+          {importResult.errors.length > 0 && (
+            <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3">
+              <p className="text-sm font-semibold text-amber-800">Chi tiết lỗi:</p>
+              <ul className="mt-1 list-disc pl-5 text-xs text-amber-800">
+                {importResult.errors.slice(0, 8).map((item, idx) => (
+                  <li key={`${item}-${idx}`}>{item}</li>
+                ))}
+              </ul>
+              {importResult.errors.length > 8 && (
+                <p className="mt-1 text-xs text-amber-700">...và {importResult.errors.length - 8} lỗi khác.</p>
+              )}
+            </div>
+          )}
+        </div>
+      )}
 
       <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
         <div className="p-4 border-b border-gray-200 flex items-center bg-gray-50">
@@ -136,9 +598,7 @@ export default function AdminUsersPage() {
               }}
             />
           </div>
-          <div className="ml-4 text-sm text-gray-500 font-medium">
-            Tổng cộng: {total} sinh viên
-          </div>
+          <div className="ml-4 text-sm text-gray-500 font-medium">Tổng cộng: {total} sinh viên</div>
         </div>
 
         {loading ? (
@@ -164,9 +624,7 @@ export default function AdminUsersPage() {
                       <div className="font-bold text-gray-900">{student.name || "Chưa cập nhật"}</div>
                       <div className="text-xs text-gray-500">{student.email}</div>
                     </td>
-                    <td className="py-4 px-6 font-medium text-navy-700">
-                      {student.studentCode || "--"}
-                    </td>
+                    <td className="py-4 px-6 font-medium text-navy-700">{student.studentCode || "--"}</td>
                     <td className="py-4 px-6">
                       <span className="font-bold text-yellow-600">{student.totalPoints || 0}</span>
                     </td>
@@ -190,8 +648,8 @@ export default function AdminUsersPage() {
                       <button
                         onClick={() => handleToggleLock(student.id, student.isLocked)}
                         className={`inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-bold transition ${
-                          student.isLocked 
-                            ? "bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200" 
+                          student.isLocked
+                            ? "bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200"
                             : "bg-red-50 text-red-700 hover:bg-red-100 border border-red-200"
                         }`}
                       >
@@ -215,7 +673,6 @@ export default function AdminUsersPage() {
           </div>
         )}
 
-        {/* Pagination */}
         {total > 12 && (
           <div className="p-4 border-t border-gray-100 flex justify-center gap-2 bg-gray-50">
             {Array.from({ length: Math.ceil(total / 12) }, (_, i) => i + 1).map((p) => (
