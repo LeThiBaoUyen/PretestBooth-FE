@@ -45,5 +45,6 @@ export const bookingsApi = {
 
   // Admin specific
   checkIn: (id: string) => httpClient.patch<Booking>(`/api/bookings/${id}/check-in`),
+  autoCheckIn: (id: string) => httpClient.patch<Booking>(`/api/bookings/${id}/auto-check-in`),
   checkOut: (id: string) => httpClient.patch<Booking>(`/api/bookings/${id}/check-out`),
 };

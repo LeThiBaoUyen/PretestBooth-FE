@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import Footer from "@/components/Footer";
 import { FormInput, SubmitButton } from "@/components/FormComponents";
 import { apiClient } from "@/lib/api/auth";
+import { bookingsApi } from "@/lib/api/bookings";
 import { getTokenManager } from "@/lib/auth/tokenManager";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
@@ -47,7 +48,7 @@ export default function LoginPage() {
   const loginMutation = useMutation({
     mutationFn: (data: { email: string; password: string }) =>
       apiClient.login(data),
-    onSuccess: (response) => {
+    onSuccess: async (response) => {
       // Save access token to TanStack Query cache
       tokenManager.saveAccessToken(response.accessToken);
 
@@ -57,6 +58,44 @@ export default function LoginPage() {
       // Store user info in query cache and invalidate to trigger refetch
       queryClient.setQueryData(["user"], response.user);
       queryClient.invalidateQueries({ queryKey: ["user"] });
+
+      if (response.user.role === "STUDENT") {
+        try {
+          const now = new Date();
+          const y = now.getFullYear();
+          const m = String(now.getMonth() + 1).padStart(2, "0");
+          const d = String(now.getDate()).padStart(2, "0");
+          const today = `${y}-${m}-${d}`;
+
+          const res = await bookingsApi.getBookings({
+            page: 1,
+            limit: 20,
+            status: "CONFIRMED",
+            date: today,
+            sortOrder: "asc",
+          });
+
+          const nowMs = now.getTime();
+          const candidate = res.data
+            .filter((booking) => {
+              const startMs = new Date(booking.startTime).getTime();
+              const endMs = new Date(booking.endTime).getTime();
+              const earlyStartMs = startMs - 15 * 60 * 1000;
+              return nowMs >= earlyStartMs && nowMs <= endMs;
+            })
+            .sort(
+              (a, b) =>
+                Math.abs(new Date(a.startTime).getTime() - nowMs) -
+                Math.abs(new Date(b.startTime).getTime() - nowMs),
+            )[0];
+
+          if (candidate) {
+            await bookingsApi.autoCheckIn(candidate.id);
+          }
+        } catch {
+          // Login should still succeed even if auto check-in fails.
+        }
+      }
 
       setSubmitMessage("Đăng nhập thành công! Đang chuyển hướng...");
       setTimeout(() => {
