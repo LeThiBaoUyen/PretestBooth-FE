@@ -790,12 +790,28 @@ export interface QueryUnifiedSubmissionsParams {
 // Booths
 export type BoothStatus = "ACTIVE" | "MAINTENANCE" | "INACTIVE";
 
+export interface BoothStatusLog {
+  id: string;
+  boothId: string;
+  fromStatus: BoothStatus;
+  toStatus: BoothStatus;
+  note: string;
+  changedByUserId: string | null;
+  changedAt: string;
+  changedByUser?: {
+    id: string;
+    email: string;
+    name: string | null;
+  } | null;
+}
+
 export interface Booth {
   id: string;
   name: string;
   description: string | null;
   location: string | null;
   status: BoothStatus;
+  statusLogs?: BoothStatusLog[];
   _count?: { bookings: number };
   createdAt: string;
   updatedAt: string;

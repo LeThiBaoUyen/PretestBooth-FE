@@ -1,5 +1,5 @@
 import { httpClient } from "./httpClient";
-import type { Booth, BoothStatus } from "./types";
+import type { Booth, BoothStatus, BoothStatusLog } from "./types";
 
 export const boothsApi = {
   // Common
@@ -21,8 +21,14 @@ export const boothsApi = {
   createBooth: (data: { name: string; description?: string; location?: string }) =>
     httpClient.post<Booth>("/api/booths", data),
 
-  updateBooth: (id: string, data: Partial<Booth>) =>
+  updateBooth: (
+    id: string,
+    data: Partial<Booth> & { statusNote?: string }
+  ) =>
     httpClient.patch<Booth>(`/api/booths/${id}`, data),
+
+  getBoothStatusLogs: (id: string) =>
+    httpClient.get<BoothStatusLog[]>(`/api/booths/${id}/status-logs`),
 
   deleteBooth: (id: string) => httpClient.delete<{ message: string }>(`/api/booths/${id}`),
 };
