@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { submissionsApi } from "@/lib/api/execution";
@@ -63,6 +63,11 @@ export default function SubmissionsPage() {
   const { accessToken } = useAuth();
   const [page, setPage] = useState(1);
   const [type, setType] = useState<"ALL" | "PROBLEM" | "EXAM">("ALL");
+  const [statusFilter, setStatusFilter] = useState<string>("ALL");
+  const [difficultyFilter, setDifficultyFilter] = useState<"ALL" | Difficulty>("ALL");
+  const [keyword, setKeyword] = useState("");
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
   const limit = 20;
 
   const { data, isLoading, isError } = useQuery({
@@ -81,6 +86,35 @@ export default function SubmissionsPage() {
   });
 
   const submissions = data?.data || [];
+  const filteredSubmissions = useMemo(() => {
+    const q = keyword.trim().toLowerCase();
+    const from = fromDate ? new Date(`${fromDate}T00:00:00`).getTime() : null;
+    const to = toDate ? new Date(`${toDate}T23:59:59`).getTime() : null;
+
+    return submissions.filter((item) => {
+      if (statusFilter !== "ALL" && item.status !== statusFilter) return false;
+
+      if (difficultyFilter !== "ALL") {
+        if (item.type !== "PROBLEM") return false;
+        if (item.difficulty !== difficultyFilter) return false;
+      }
+
+      if (q && !item.title.toLowerCase().includes(q)) return false;
+
+      const itemTime = new Date(item.date).getTime();
+      if (from !== null && itemTime < from) return false;
+      if (to !== null && itemTime > to) return false;
+
+      return true;
+    });
+  }, [submissions, statusFilter, difficultyFilter, keyword, fromDate, toDate]);
+
+  const availableStatuses = useMemo(() => {
+    const set = new Set<string>();
+    submissions.forEach((item) => set.add(item.status));
+    return Array.from(set);
+  }, [submissions]);
+
   const totalPages = data?.totalPages || 1;
 
   if (!accessToken) {
@@ -159,7 +193,7 @@ export default function SubmissionsPage() {
 
         {/* Filters */}
         <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Loại
@@ -177,6 +211,91 @@ export default function SubmissionsPage() {
                 <option value="EXAM">Bài thi</option>
               </select>
             </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Trạng thái
+              </label>
+              <select
+                value={statusFilter}
+                onChange={(e) => {
+                  setStatusFilter(e.target.value);
+                  setPage(1);
+                }}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                <option value="ALL">Tất cả</option>
+                {availableStatuses.map((status) => (
+                  <option key={status} value={status}>
+                    {STATUS_LABELS[status] || status}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Độ khó
+              </label>
+              <select
+                value={difficultyFilter}
+                onChange={(e) => {
+                  setDifficultyFilter(e.target.value as "ALL" | Difficulty);
+                  setPage(1);
+                }}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                <option value="ALL">Tất cả</option>
+                <option value="EASY">Dễ</option>
+                <option value="MEDIUM">Trung bình</option>
+                <option value="HARD">Khó</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Từ khóa tiêu đề
+              </label>
+              <input
+                value={keyword}
+                onChange={(e) => {
+                  setKeyword(e.target.value);
+                  setPage(1);
+                }}
+                placeholder="Nhập tên bài"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Từ ngày
+              </label>
+              <input
+                type="date"
+                value={fromDate}
+                onChange={(e) => {
+                  setFromDate(e.target.value);
+                  setPage(1);
+                }}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Đến ngày
+              </label>
+              <input
+                type="date"
+                value={toDate}
+                onChange={(e) => {
+                  setToDate(e.target.value);
+                  setPage(1);
+                }}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+            </div>
           </div>
         </div>
 
@@ -188,7 +307,7 @@ export default function SubmissionsPage() {
             <div className="p-12 text-center text-red-500">
               Không thể tải dữ liệu. Vui lòng thử lại.
             </div>
-          ) : submissions.length === 0 ? (
+          ) : filteredSubmissions.length === 0 ? (
             <div className="p-12 text-center text-gray-500">
               Chưa có lần nộp bài nào
             </div>
@@ -218,7 +337,7 @@ export default function SubmissionsPage() {
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {submissions.map((item: UnifiedSubmissionItem) => (
+                  {filteredSubmissions.map((item: UnifiedSubmissionItem) => (
                     <tr
                       key={`${item.type}-${item.id}`}
                       className="hover:bg-gray-50 cursor-pointer"

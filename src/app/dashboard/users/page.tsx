@@ -151,6 +151,8 @@ export default function AdminUsersPage() {
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
+  const [classFilter, setClassFilter] = useState("");
+  const [lockFilter, setLockFilter] = useState<"ALL" | "LOCKED" | "ACTIVE">("ALL");
   const [loading, setLoading] = useState(true);
 
   const [isParsingFile, setIsParsingFile] = useState(false);
@@ -172,6 +174,8 @@ export default function AdminUsersPage() {
         page,
         limit: 12,
         search: search || undefined,
+        className: classFilter || undefined,
+        isLocked: lockFilter === "ALL" ? undefined : lockFilter === "LOCKED",
         role: "STUDENT",
       });
       setUsers(res.data);
@@ -187,7 +191,7 @@ export default function AdminUsersPage() {
     if (user?.role === "ADMIN") {
       fetchUsers();
     }
-  }, [user, page, search]);
+  }, [user, page, search, classFilter, lockFilter]);
 
   const handleToggleLock = async (id: string, currentlyLocked: boolean) => {
     if (!confirm(currentlyLocked ? "Mở khóa tài khoản này?" : "Khóa tài khoản này?")) return;
@@ -611,6 +615,28 @@ export default function AdminUsersPage() {
               }}
             />
           </div>
+          <input
+            type="text"
+            placeholder="Lọc theo lớp học phần"
+            className="ml-3 w-52 px-3 py-2 border border-gray-300 rounded-lg focus:ring-navy-500 focus:border-navy-500 text-sm"
+            value={classFilter}
+            onChange={(e) => {
+              setClassFilter(e.target.value);
+              setPage(1);
+            }}
+          />
+          <select
+            className="ml-3 px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white"
+            value={lockFilter}
+            onChange={(e) => {
+              setLockFilter(e.target.value as "ALL" | "LOCKED" | "ACTIVE");
+              setPage(1);
+            }}
+          >
+            <option value="ALL">Tất cả trạng thái</option>
+            <option value="ACTIVE">Đang hoạt động</option>
+            <option value="LOCKED">Đã khóa</option>
+          </select>
           <div className="ml-4 text-sm text-gray-500 font-medium">Tổng cộng: {total} sinh viên</div>
         </div>
 

@@ -10,12 +10,13 @@ export interface PaginatedUsers {
 }
 
 export const usersApi = {
-  getUsers: (params: { page?: number; limit?: number; role?: string; search?: string; isLocked?: boolean }) => {
+  getUsers: (params: { page?: number; limit?: number; role?: string; search?: string; className?: string; isLocked?: boolean }) => {
     const query = new URLSearchParams();
     if (params.page) query.append("page", params.page.toString());
     if (params.limit) query.append("limit", params.limit.toString());
     if (params.role) query.append("role", params.role);
     if (params.search) query.append("search", params.search);
+    if (params.className) query.append("className", params.className);
     if (params.isLocked !== undefined) query.append("isLocked", params.isLocked.toString());
 
     return httpClient.get<PaginatedUsers>(`/api/users?${query.toString()}`);

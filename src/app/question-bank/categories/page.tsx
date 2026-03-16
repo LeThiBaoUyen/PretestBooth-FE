@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { FolderOpen, Plus, Save, Trash2, PenSquare } from "lucide-react";
+import { FolderOpen, Plus, Save, Trash2, PenSquare, Search } from "lucide-react";
 import Footer from "@/components/Footer";
 import { useAuth } from "@/lib/hooks";
 import { questionsApiClient } from "@/lib/api/questions";
@@ -12,6 +12,8 @@ export default function SubjectTopicManagementPage() {
   const canManage = user?.role === "ADMIN" || user?.role === "LECTURER";
 
   const [selectedSubjectId, setSelectedSubjectId] = useState<string>("");
+  const [subjectKeyword, setSubjectKeyword] = useState("");
+  const [topicKeyword, setTopicKeyword] = useState("");
 
   const [subjectName, setSubjectName] = useState("");
   const [subjectDescription, setSubjectDescription] = useState("");
@@ -43,8 +45,22 @@ export default function SubjectTopicManagementPage() {
   });
 
   const sortedSubjects = useMemo(() => {
-    return [...(subjects || [])].sort((a, b) => a.name.localeCompare(b.name, "vi"));
-  }, [subjects]);
+    const q = subjectKeyword.trim().toLowerCase();
+    const items = [...(subjects || [])].sort((a, b) => a.name.localeCompare(b.name, "vi"));
+    if (!q) return items;
+    return items.filter((s) => {
+      const name = s.name.toLowerCase();
+      const desc = (s.description || "").toLowerCase();
+      return name.includes(q) || desc.includes(q);
+    });
+  }, [subjects, subjectKeyword]);
+
+  const filteredTopics = useMemo(() => {
+    const q = topicKeyword.trim().toLowerCase();
+    const items = topics || [];
+    if (!q) return items;
+    return items.filter((t) => t.name.toLowerCase().includes(q));
+  }, [topics, topicKeyword]);
 
   const currentSubject = useMemo(() => {
     return sortedSubjects.find((s) => s.id === selectedSubjectId) || null;
@@ -181,6 +197,16 @@ export default function SubjectTopicManagementPage() {
               </h2>
             </div>
 
+            <div className="mb-4 flex items-center rounded-xl border border-slate-200 px-3 py-2">
+              <Search className="h-4 w-4 text-slate-400" />
+              <input
+                value={subjectKeyword}
+                onChange={(e) => setSubjectKeyword(e.target.value)}
+                placeholder="Lọc môn học theo tên/mô tả"
+                className="ml-2 w-full border-0 p-0 text-sm outline-none"
+              />
+            </div>
+
             {canManage && (
               <div className="mb-4 rounded-xl border border-slate-200 p-3 space-y-3">
                 <input
@@ -277,6 +303,18 @@ export default function SubjectTopicManagementPage() {
               </span>
             </div>
 
+            {selectedSubjectId && (
+              <div className="mb-4 flex items-center rounded-xl border border-slate-200 px-3 py-2">
+                <Search className="h-4 w-4 text-slate-400" />
+                <input
+                  value={topicKeyword}
+                  onChange={(e) => setTopicKeyword(e.target.value)}
+                  placeholder="Lọc chủ đề theo tên"
+                  className="ml-2 w-full border-0 p-0 text-sm outline-none"
+                />
+              </div>
+            )}
+
             {canManage && selectedSubjectId && (
               <div className="mb-4 rounded-xl border border-slate-200 p-3 space-y-3">
                 <input
@@ -310,11 +348,11 @@ export default function SubjectTopicManagementPage() {
               <div className="py-16 text-center text-gray-500">Chọn một subject để xem topic.</div>
             ) : loadingTopics ? (
               <div className="py-16 text-center text-gray-500">Đang tải topic...</div>
-            ) : !topics?.length ? (
+            ) : !filteredTopics.length ? (
               <div className="py-16 text-center text-gray-500">Subject này chưa có topic nào.</div>
             ) : (
               <div className="space-y-2 max-h-[460px] overflow-auto pr-1">
-                {topics.map((topic) => (
+                {filteredTopics.map((topic) => (
                   <div key={topic.id} className="rounded-xl border border-slate-200 p-3 bg-white">
                     <div className="flex items-center justify-between gap-2">
                       <div>
