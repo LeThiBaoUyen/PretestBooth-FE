@@ -23,6 +23,7 @@ type PreviewRow = {
   studentCode: string;
   email: string;
   name: string;
+  className: string;
   dateOfBirth: string;
   isValid: boolean;
   errors: string[];
@@ -42,6 +43,7 @@ function normalizeHeaderKey(header: string) {
   if (normalized === "studentcode" || normalized === "mssv") return "studentCode";
   if (normalized === "email") return "email";
   if (normalized === "name" || normalized === "fullname" || normalized === "hoten") return "name";
+  if (normalized === "classname" || normalized === "lophocphan" || normalized === "lop") return "className";
   if (normalized === "dateofbirth" || normalized === "dob" || normalized === "ngaysinh") return "dateOfBirth";
   return header;
 }
@@ -208,6 +210,7 @@ export default function AdminUsersPage() {
         studentCode: String(row.studentCode ?? "").trim(),
         email: String(row.email ?? "").trim().toLowerCase(),
         name: String(row.name ?? "").trim(),
+        className: String(row.className ?? "").trim(),
         dateOfBirth: formatDateForDisplay(row.dateOfBirth),
         isValid: true,
         errors: [],
@@ -355,9 +358,9 @@ export default function AdminUsersPage() {
 
   const handleDownloadTemplate = () => {
     const csv = [
-      "studentCode,email,name,dateOfBirth",
-      "21000001,21000001@student.iuh.edu.vn,Nguyen Van A,2003-08-15",
-      "21000002,21000002@student.iuh.edu.vn,Tran Thi B,15/09/2003",
+      "studentCode,email,name,className,dateOfBirth",
+      "21000001,21000001@student.iuh.edu.vn,Nguyen Van A,DHKTPM17ATT,2003-08-15",
+      "21000002,21000002@student.iuh.edu.vn,Tran Thi B,DHKTPM17BTT,15/09/2003",
     ].join("\r\n");
 
     const csvWithBom = `\uFEFF${csv}`;
@@ -420,7 +423,7 @@ export default function AdminUsersPage() {
       <div className="mb-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
         <h2 className="text-lg font-bold text-slate-900">Cấu trúc file import</h2>
         <p className="mt-1 text-sm text-slate-600">
-          Cột bắt buộc: <span className="font-semibold">studentCode</span>, <span className="font-semibold">email</span>, <span className="font-semibold">name</span>. Cột <span className="font-semibold">dateOfBirth</span> là tùy chọn.
+          Cột bắt buộc: <span className="font-semibold">studentCode</span>, <span className="font-semibold">email</span>, <span className="font-semibold">name</span>. Cột <span className="font-semibold">className</span> và <span className="font-semibold">dateOfBirth</span> là tùy chọn.
         </p>
         <div className="mt-3 overflow-x-auto rounded-lg border border-slate-200">
           <table className="w-full text-left text-sm">
@@ -450,6 +453,12 @@ export default function AdminUsersPage() {
                 <td className="px-3 py-2">Có</td>
                 <td className="px-3 py-2">Chuỗi</td>
                 <td className="px-3 py-2">Họ tên sinh viên</td>
+              </tr>
+              <tr>
+                <td className="px-3 py-2 font-medium">className</td>
+                <td className="px-3 py-2">Không</td>
+                <td className="px-3 py-2">Chuỗi</td>
+                <td className="px-3 py-2">Lớp học phần</td>
               </tr>
               <tr>
                 <td className="px-3 py-2 font-medium">dateOfBirth</td>
@@ -530,6 +539,7 @@ export default function AdminUsersPage() {
                       <th className="px-3 py-2 font-semibold text-slate-700">MSSV</th>
                       <th className="px-3 py-2 font-semibold text-slate-700">Email</th>
                       <th className="px-3 py-2 font-semibold text-slate-700">Tên</th>
+                      <th className="px-3 py-2 font-semibold text-slate-700">Lớp học phần</th>
                       <th className="px-3 py-2 font-semibold text-slate-700">Ngày sinh</th>
                       <th className="px-3 py-2 font-semibold text-slate-700">Trạng thái</th>
                     </tr>
@@ -541,6 +551,7 @@ export default function AdminUsersPage() {
                         <td className="px-3 py-2">{row.studentCode || "--"}</td>
                         <td className="px-3 py-2">{row.email || "--"}</td>
                         <td className="px-3 py-2">{row.name || "--"}</td>
+                        <td className="px-3 py-2">{row.className || "--"}</td>
                         <td className="px-3 py-2">{row.dateOfBirth || "--"}</td>
                         <td className="px-3 py-2">
                           {row.isValid ? (
@@ -614,6 +625,7 @@ export default function AdminUsersPage() {
                 <tr className="bg-white border-b-2 border-gray-100">
                   <th className="py-3 px-6 font-semibold text-gray-500 text-sm">Sinh viên</th>
                   <th className="py-3 px-6 font-semibold text-gray-500 text-sm">MSSV</th>
+                  <th className="py-3 px-6 font-semibold text-gray-500 text-sm">Lớp học phần</th>
                   <th className="py-3 px-6 font-semibold text-gray-500 text-sm">Điểm tích lũy</th>
                   <th className="py-3 px-6 font-semibold text-gray-500 text-sm">Trạng thái</th>
                   <th className="py-3 px-6 font-semibold text-gray-500 text-sm text-right">Thao tác</th>
@@ -627,6 +639,7 @@ export default function AdminUsersPage() {
                       <div className="text-xs text-gray-500">{student.email}</div>
                     </td>
                     <td className="py-4 px-6 font-medium text-navy-700">{student.studentCode || "--"}</td>
+                    <td className="py-4 px-6 text-gray-700">{student.className || "--"}</td>
                     <td className="py-4 px-6">
                       <span className="font-bold text-yellow-600">{student.totalPoints || 0}</span>
                     </td>

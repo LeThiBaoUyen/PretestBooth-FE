@@ -4,6 +4,8 @@ export interface User {
   id: string;
   email: string;
   name?: string; // Thêm tên user (tùy backend trả về)
+  studentCode?: string;
+  className?: string;
   role: "STUDENT" | "LECTURER" | "ADMIN";
   isEmailVerified: boolean;
 }

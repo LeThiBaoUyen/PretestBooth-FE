@@ -25,7 +25,7 @@ export const usersApi = {
 
   createUser: (data: any) => httpClient.post<{ message: string; id: string }>("/api/users", data),
 
-  updateUser: (id: string, data: { name?: string; isLocked?: boolean; lockedReason?: string }) => 
+  updateUser: (id: string, data: { name?: string; className?: string; isLocked?: boolean; lockedReason?: string }) => 
     httpClient.patch<Partial<User>>(`/api/users/${id}`, data),
 
   // File should be mapped toFormData in the UI layer and passed via fetch directly because httpClient forces JSON
