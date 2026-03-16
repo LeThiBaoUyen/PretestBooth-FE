@@ -8,6 +8,7 @@ import {
   LayoutDashboard,
   FileText,
   Monitor,
+  User,
   Users,
   BookOpen,
   ClipboardList,
@@ -52,7 +53,13 @@ const dashboardNavItems: NavItem[] = [
     label: "Quản lý Sinh viên",
     href: "/admin/users",
     icon: Users,
-    roles: ["ADMIN"],
+    roles: ["LECTURER", "ADMIN"],
+  },
+  {
+    label: "Hồ sơ cá nhân",
+    href: "/dashboard/profile",
+    icon: User,
+    roles: ["STUDENT", "LECTURER", "ADMIN"],
   },
 ];
 

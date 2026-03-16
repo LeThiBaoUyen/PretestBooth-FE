@@ -4,7 +4,7 @@ import Image from "next/image";
 import { useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/lib/hooks/useAuth";
-import { Menu, X, ChevronDown, LayoutDashboard, LogOut } from "lucide-react";
+import { Menu, X, ChevronDown, LayoutDashboard, LogOut, User } from "lucide-react";
 
 type NavItem = {
   label: string;
@@ -134,6 +134,14 @@ export default function Header() {
                       <LayoutDashboard className="h-4 w-4" />
                       Dashboard
                     </Link>
+                    <Link
+                      href="/dashboard/profile"
+                      className="flex items-center gap-2 px-4 py-2.5 text-slate-700 hover:bg-slate-50 transition"
+                      onClick={() => setDropdownOpen(false)}
+                    >
+                      <User className="h-4 w-4" />
+                      Hồ sơ cá nhân
+                    </Link>
                     <button
                       onClick={() => {
                         setDropdownOpen(false);
@@ -207,6 +215,14 @@ export default function Header() {
                       {userName}
                     </p>
                   </div>
+                  <Link
+                    href="/dashboard/profile"
+                    onClick={() => setIsOpen(false)}
+                    className="flex items-center gap-2 text-slate-700 hover:text-navy-700 py-2 transition font-medium"
+                  >
+                    <User className="h-4 w-4" />
+                    Hồ sơ cá nhân
+                  </Link>
                   <button
                     onClick={() => {
                       setIsOpen(false);

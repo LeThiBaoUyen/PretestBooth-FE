@@ -8,6 +8,10 @@ export interface User {
   className?: string;
   role: "STUDENT" | "LECTURER" | "ADMIN";
   isEmailVerified: boolean;
+  dateOfBirth?: string;
+  isLocked?: boolean;
+  lockedReason?: string;
+  totalPoints?: number;
 }
 
 export interface LoginRequest {

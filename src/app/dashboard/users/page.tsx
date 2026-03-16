@@ -9,10 +9,15 @@ import {
   CircleCheck,
   Download,
   FileSpreadsheet,
+  Pencil,
+  Plus,
+  Save,
   Search,
+  Trash2,
   Upload,
   UserCheck,
   UserX,
+  X,
 } from "lucide-react";
 import { useAuth } from "@/lib/hooks";
 import { usersApi } from "@/lib/api/users";
@@ -34,6 +39,14 @@ type ImportResult = {
   success: number;
   failed: number;
   errors: string[];
+};
+
+type StudentForm = {
+  email: string;
+  studentCode: string;
+  name: string;
+  className: string;
+  dateOfBirth: string;
 };
 
 const REQUIRED_COLUMNS = ["studentCode", "email", "name"];
@@ -154,6 +167,16 @@ export default function AdminUsersPage() {
   const [classFilter, setClassFilter] = useState("");
   const [lockFilter, setLockFilter] = useState<"ALL" | "LOCKED" | "ACTIVE">("ALL");
   const [loading, setLoading] = useState(true);
+  const [savingForm, setSavingForm] = useState(false);
+  const [showForm, setShowForm] = useState(false);
+  const [editingStudentId, setEditingStudentId] = useState<string | null>(null);
+  const [studentForm, setStudentForm] = useState<StudentForm>({
+    email: "",
+    studentCode: "",
+    name: "",
+    className: "",
+    dateOfBirth: "",
+  });
 
   const [isParsingFile, setIsParsingFile] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
@@ -163,9 +186,22 @@ export default function AdminUsersPage() {
   const [importResult, setImportResult] = useState<ImportResult | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const studentFormRef = useRef<HTMLFormElement>(null);
 
   const validRowsCount = previewRows.filter((row) => row.isValid).length;
   const invalidRowsCount = previewRows.length - validRowsCount;
+
+  const scrollToStudentForm = () => {
+    setTimeout(() => {
+      const el = studentFormRef.current;
+      if (!el) return;
+
+      const rect = el.getBoundingClientRect();
+      const balancedOffset = Math.max(90, (window.innerHeight - rect.height) / 2);
+      const targetTop = window.scrollY + rect.top - balancedOffset;
+      window.scrollTo({ top: Math.max(0, targetTop), behavior: "smooth" });
+    }, 60);
+  };
 
   const fetchUsers = async () => {
     setLoading(true);
@@ -188,7 +224,7 @@ export default function AdminUsersPage() {
   };
 
   useEffect(() => {
-    if (user?.role === "ADMIN") {
+    if (user?.role === "ADMIN" || user?.role === "LECTURER") {
       fetchUsers();
     }
   }, [user, page, search, classFilter, lockFilter]);
@@ -204,6 +240,96 @@ export default function AdminUsersPage() {
       fetchUsers();
     } catch (e: any) {
       alert(e.message || "Có lỗi xảy ra");
+    }
+  };
+
+  const resetStudentForm = () => {
+    setStudentForm({
+      email: "",
+      studentCode: "",
+      name: "",
+      className: "",
+      dateOfBirth: "",
+    });
+    setEditingStudentId(null);
+    setShowForm(false);
+  };
+
+  const handleCreateStudent = () => {
+    setEditingStudentId(null);
+    setStudentForm({
+      email: "",
+      studentCode: "",
+      name: "",
+      className: "",
+      dateOfBirth: "",
+    });
+    setShowForm(true);
+    scrollToStudentForm();
+  };
+
+  const handleEditStudent = (student: any) => {
+    setEditingStudentId(student.id);
+    setStudentForm({
+      email: student.email || "",
+      studentCode: student.studentCode || "",
+      name: student.name || "",
+      className: student.className || "",
+      dateOfBirth: student.dateOfBirth ? new Date(student.dateOfBirth).toISOString().slice(0, 10) : "",
+    });
+    setShowForm(true);
+    scrollToStudentForm();
+  };
+
+  const handleSubmitStudent = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!studentForm.email.trim() || !studentForm.studentCode.trim() || !studentForm.name.trim()) {
+      alert("Vui lòng nhập đầy đủ Email, MSSV và Họ tên");
+      return;
+    }
+
+    setSavingForm(true);
+    try {
+      if (editingStudentId) {
+        await usersApi.updateUser(editingStudentId, {
+          email: studentForm.email.trim().toLowerCase(),
+          studentCode: studentForm.studentCode.trim(),
+          name: studentForm.name.trim(),
+          className: studentForm.className.trim() || undefined,
+          dateOfBirth: studentForm.dateOfBirth || undefined,
+        });
+      } else {
+        await usersApi.createUser({
+          email: studentForm.email.trim().toLowerCase(),
+          studentCode: studentForm.studentCode.trim(),
+          name: studentForm.name.trim(),
+          className: studentForm.className.trim() || undefined,
+          dateOfBirth: studentForm.dateOfBirth || undefined,
+          role: "STUDENT",
+        });
+      }
+
+      resetStudentForm();
+      fetchUsers();
+    } catch (err: any) {
+      alert(err.message || "Không thể lưu sinh viên");
+    } finally {
+      setSavingForm(false);
+    }
+  };
+
+  const handleDeleteStudent = async (student: any) => {
+    if (!confirm(`Xóa sinh viên ${student.name || student.email}?`)) return;
+
+    try {
+      await usersApi.deleteUser(student.id);
+      if (editingStudentId === student.id) {
+        resetStudentForm();
+      }
+      fetchUsers();
+    } catch (err: any) {
+      alert(err.message || "Không thể xóa sinh viên");
     }
   };
 
@@ -380,7 +506,7 @@ export default function AdminUsersPage() {
     URL.revokeObjectURL(url);
   };
 
-  if (!user || user.role !== "ADMIN") return null;
+  if (!user || (user.role !== "ADMIN" && user.role !== "LECTURER")) return null;
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -388,16 +514,23 @@ export default function AdminUsersPage() {
         <div>
           <h1 className="text-3xl font-bold text-navy-600">Quản lý Sinh viên</h1>
           <p className="text-gray-600 mt-2">
-            Tìm kiếm, khóa tài khoản và import danh sách sinh viên bằng quy trình xem trước trước khi xác nhận.
+            Tìm kiếm, CRUD tài khoản sinh viên và import danh sách sinh viên bằng quy trình xem trước trước khi xác nhận.
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleCreateStudent}
+            className="inline-flex items-center px-2.5 py-1.5 bg-navy-600 text-white text-xs font-semibold rounded-lg hover:bg-navy-700 transition"
+          >
+            <Plus className="w-3.5 h-3.5 mr-1.5" />
+            Tạo sinh viên
+          </button>
           <button
             onClick={handleDownloadTemplate}
-            className="flex items-center px-4 py-2 bg-white border border-slate-200 text-slate-700 font-bold rounded-lg hover:bg-slate-50 transition"
+            className="inline-flex items-center px-2.5 py-1.5 bg-white border border-slate-200 text-slate-700 text-xs font-semibold rounded-lg hover:bg-slate-50 transition"
           >
-            <Download className="w-5 h-5 mr-2" />
+            <Download className="w-3.5 h-3.5 mr-1.5" />
             Tải file mẫu CSV
           </button>
 
@@ -412,17 +545,88 @@ export default function AdminUsersPage() {
           <button
             onClick={() => fileInputRef.current?.click()}
             disabled={isParsingFile || isUploading}
-            className="flex items-center px-4 py-2 bg-emerald-600 text-white font-bold rounded-lg hover:bg-emerald-700 transition disabled:bg-gray-400"
+            className="inline-flex items-center px-2.5 py-1.5 bg-emerald-600 text-white text-xs font-semibold rounded-lg hover:bg-emerald-700 transition disabled:bg-gray-400"
           >
             {isParsingFile ? (
               <span className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></span>
             ) : (
-              <Upload className="w-5 h-5 mr-2" />
+              <Upload className="w-3.5 h-3.5 mr-1.5" />
             )}
             Chọn file import
           </button>
         </div>
       </div>
+
+      {showForm && (
+        <form ref={studentFormRef} onSubmit={handleSubmitStudent} className="mb-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="text-lg font-bold text-slate-900">
+              {editingStudentId ? "Cập nhật sinh viên" : "Tạo sinh viên mới"}
+            </h2>
+            <button
+              type="button"
+              onClick={resetStudentForm}
+              className="rounded-lg border border-slate-200 p-2 text-slate-600 hover:bg-slate-50"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <input
+              value={studentForm.email}
+              onChange={(e) => setStudentForm((prev) => ({ ...prev, email: e.target.value }))}
+              placeholder="Email sinh viên"
+              className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
+              required
+            />
+            <input
+              value={studentForm.studentCode}
+              onChange={(e) => setStudentForm((prev) => ({ ...prev, studentCode: e.target.value }))}
+              placeholder="MSSV"
+              className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
+              required
+            />
+            <input
+              value={studentForm.name}
+              onChange={(e) => setStudentForm((prev) => ({ ...prev, name: e.target.value }))}
+              placeholder="Họ tên"
+              className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
+              required
+            />
+            <input
+              value={studentForm.className}
+              onChange={(e) => setStudentForm((prev) => ({ ...prev, className: e.target.value }))}
+              placeholder="Lớp học phần"
+              className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
+            />
+            <input
+              type="date"
+              value={studentForm.dateOfBirth}
+              onChange={(e) => setStudentForm((prev) => ({ ...prev, dateOfBirth: e.target.value }))}
+              className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
+            />
+          </div>
+
+          <div className="mt-4 flex justify-end gap-2">
+            <button
+              type="button"
+              onClick={resetStudentForm}
+              className="rounded-lg border border-slate-300 px-3 py-2 text-xs font-bold text-slate-700"
+            >
+              Hủy
+            </button>
+            <button
+              type="submit"
+              disabled={savingForm}
+              className="inline-flex items-center rounded-lg bg-emerald-600 px-3 py-2 text-xs font-bold text-white hover:bg-emerald-700 disabled:opacity-60"
+            >
+              <Save className="mr-1 h-4 w-4" />
+              {savingForm ? "Đang lưu..." : editingStudentId ? "Cập nhật" : "Tạo mới"}
+            </button>
+          </div>
+        </form>
+      )}
 
       <div className="mb-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
         <h2 className="text-lg font-bold text-slate-900">Cấu trúc file import</h2>
@@ -686,26 +890,42 @@ export default function AdminUsersPage() {
                       )}
                     </td>
                     <td className="py-4 px-6 text-right">
-                      <button
-                        onClick={() => handleToggleLock(student.id, student.isLocked)}
-                        className={`inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-bold transition ${
-                          student.isLocked
-                            ? "bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200"
-                            : "bg-red-50 text-red-700 hover:bg-red-100 border border-red-200"
-                        }`}
-                      >
-                        {student.isLocked ? (
-                          <>
-                            <UserCheck className="w-4 h-4 mr-1" />
-                            Mở khóa
-                          </>
-                        ) : (
-                          <>
-                            <UserX className="w-4 h-4 mr-1" />
-                            Khóa
-                          </>
-                        )}
-                      </button>
+                      <div className="inline-flex items-center gap-2">
+                        <button
+                          onClick={() => handleEditStudent(student)}
+                          className="inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-bold transition border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                        >
+                          <Pencil className="w-4 h-4 mr-1" />
+                          Sửa
+                        </button>
+                        <button
+                          onClick={() => handleToggleLock(student.id, student.isLocked)}
+                          className={`inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-bold transition ${
+                            student.isLocked
+                              ? "bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200"
+                              : "bg-red-50 text-red-700 hover:bg-red-100 border border-red-200"
+                          }`}
+                        >
+                          {student.isLocked ? (
+                            <>
+                              <UserCheck className="w-4 h-4 mr-1" />
+                              Mở khóa
+                            </>
+                          ) : (
+                            <>
+                              <UserX className="w-4 h-4 mr-1" />
+                              Khóa
+                            </>
+                          )}
+                        </button>
+                        <button
+                          onClick={() => handleDeleteStudent(student)}
+                          className="inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-bold transition border border-red-200 bg-red-50 text-red-700 hover:bg-red-100"
+                        >
+                          <Trash2 className="w-4 h-4 mr-1" />
+                          Xóa
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}

@@ -9,6 +9,25 @@ export interface PaginatedUsers {
   totalPages: number;
 }
 
+export interface CreateStudentPayload {
+  email: string;
+  name: string;
+  role: "STUDENT";
+  studentCode: string;
+  className?: string;
+  dateOfBirth?: string;
+}
+
+export interface UpdateStudentPayload {
+  email?: string;
+  studentCode?: string;
+  name?: string;
+  className?: string;
+  dateOfBirth?: string;
+  isLocked?: boolean;
+  lockedReason?: string;
+}
+
 export const usersApi = {
   getUsers: (params: { page?: number; limit?: number; role?: string; search?: string; className?: string; isLocked?: boolean }) => {
     const query = new URLSearchParams();
@@ -24,10 +43,13 @@ export const usersApi = {
 
   getUser: (id: string) => httpClient.get<Partial<User>>(`/api/users/${id}`),
 
-  createUser: (data: any) => httpClient.post<{ message: string; id: string }>("/api/users", data),
+  createUser: (data: CreateStudentPayload) =>
+    httpClient.post<{ message: string; id: string }>("/api/users", data),
 
-  updateUser: (id: string, data: { name?: string; className?: string; isLocked?: boolean; lockedReason?: string }) => 
+  updateUser: (id: string, data: UpdateStudentPayload) =>
     httpClient.patch<Partial<User>>(`/api/users/${id}`, data),
+
+  deleteUser: (id: string) => httpClient.delete<{ message: string }>(`/api/users/${id}`),
 
   // File should be mapped toFormData in the UI layer and passed via fetch directly because httpClient forces JSON
   // We'll export a generic URL that the UI can hit using native fetch + tokens
