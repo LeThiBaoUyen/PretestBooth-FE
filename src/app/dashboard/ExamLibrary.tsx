@@ -91,7 +91,7 @@ export default function ExamLibrary() {
 
   if (userLoading) {
     return (
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      <div className="py-12">
         <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center text-gray-500">
           Đang kiểm tra phiên đăng nhập...
         </div>
@@ -101,7 +101,7 @@ export default function ExamLibrary() {
 
   if (!user) {
     return (
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      <div className="py-12">
         <div className="rounded-2xl border border-slate-200 bg-white p-10 text-center">
           <BookOpen className="mx-auto h-10 w-10 text-slate-300" />
           <h2 className="mt-4 text-2xl font-bold text-slate-900">Bạn cần đăng nhập để xem đề thi</h2>
@@ -118,12 +118,12 @@ export default function ExamLibrary() {
   }
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div className="pb-8">
       <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm mb-6">
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
             <h1 className="text-3xl font-bold text-navy-700">Thư viện đề thi</h1>
-            <p className="mt-1 text-sm text-slate-600">Duyệt đề đã công bố, tìm theo môn học và bắt đầu phiên thi ngay.</p>
+            <p className="mt-1 text-sm text-slate-600">Hãy tìm theo môn học và bắt đầu phiên luyện tập/thi ngay.</p>
           </div>
           <div className="inline-flex items-center gap-2 rounded-full bg-navy-50 px-3 py-1 text-xs font-bold text-navy-700">
             <Sparkles className="h-3.5 w-3.5" />
@@ -226,16 +226,18 @@ export default function ExamLibrary() {
                 key={exam.id}
                 className="bg-white rounded-xl shadow-sm p-5 flex flex-col justify-between border border-slate-200 relative hover:shadow-md transition"
               >
-                <div>
-                  <h2 className="text-lg font-bold text-navy-700 mb-2 line-clamp-2">
-                    {exam.title}
-                  </h2>
-                  <div className="flex items-center text-gray-500 text-sm mb-2 gap-3">
+                <div className="flex-1">
+                  <div className="min-h-[3.5rem] mb-2">
+                    <h2 className="text-lg font-bold text-navy-700 line-clamp-2">
+                      {exam.title}
+                    </h2>
+                  </div>
+                  <div className="flex items-center text-gray-500 text-sm mb-2 gap-3 min-h-[1.5rem]">
                     <span>⏰ {exam.duration} phút</span>
                     <span>👁️ {exam.sessionCount} lượt thi</span>
                     <span>📝 {exam.totalItems} câu</span>
                   </div>
-                  <div className="flex flex-wrap gap-2 mb-3">
+                  <div className="flex flex-wrap items-start gap-2 mb-3 min-h-[2rem]">
                     {exam.subject && (
                       <span className="bg-navy-50 text-navy-600 px-2 py-1 rounded text-xs font-semibold">
                         #{exam.subject.name}
@@ -250,12 +252,17 @@ export default function ExamLibrary() {
                             : "Khó"}
                       </span>
                     )}
+                    {!exam.subject && !exam.difficulty && (
+                      <span className="invisible bg-navy-50 px-2 py-1 rounded text-xs font-semibold">
+                        placeholder
+                      </span>
+                    )}
                   </div>
-                  <div className="text-xs text-gray-400 mb-2">
+                  <div className="text-xs text-gray-400 mb-2 min-h-[1.25rem]">
                     Trắc nghiệm: {exam.questionCount} | Code:{" "}
                     {exam.problemCount}
                   </div>
-                  <div className="text-xs text-gray-500 mb-2 flex items-center gap-2">
+                  <div className="text-xs text-gray-500 mb-2 flex items-center gap-2 min-h-[1.25rem]">
                     <Filter className="h-3 w-3" />
                     {exam.isPublished ? "Công bố" : "Nháp"}
                   </div>

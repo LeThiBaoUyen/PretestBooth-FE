@@ -78,7 +78,7 @@ export default function ExamDetailPage({
           {/* Back button */}
           <Link
             href="/exams"
-            className="mb-6 inline-flex items-center text-navy-600 hover:text-navy-700 font-semibold"
+            className="mb-3 inline-flex w-fit items-center text-navy-600 hover:text-navy-700 font-semibold"
           >
             ← Quay lại
           </Link>
@@ -96,10 +96,10 @@ export default function ExamDetailPage({
               </Link>
             </div>
           ) : exam ? (
-            <div className="bg-white rounded-2xl shadow-lg p-8">
+            <div className="bg-white rounded-2xl shadow-lg px-8 pb-8 pt-5 sm:pt-6">
               {/* Header section */}
-              <div className="mb-8 pb-8 border-b border-gray-200">
-                <h1 className="text-4xl font-bold text-navy-700 mb-3">
+              <div className="mb-6 pb-6 border-b border-gray-200">
+                <h1 className="text-4xl font-bold text-navy-700 leading-tight mb-3">
                   {exam.title}
                 </h1>
                 {exam.description && (

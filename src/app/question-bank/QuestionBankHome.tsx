@@ -33,13 +33,13 @@ export default function QuestionBankHome() {
   const totalAll = totalProblems + totalQuestions;
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div className="max-w-7xl mx-auto pb-8">
       {/* Header */}
       <div className="mb-8">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-navy-600">Ngân hàng câu hỏi</h1>
-            <p className="text-gray-500 mt-1">
+            <h1 className="text-3xl font-bold text-gray-900">Ngân hàng câu hỏi</h1>
+            <p className="mt-2 text-gray-600">
               Quản lý bài tập lập trình và câu hỏi trắc nghiệm tập trung
             </p>
           </div>

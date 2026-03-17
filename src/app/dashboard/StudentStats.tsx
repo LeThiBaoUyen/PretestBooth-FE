@@ -35,7 +35,7 @@ export default function StudentStatsDashboard() {
   if (!stats) return null;
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8">
+    <div className="pt-8">
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-navy-600">Xin chào, {user.name || "Sinh viên"}! 👋</h1>
         <p className="text-gray-600 mt-2">Theo dõi tiến trình luyện tập và điểm tích lũy của bạn tại đây.</p>

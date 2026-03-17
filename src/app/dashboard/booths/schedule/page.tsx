@@ -124,7 +124,7 @@ export default function BoothSchedulePage() {
 
   if (userLoading) {
     return (
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      <div className="py-12">
         <div className="text-center text-gray-500">Đang kiểm tra quyền truy cập...</div>
       </div>
     );
@@ -132,7 +132,7 @@ export default function BoothSchedulePage() {
 
   if (!canViewPage) {
     return (
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      <div className="py-12">
         <div className="bg-white rounded-xl border border-gray-200 p-6 text-center text-gray-600">
           Bạn không có quyền truy cập lịch trình booth.
         </div>
@@ -141,7 +141,7 @@ export default function BoothSchedulePage() {
   }
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div className="py-8">
       <nav className="mb-4 flex flex-wrap items-center gap-2" aria-label="Booth navigation">
         <Link
           href="/admin/booths"

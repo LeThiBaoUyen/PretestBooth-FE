@@ -91,9 +91,9 @@ export default function DashboardPage() {
         <div className="bg-gradient-to-r from-slate-900 via-navy-700 to-slate-800 px-6 py-6 text-white">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <h1 className="text-2xl font-bold">Dashboard Control Center</h1>
+              <h1 className="text-2xl font-bold">PRETEST BOOTH</h1>
               <p className="mt-1 text-sm text-slate-200">
-                Truy cập nhanh từng module, giảm thao tác và theo dõi tiến độ theo vai trò của bạn.
+                Truy cập nhanh các bài luyện thi, theo dõi tiến độ và cải thiện kết quả của bạn.
               </p>
             </div>
             <div className="inline-flex w-fit items-center gap-2 rounded-full bg-white/15 px-3 py-1 text-xs font-bold">

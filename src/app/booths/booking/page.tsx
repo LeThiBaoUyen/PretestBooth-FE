@@ -117,8 +117,9 @@ export default function BookingPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
-      <main className="flex-1 py-12 px-4 sm:px-6 lg:px-8 max-w-5xl mx-auto w-full">
-        <div className="bg-white shadow rounded-2xl p-6 sm:p-10 border border-gray-100">
+      <main className="flex-1 pt-8 pb-12 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-7xl mx-auto w-full">
+          <div className="bg-white shadow rounded-2xl p-6 sm:p-10 border border-gray-100">
           
           <div className="flex items-center space-x-3 mb-8">
             <div className="bg-navy-100 p-3 rounded-xl">
@@ -300,6 +301,7 @@ export default function BookingPage() {
 
             </div>
           )}
+          </div>
         </div>
       </main>
       <Footer />
