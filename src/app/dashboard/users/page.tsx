@@ -9,6 +9,7 @@ import {
   CircleCheck,
   Download,
   FileSpreadsheet,
+  FileDown,
   Pencil,
   Plus,
   Save,
@@ -180,6 +181,7 @@ export default function AdminUsersPage() {
 
   const [isParsingFile, setIsParsingFile] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewRows, setPreviewRows] = useState<PreviewRow[]>([]);
   const [previewError, setPreviewError] = useState<string | null>(null);
@@ -506,6 +508,50 @@ export default function AdminUsersPage() {
     URL.revokeObjectURL(url);
   };
 
+  const handleExportStudents = async () => {
+    setIsExporting(true);
+    try {
+      const token = getTokenManager().getAccessToken();
+      const exportUrl = usersApi.getExportUrl({
+        search: search || undefined,
+        className: classFilter || undefined,
+        isLocked: lockFilter === "ALL" ? undefined : lockFilter === "LOCKED",
+        sortOrder: "desc",
+        format: "xlsx",
+      });
+
+      const response = await fetch(exportUrl, {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) {
+        const body = await response.json().catch(() => null);
+        throw new Error(body?.message || "Xuất danh sách thất bại");
+      }
+
+      const blob = await response.blob();
+      const disposition = response.headers.get("content-disposition") || "";
+      const fileNameMatch = disposition.match(/filename="?([^";]+)"?/i);
+      const fileName = fileNameMatch?.[1] || "students_export.xlsx";
+
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch (err: any) {
+      alert(err.message || "Không thể xuất danh sách sinh viên");
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   if (!user || (user.role !== "ADMIN" && user.role !== "LECTURER")) return null;
 
   return (
@@ -521,17 +567,25 @@ export default function AdminUsersPage() {
         <div className="flex items-center gap-2">
           <button
             onClick={handleCreateStudent}
-            className="inline-flex items-center px-2.5 py-1.5 bg-navy-600 text-white text-xs font-semibold rounded-lg hover:bg-navy-700 transition"
+            className="inline-flex items-center px-4 py-2 bg-navy-600 text-white text-sm font-semibold rounded-lg hover:bg-navy-700 transition"
           >
             <Plus className="w-3.5 h-3.5 mr-1.5" />
             Tạo sinh viên
           </button>
           <button
+            onClick={handleExportStudents}
+            disabled={isExporting}
+            className="inline-flex items-center px-4 py-2 bg-white border border-slate-200 text-slate-700 text-sm font-semibold rounded-lg hover:bg-slate-50 transition disabled:opacity-60"
+          >
+            <FileDown className="w-3.5 h-3.5 mr-1.5" />
+            {isExporting ? "Đang xuất..." : "Xuất file"}
+          </button>
+          <button
             onClick={handleDownloadTemplate}
-            className="inline-flex items-center px-2.5 py-1.5 bg-white border border-slate-200 text-slate-700 text-xs font-semibold rounded-lg hover:bg-slate-50 transition"
+            className="inline-flex items-center px-4 py-2 bg-white border border-slate-200 text-slate-700 text-sm font-semibold rounded-lg hover:bg-slate-50 transition"
           >
             <Download className="w-3.5 h-3.5 mr-1.5" />
-            Tải file mẫu CSV
+            Tải mẫu CSV
           </button>
 
           <input
@@ -545,14 +599,14 @@ export default function AdminUsersPage() {
           <button
             onClick={() => fileInputRef.current?.click()}
             disabled={isParsingFile || isUploading}
-            className="inline-flex items-center px-2.5 py-1.5 bg-emerald-600 text-white text-xs font-semibold rounded-lg hover:bg-emerald-700 transition disabled:bg-gray-400"
+            className="inline-flex items-center px-4 py-2 bg-emerald-600 text-white text-sm font-semibold rounded-lg hover:bg-emerald-700 transition disabled:bg-gray-400"
           >
             {isParsingFile ? (
               <span className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></span>
             ) : (
               <Upload className="w-3.5 h-3.5 mr-1.5" />
             )}
-            Chọn file import
+            Import file
           </button>
         </div>
       </div>
