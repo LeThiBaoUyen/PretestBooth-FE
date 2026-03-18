@@ -119,11 +119,11 @@ export default function ExamLibrary() {
 
   return (
     <div className="pb-8">
-      <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm mb-6">
+      <div className="ui-page-header">
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-navy-700">Thư viện đề thi</h1>
-            <p className="mt-1 text-sm text-slate-600">Hãy tìm theo môn học và bắt đầu phiên luyện tập/thi ngay.</p>
+            <h1 className="ui-page-title">Thư viện đề thi</h1>
+            <p className="ui-page-subtitle">Hãy tìm theo môn học và bắt đầu phiên luyện tập/thi ngay.</p>
           </div>
           <div className="inline-flex items-center gap-2 rounded-full bg-navy-50 px-3 py-1 text-xs font-bold text-navy-700">
             <Sparkles className="h-3.5 w-3.5" />

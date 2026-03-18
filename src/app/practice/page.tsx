@@ -38,7 +38,7 @@ export default function PracticeSetupPage() {
   if (!user || user.role !== "STUDENT") return <div className="text-center py-20 text-red-500">Chỉ sinh viên mới có thể luyện tập.</div>;
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
+    <div className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-100 flex flex-col">
       <main className="flex-1 max-w-3xl mx-auto w-full px-4 py-12">
         
         <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">

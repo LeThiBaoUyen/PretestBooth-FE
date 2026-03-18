@@ -176,7 +176,7 @@ export default function SubjectTopicManagementPage() {
   if (!user) return null;
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
+    <div className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-100 flex flex-col">
       <main className="flex-1 max-w-7xl mx-auto w-full px-4 py-8">
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-navy-700">Quản lý Subject và Topic</h1>

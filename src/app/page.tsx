@@ -6,7 +6,7 @@ export default function Home() {
     <>
       <main>
         {/* Hero Section */}
-        <section className="bg-gradient-to-br from-rose-50 via-white to-rose-100 min-h-screen pt-20 pb-20">
+        <section className="bg-gradient-to-b from-slate-50 via-white to-slate-100 min-h-screen pt-20 pb-20">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
               {/* Left Content */}

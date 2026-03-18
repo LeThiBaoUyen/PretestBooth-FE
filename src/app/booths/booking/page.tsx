@@ -116,7 +116,7 @@ export default function BookingPage() {
   if (user.role !== "STUDENT") return <div className="text-center py-20 text-red-500">Chỉ sinh viên mới có thể đặt lịch.</div>;
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
+    <div className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-100 flex flex-col">
       <main className="flex-1 pt-8 pb-12 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto w-full">
           <div className="bg-white shadow rounded-2xl p-6 sm:p-10 border border-gray-100">

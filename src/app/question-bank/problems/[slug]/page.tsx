@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 import Link from "next/link";
 import Footer from "@/components/Footer";
 import { problemsApiClient } from "@/lib/api/problems";
@@ -12,7 +12,6 @@ import type { Difficulty } from "@/lib/api/types";
 
 export default function ProblemDetailPage() {
   const params = useParams();
-  const router = useRouter();
   const { user } = useAuth();
   const slug = params.slug as string;
   const [activeTab, setActiveTab] = useState<"description" | "submissions">(
@@ -57,7 +56,7 @@ export default function ProblemDetailPage() {
   if (isLoading) {
     return (
       <>
-        <main className="min-h-screen bg-gradient-to-br from-rose-50 via-white to-navy-50 pt-16 pb-20">
+        <main className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-100 pt-16 pb-20">
           <div className="flex justify-center items-center py-20">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-navy-600"></div>
           </div>
@@ -70,7 +69,7 @@ export default function ProblemDetailPage() {
   if (error || !problem) {
     return (
       <>
-        <main className="min-h-screen bg-gradient-to-br from-rose-50 via-white to-navy-50 pt-16 pb-20">
+        <main className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-100 pt-16 pb-20">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
             <div className="bg-red-50 border border-red-200 rounded-lg p-12 text-center">
               <div className="text-6xl mb-4">❌</div>
@@ -96,29 +95,8 @@ export default function ProblemDetailPage() {
 
   return (
     <>
-      <main className="min-h-screen bg-gradient-to-br from-rose-50 via-white to-navy-50 pt-16 pb-20">
+      <main className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-100 pt-16 pb-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          {/* Back Button */}
-          <button
-            onClick={() => router.push("/question-bank/problems")}
-            className="mb-4 text-navy-600 hover:text-navy-700 font-medium flex items-center gap-2 transition"
-          >
-            <svg
-              className="w-5 h-5"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M15 19l-7-7 7-7"
-              />
-            </svg>
-            Quay lại danh sách
-          </button>
-
           {/* Problem Header */}
           <div className="bg-white rounded-xl shadow-md p-6 mb-6">
             <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4 mb-4">

@@ -35,11 +35,11 @@ export default function QuestionBankHome() {
   return (
     <div className="max-w-7xl mx-auto pb-8">
       {/* Header */}
-      <div className="mb-8">
+      <div className="ui-page-header">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">Ngân hàng câu hỏi</h1>
-            <p className="mt-2 text-gray-600">
+            <h1 className="ui-page-title">Ngân hàng câu hỏi</h1>
+            <p className="ui-page-subtitle">
               Quản lý bài tập lập trình và câu hỏi trắc nghiệm tập trung
             </p>
           </div>
@@ -54,19 +54,19 @@ export default function QuestionBankHome() {
 
       {/* Stats Overview */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
-        <div className="bg-white rounded-xl shadow-md p-5 text-center">
-          <p className="text-3xl font-bold text-navy-600">{totalAll}</p>
-          <p className="text-gray-500 text-sm mt-1">Tổng câu hỏi</p>
+        <div className="ui-kpi-card">
+          <p className="ui-kpi-value text-navy-600">{totalAll}</p>
+          <p className="ui-kpi-label">Tổng câu hỏi</p>
         </div>
-        <div className="bg-white rounded-xl shadow-md p-5 text-center">
-          <p className="text-3xl font-bold text-indigo-600">{totalProblems}</p>
-          <p className="text-gray-500 text-sm mt-1">Bài tập lập trình</p>
+        <div className="ui-kpi-card">
+          <p className="ui-kpi-value text-indigo-600">{totalProblems}</p>
+          <p className="ui-kpi-label">Bài tập lập trình</p>
         </div>
-        <div className="bg-white rounded-xl shadow-md p-5 text-center">
-          <p className="text-3xl font-bold text-emerald-600">
+        <div className="ui-kpi-card">
+          <p className="ui-kpi-value text-emerald-600">
             {totalQuestions}
           </p>
-          <p className="text-gray-500 text-sm mt-1">Câu hỏi trắc nghiệm</p>
+          <p className="ui-kpi-label">Câu hỏi trắc nghiệm</p>
         </div>
       </div>
 

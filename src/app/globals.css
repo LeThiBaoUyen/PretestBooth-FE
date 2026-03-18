@@ -3,18 +3,50 @@
 @tailwind utilities;
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #f8fafc;
+  --foreground: #0f172a;
+  --surface: #ffffff;
+  --muted: #64748b;
 }
 
 body {
   color: var(--foreground);
-  background: var(--background);
-  font-family: Arial, Helvetica, sans-serif;
+  background: linear-gradient(180deg, #f8fafc 0%, #ffffff 45%, #f1f5f9 100%);
+  font-family: inherit;
+  font-size: 16px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 @layer utilities {
   .text-balance {
     text-wrap: balance;
+  }
+}
+
+@layer components {
+  .ui-page-header {
+    @apply mb-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm;
+  }
+
+  .ui-page-title {
+    @apply text-3xl font-bold tracking-tight text-slate-900;
+  }
+
+  .ui-page-subtitle {
+    @apply mt-2 text-base text-slate-600;
+  }
+
+  .ui-kpi-card {
+    @apply rounded-xl border border-slate-200 bg-white p-5 text-center shadow-sm;
+  }
+
+  .ui-kpi-value {
+    @apply text-3xl font-bold text-slate-900;
+  }
+
+  .ui-kpi-label {
+    @apply mt-1 text-sm text-slate-500;
   }
 }

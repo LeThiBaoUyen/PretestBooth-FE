@@ -10,7 +10,7 @@ export default function EditProblemPage() {
 
   return (
     <>
-      <main className="min-h-screen bg-gradient-to-br from-rose-50 via-white to-navy-50 pt-16 pb-20">
+      <main className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-100 pt-16 pb-20">
         <UpdateProblemForm problemSlug={slug} />
       </main>
       <Footer />

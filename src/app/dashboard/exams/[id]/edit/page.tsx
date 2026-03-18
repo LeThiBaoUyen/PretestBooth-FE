@@ -102,14 +102,6 @@ export default function EditExamPage({
 
   return (
     <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          {/* Back button */}
-          <Link
-            href={exam ? `/exams/${exam.id}` : "/exams"}
-            className="mb-6 inline-flex items-center text-navy-600 hover:text-navy-700 font-semibold"
-          >
-            ← Quay lại
-          </Link>
-
           {loading ? (
             <div className="text-center py-20 text-gray-500">Đang tải...</div>
           ) : error && !exam ? (

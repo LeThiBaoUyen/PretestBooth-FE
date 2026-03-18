@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 import { examsApiClient } from "@/lib/api/exams";
 import { useAuth } from "@/lib/hooks";
 import type { SessionResultItem, ExamSessionStatus } from "@/lib/api/types";
@@ -20,7 +20,6 @@ const STATUS_LABELS: Record<ExamSessionStatus, string> = {
 
 export default function ExamSessionDetailPage() {
   const params = useParams();
-  const router = useRouter();
   const sessionId = params.sessionId as string;
   const { accessToken } = useAuth();
 
@@ -32,7 +31,7 @@ export default function ExamSessionDetailPage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-100 flex items-center justify-center">
         <div className="text-xl text-gray-600">Đang tải...</div>
       </div>
     );
@@ -40,17 +39,11 @@ export default function ExamSessionDetailPage() {
 
   if (!result) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-100 flex items-center justify-center">
         <div className="text-center">
           <h2 className="text-2xl font-bold text-gray-900 mb-4">
             Không tìm thấy kết quả bài thi
           </h2>
-          <button
-            onClick={() => router.back()}
-            className="text-blue-600 hover:text-blue-800"
-          >
-            Quay lại
-          </button>
         </div>
       </div>
     );
@@ -65,16 +58,10 @@ export default function ExamSessionDetailPage() {
   const problemItems = result.items.filter((i) => i.section === "PROBLEM");
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-100 py-8 px-4 sm:px-6 lg:px-8">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="mb-6">
-          <button
-            onClick={() => router.push("/submissions")}
-            className="text-blue-600 hover:text-blue-800 mb-4 inline-flex items-center"
-          >
-            ← Quay lại danh sách
-          </button>
           <h1 className="text-3xl font-bold text-gray-900">Kết quả bài thi</h1>
         </div>
 

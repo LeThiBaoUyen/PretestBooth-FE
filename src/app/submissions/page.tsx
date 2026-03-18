@@ -119,7 +119,7 @@ export default function SubmissionsPage() {
 
   if (!accessToken) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-100 flex items-center justify-center">
         <div className="text-center">
           <p className="text-gray-600 text-lg">
             Vui lòng đăng nhập để xem lịch sử nộp bài
@@ -181,7 +181,7 @@ export default function SubmissionsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-100 py-8 px-4 sm:px-6 lg:px-8">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="mb-8">

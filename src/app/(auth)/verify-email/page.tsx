@@ -69,7 +69,7 @@ function VerifyEmailContent() {
 
   return (
     <>
-      <main className="min-h-screen bg-gradient-to-br from-rose-50 via-white to-navy-50 py-12 px-4">
+      <main className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-100 py-12 px-4">
         <div className="max-w-md mx-auto">
           <div className="bg-white rounded-2xl shadow-xl p-8">
             {/* Header */}

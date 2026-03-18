@@ -351,12 +351,6 @@ export default function UpdateProblemForm({
             Cập nhật thông tin bài tập lập trình
           </p>
         </div>
-        <Link
-          href={`/question-bank/problems/${problem.slug}`}
-          className="flex items-center gap-2 px-4 py-2 text-gray-600 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition"
-        >
-          ← Quay lại
-        </Link>
       </div>
 
       {/* Error display */}

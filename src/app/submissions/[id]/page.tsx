@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 import Link from "next/link";
 import { submissionsApi } from "@/lib/api/execution";
 import type { SubmissionStatus, TestCaseResult } from "@/lib/api/types";
@@ -28,7 +28,6 @@ const STATUS_LABELS: Record<SubmissionStatus, string> = {
 
 export default function SubmissionDetailPage() {
   const params = useParams();
-  const router = useRouter();
   const submissionId = params.id as string;
 
   const { data: submission, isLoading } = useQuery({
@@ -38,7 +37,7 @@ export default function SubmissionDetailPage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-100 flex items-center justify-center">
         <div className="text-xl text-gray-600">Đang tải...</div>
       </div>
     );
@@ -46,33 +45,21 @@ export default function SubmissionDetailPage() {
 
   if (!submission) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-100 flex items-center justify-center">
         <div className="text-center">
           <h2 className="text-2xl font-bold text-gray-900 mb-4">
             Không tìm thấy bài nộp
           </h2>
-          <button
-            onClick={() => router.back()}
-            className="text-blue-600 hover:text-blue-800"
-          >
-            Quay lại
-          </button>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-100 py-8 px-4 sm:px-6 lg:px-8">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="mb-6">
-          <button
-            onClick={() => router.back()}
-            className="text-blue-600 hover:text-blue-800 mb-4 inline-flex items-center"
-          >
-            ← Quay lại
-          </button>
           <h1 className="text-3xl font-bold text-gray-900">Chi tiết bài nộp</h1>
         </div>
 

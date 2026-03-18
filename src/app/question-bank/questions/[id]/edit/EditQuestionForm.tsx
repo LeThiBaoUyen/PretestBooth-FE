@@ -301,12 +301,6 @@ export default function EditQuestionForm() {
           </h1>
           <p className="text-gray-500 mt-1">Cập nhật thông tin câu hỏi</p>
         </div>
-        <Link
-          href={`/question-bank/questions/${questionId}`}
-          className="flex items-center gap-2 px-4 py-2 text-gray-600 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition"
-        >
-          ← Quay lại
-        </Link>
       </div>
 
       {(formError || updateMutation.isError) && (

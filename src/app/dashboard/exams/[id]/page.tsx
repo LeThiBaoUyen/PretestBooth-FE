@@ -75,14 +75,6 @@ export default function ExamDetailPage({
 
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          {/* Back button */}
-          <Link
-            href="/exams"
-            className="mb-3 inline-flex w-fit items-center text-navy-600 hover:text-navy-700 font-semibold"
-          >
-            ← Quay lại
-          </Link>
-
           {loading ? (
             <div className="text-center py-20 text-gray-500">Đang tải...</div>
           ) : error ? (
