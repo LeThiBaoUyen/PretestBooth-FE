@@ -3,6 +3,14 @@
 import type {
   LoginRequest,
   LoginResponse,
+  BoothActivateRequest,
+  BoothActivateResponse,
+  BoothLogoutRequest,
+  BoothLoginRequest,
+  BoothLoginResponse,
+  BoothSessionStatusResponse,
+  GenerateBoothActivationOtpRequest,
+  GenerateBoothActivationOtpResponse,
   RegisterRequest,
   RegisterResponse,
   ForgotPasswordRequest,
@@ -17,6 +25,7 @@ import type {
   RefreshTokenResponse,
   ApiError,
 } from "./types";
+import { httpClient } from "./httpClient";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
 
@@ -138,6 +147,46 @@ class ApiClient {
         Authorization: `Bearer ${accessToken}`,
       },
     });
+  }
+
+  async boothActivate(data: BoothActivateRequest): Promise<BoothActivateResponse> {
+    return this.request<BoothActivateResponse>("/api/auth/booth-activate", {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  }
+
+  async boothLogin(data: BoothLoginRequest): Promise<BoothLoginResponse> {
+    return this.request<BoothLoginResponse>("/api/auth/booth-login", {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  }
+
+  async boothLogout(data: BoothLogoutRequest): Promise<{ message: string }> {
+    return this.request<{ message: string }>("/api/auth/booth-logout", {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  }
+
+  async getBoothSessionStatus(
+    boothSessionToken: string,
+  ): Promise<BoothSessionStatusResponse> {
+    const encodedToken = encodeURIComponent(boothSessionToken);
+    return this.request<BoothSessionStatusResponse>(
+      `/api/auth/booth-session?boothSessionToken=${encodedToken}`,
+      { method: "GET" },
+    );
+  }
+
+  async generateBoothActivationOtp(
+    data: GenerateBoothActivationOtpRequest,
+  ): Promise<GenerateBoothActivationOtpResponse> {
+    return httpClient.post<GenerateBoothActivationOtpResponse>(
+      "/api/booths/activation-otp",
+      data,
+    );
   }
 }
 

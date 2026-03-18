@@ -4,11 +4,12 @@ import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
+import { useEffect } from "react";
 import Footer from "@/components/Footer";
 import { FormInput, SubmitButton } from "@/components/FormComponents";
 import { apiClient } from "@/lib/api/auth";
-import { bookingsApi } from "@/lib/api/bookings";
 import { getTokenManager } from "@/lib/auth/tokenManager";
+import { boothSessionManager } from "@/lib/auth/boothSession";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 export default function LoginPage() {
@@ -21,6 +22,25 @@ export default function LoginPage() {
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [submitMessage, setSubmitMessage] = useState("");
+  const boothMeta = boothSessionManager.getMeta();
+  const [nextPath, setNextPath] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    setNextPath(params.get("next"));
+  }, []);
+
+  const resolveRedirectPath = () => {
+    if (!nextPath) return "/dashboard";
+
+    // Prevent open redirects. Only allow app-internal absolute paths.
+    if (!nextPath.startsWith("/") || nextPath.startsWith("//")) {
+      return "/dashboard";
+    }
+
+    return nextPath;
+  };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -46,8 +66,18 @@ export default function LoginPage() {
   };
 
   const loginMutation = useMutation({
-    mutationFn: (data: { email: string; password: string }) =>
-      apiClient.login(data),
+    mutationFn: async (data: { email: string; password: string }) => {
+      const boothSessionToken = boothSessionManager.getToken();
+      if (boothSessionToken) {
+        return apiClient.boothLogin({
+          email: data.email,
+          password: data.password,
+          boothSessionToken,
+        });
+      }
+
+      return apiClient.login(data);
+    },
     onSuccess: async (response) => {
       // Save access token to TanStack Query cache
       tokenManager.saveAccessToken(response.accessToken);
@@ -59,47 +89,19 @@ export default function LoginPage() {
       queryClient.setQueryData(["user"], response.user);
       queryClient.invalidateQueries({ queryKey: ["user"] });
 
-      if (response.user.role === "STUDENT") {
-        try {
-          const now = new Date();
-          const y = now.getFullYear();
-          const m = String(now.getMonth() + 1).padStart(2, "0");
-          const d = String(now.getDate()).padStart(2, "0");
-          const today = `${y}-${m}-${d}`;
-
-          const res = await bookingsApi.getBookings({
-            page: 1,
-            limit: 20,
-            status: "CONFIRMED",
-            date: today,
-            sortOrder: "asc",
-          });
-
-          const nowMs = now.getTime();
-          const candidate = res.data
-            .filter((booking) => {
-              const startMs = new Date(booking.startTime).getTime();
-              const endMs = new Date(booking.endTime).getTime();
-              const earlyStartMs = startMs - 15 * 60 * 1000;
-              return nowMs >= earlyStartMs && nowMs <= endMs;
-            })
-            .sort(
-              (a, b) =>
-                Math.abs(new Date(a.startTime).getTime() - nowMs) -
-                Math.abs(new Date(b.startTime).getTime() - nowMs),
-            )[0];
-
-          if (candidate) {
-            await bookingsApi.autoCheckIn(candidate.id);
-          }
-        } catch {
-          // Login should still succeed even if auto check-in fails.
-        }
-      }
+      const checkedInType = (response as any)?.checkedInBooking?.type as
+        | "PRACTICE"
+        | "EXAM"
+        | undefined;
+      const kioskRedirect = checkedInType
+        ? checkedInType === "PRACTICE"
+          ? "/practice"
+          : "/exams"
+        : null;
 
       setSubmitMessage("Đăng nhập thành công! Đang chuyển hướng...");
       setTimeout(() => {
-        router.push("/dashboard");
+        router.push(kioskRedirect || resolveRedirectPath());
       }, 1000);
     },
     onError: (error: any) => {
@@ -139,6 +141,19 @@ export default function LoginPage() {
                 Đăng nhập
               </h1>
               <p className="text-gray-600">Chào mừng quay lại PRETEST BOOTH</p>
+              {boothMeta && (
+                <div className="mt-3 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">
+                  <p className="font-semibold">
+                    Booth đang active: {boothMeta.boothName} ({boothMeta.boothCode})
+                  </p>
+                  <p className="mt-1 text-xs">
+                    Đăng nhập tại màn này sẽ dùng luồng kiosk và tự check-in theo lịch đã đặt.
+                  </p>
+                  <Link href="/booth" className="mt-2 inline-block text-xs font-bold text-emerald-700 hover:text-emerald-900">
+                    Quay lại khu vực kiosk
+                  </Link>
+                </div>
+              )}
             </div>
 
             {/* Form */}
@@ -266,6 +281,17 @@ export default function LoginPage() {
                   Đăng ký ngay
                 </Link>
               </p>
+              {!boothMeta && (
+                <p className="mt-3 text-sm text-gray-500">
+                  Đăng nhập tại booth?{" "}
+                  <Link
+                    href="/booth-auth"
+                    className="text-navy-600 hover:text-navy-700 font-bold transition"
+                  >
+                    Kích hoạt booth tại đây
+                  </Link>
+                </p>
+              )}
             </div>
           </div>
 

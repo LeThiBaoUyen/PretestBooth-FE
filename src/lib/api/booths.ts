@@ -1,5 +1,6 @@
 import { httpClient } from "./httpClient";
 import type { Booth, BoothStatus, BoothStatusLog } from "./types";
+import type { GenerateBoothActivationOtpResponse } from "./types";
 
 export const boothsApi = {
   // Common
@@ -18,7 +19,7 @@ export const boothsApi = {
   getBooth: (id: string) => httpClient.get<Booth>(`/api/booths/${id}`),
 
   // Admin Only
-  createBooth: (data: { name: string; description?: string; location?: string }) =>
+  createBooth: (data: { name: string; code?: string; description?: string; location?: string }) =>
     httpClient.post<Booth>("/api/booths", data),
 
   updateBooth: (
@@ -29,6 +30,9 @@ export const boothsApi = {
 
   getBoothStatusLogs: (id: string) =>
     httpClient.get<BoothStatusLog[]>(`/api/booths/${id}/status-logs`),
+
+  generateActivationOtp: (boothCode: string) =>
+    httpClient.post<GenerateBoothActivationOtpResponse>("/api/booths/activation-otp", { boothCode }),
 
   deleteBooth: (id: string) => httpClient.delete<{ message: string }>(`/api/booths/${id}`),
 };

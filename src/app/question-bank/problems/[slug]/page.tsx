@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import Footer from "@/components/Footer";
 import { problemsApiClient } from "@/lib/api/problems";
@@ -12,6 +12,7 @@ import type { Difficulty } from "@/lib/api/types";
 
 export default function ProblemDetailPage() {
   const params = useParams();
+  const router = useRouter();
   const { user } = useAuth();
   const slug = params.slug as string;
   const [activeTab, setActiveTab] = useState<"description" | "submissions">(

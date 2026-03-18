@@ -1,9 +1,11 @@
 "use client";
 import Link from "next/link";
 import Image from "next/image";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/lib/hooks/useAuth";
+import { apiClient } from "@/lib/api/auth";
+import { boothSessionManager, type BoothSessionMeta } from "@/lib/auth/boothSession";
 import { Menu, X, ChevronDown, LayoutDashboard, LogOut, User } from "lucide-react";
 
 type NavItem = {
@@ -33,6 +35,28 @@ export default function Header() {
   const router = useRouter();
   const { user, logout } = useAuth();
   const userName = user?.name || null;
+  const [boothMeta, setBoothMeta] = useState<BoothSessionMeta | null>(null);
+  const [boothToken, setBoothToken] = useState<string | null>(null);
+  const [boothLogoutLoading, setBoothLogoutLoading] = useState(false);
+
+  useEffect(() => {
+    setBoothMeta(boothSessionManager.getMeta());
+    setBoothToken(boothSessionManager.getToken());
+  }, [pathname]);
+
+  const hideHeaderRoutes = [
+    "/login",
+    "/register",
+    "/forgot",
+    "/reset",
+    "/verify-email",
+    "/booth-auth",
+    "/booth",
+  ];
+
+  if (hideHeaderRoutes.some((route) => pathname === route || pathname.startsWith(`${route}/`))) {
+    return null;
+  }
 
   const homeItem: NavItem = user
     ? { label: "Dashboard", href: "/dashboard" }
@@ -50,6 +74,23 @@ export default function Header() {
       router.push("/login");
     } catch (error) {
       console.error("Logout failed:", error);
+    }
+  };
+
+  const handleBoothLogout = async () => {
+    if (!boothToken) return;
+
+    try {
+      setBoothLogoutLoading(true);
+      await apiClient.boothLogout({ boothSessionToken: boothToken });
+    } catch (error) {
+      console.error("Booth logout failed:", error);
+    } finally {
+      boothSessionManager.clear();
+      setBoothMeta(null);
+      setBoothToken(null);
+      setBoothLogoutLoading(false);
+      router.refresh();
     }
   };
 
@@ -99,6 +140,19 @@ export default function Header() {
 
           {/* Auth/User Info */}
           <div className="hidden md:flex items-center space-x-3">
+            {boothMeta && boothToken && (
+              <button
+                type="button"
+                onClick={handleBoothLogout}
+                disabled={boothLogoutLoading}
+                className="inline-flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-700 hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-60"
+                title={`Booth active: ${boothMeta.boothName} (${boothMeta.boothCode})`}
+              >
+                <LogOut className="h-3.5 w-3.5" />
+                {boothLogoutLoading ? "Đang thoát booth..." : `Thoát ${boothMeta.boothCode}`}
+              </button>
+            )}
+
             {userName ? (
               <div className="relative">
                 <button
@@ -207,6 +261,19 @@ export default function Header() {
             </div>
 
             <div className="pt-2 space-y-2 border-t border-gray-200">
+              {boothMeta && boothToken && (
+                <button
+                  onClick={() => {
+                    setIsOpen(false);
+                    handleBoothLogout();
+                  }}
+                  disabled={boothLogoutLoading}
+                  className="w-full rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-left text-xs font-bold text-emerald-700"
+                >
+                  {boothLogoutLoading ? "Đang thoát booth..." : `Thoát booth ${boothMeta.boothCode}`}
+                </button>
+              )}
+
               {userName ? (
                 <>
                   <div className="px-4 py-2 bg-navy-100 rounded-lg">

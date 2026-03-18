@@ -25,6 +25,70 @@ export interface LoginResponse {
   user: User;
 }
 
+export interface BoothActivateRequest {
+  boothCode: string;
+  otp: string;
+}
+
+export interface BoothActivateResponse {
+  boothId: string;
+  boothCode: string;
+  boothName: string;
+  sessionActivatedAt?: string;
+  sessionActivatedAtLocal?: string;
+  boothSessionToken: string;
+}
+
+export interface BoothLogoutRequest {
+  boothSessionToken: string;
+}
+
+export interface BoothLoginRequest {
+  email: string;
+  password: string;
+  boothSessionToken: string;
+}
+
+export interface BoothLoginResponse extends LoginResponse {
+  booth: {
+    id: string;
+    code: string;
+    name: string;
+  };
+  checkedInBooking: {
+    id: string;
+    boothId: string;
+    type: "PRACTICE" | "EXAM";
+    status: string;
+    startTime: string;
+    endTime: string;
+  };
+}
+
+export interface BoothSessionStatusResponse {
+  active: boolean;
+  booth: {
+    id: string;
+    code: string;
+    name: string;
+    status: "ACTIVE" | "MAINTENANCE" | "INACTIVE";
+  };
+  sessionActivatedAt?: string | null;
+  sessionActivatedAtLocal?: string | null;
+}
+
+export interface GenerateBoothActivationOtpRequest {
+  boothCode: string;
+}
+
+export interface GenerateBoothActivationOtpResponse {
+  boothId: string;
+  boothCode: string;
+  otp: string;
+  expiresAt: string;
+  expiresAtLocal?: string;
+}
+
 export interface RegisterRequest {
   email: string;
   name?: string;
@@ -814,6 +878,7 @@ export interface BoothStatusLog {
 export interface Booth {
   id: string;
   name: string;
+  code: string | null;
   description: string | null;
   location: string | null;
   status: BoothStatus;

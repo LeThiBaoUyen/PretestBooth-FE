@@ -7,7 +7,18 @@ export default function BackButton() {
   const router = useRouter();
   const pathname = usePathname();
 
-  if (pathname === "/") {
+  const hiddenRoutes = [
+    "/",
+    "/login",
+    "/register",
+    "/forgot",
+    "/reset",
+    "/verify-email",
+    "/booth-auth",
+    "/booth",
+  ];
+
+  if (hiddenRoutes.some((route) => pathname === route || pathname.startsWith(`${route}/`))) {
     return null;
   }
 
