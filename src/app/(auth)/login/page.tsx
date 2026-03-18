@@ -69,11 +69,20 @@ export default function LoginPage() {
     mutationFn: async (data: { email: string; password: string }) => {
       const boothSessionToken = boothSessionManager.getToken();
       if (boothSessionToken) {
-        return apiClient.boothLogin({
-          email: data.email,
-          password: data.password,
-          boothSessionToken,
-        });
+        try {
+          return await apiClient.boothLogin({
+            email: data.email,
+            password: data.password,
+            boothSessionToken,
+          });
+        } catch (error) {
+          const message = error instanceof Error ? error.message : "";
+          // Non-student accounts should still be able to sign in to manage kiosk actions.
+          if (message.includes("Booth login chỉ áp dụng cho sinh viên")) {
+            return apiClient.login(data);
+          }
+          throw error;
+        }
       }
 
       return apiClient.login(data);
@@ -148,6 +157,9 @@ export default function LoginPage() {
                   </p>
                   <p className="mt-1 text-xs">
                     Đăng nhập tại màn này sẽ dùng luồng kiosk và tự check-in theo lịch đã đặt.
+                  </p>
+                  <p className="mt-1 text-xs">
+                    Nếu đăng nhập bằng tài khoản ADMIN, hệ thống sẽ chuyển sang đăng nhập quản trị để bạn có thể thoát booth.
                   </p>
                   <Link href="/booth" className="mt-2 inline-block text-xs font-bold text-emerald-700 hover:text-emerald-900">
                     Quay lại khu vực kiosk

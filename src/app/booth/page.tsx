@@ -6,9 +6,12 @@ import { useEffect, useMemo, useState } from "react";
 import { Loader2, LogOut, Monitor, UserRoundCheck } from "lucide-react";
 import { apiClient } from "@/lib/api/auth";
 import { boothSessionManager, type BoothSessionMeta } from "@/lib/auth/boothSession";
+import { useAuth } from "@/lib/hooks/useAuth";
 
 export default function BoothWorkspacePage() {
   const router = useRouter();
+  const { user, accessToken } = useAuth();
+  const canAdminLogoutBooth = user?.role === "ADMIN";
   const [meta, setMeta] = useState<BoothSessionMeta | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [loggingOut, setLoggingOut] = useState(false);
@@ -25,12 +28,12 @@ export default function BoothWorkspacePage() {
   }, [meta]);
 
   const handleBoothLogout = async () => {
-    if (!token) return;
+    if (!token || !accessToken || !canAdminLogoutBooth) return;
 
     try {
       setLoggingOut(true);
       setMessage("");
-      await apiClient.boothLogout({ boothSessionToken: token });
+      await apiClient.boothLogout({ boothSessionToken: token }, accessToken);
       boothSessionManager.clear();
       router.replace("/booth-auth");
     } catch (error) {
@@ -76,19 +79,25 @@ export default function BoothWorkspacePage() {
               Đăng nhập sinh viên tại booth
             </Link>
 
-            <button
-              type="button"
-              onClick={handleBoothLogout}
-              disabled={loggingOut}
-              className="inline-flex items-center justify-center rounded-xl border border-red-300/50 bg-red-500/15 px-4 py-3 font-semibold text-red-100 transition hover:bg-red-500/25 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {loggingOut ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                <LogOut className="mr-2 h-4 w-4" />
-              )}
-              Đăng xuất booth
-            </button>
+            {canAdminLogoutBooth ? (
+              <button
+                type="button"
+                onClick={handleBoothLogout}
+                disabled={loggingOut}
+                className="inline-flex items-center justify-center rounded-xl border border-red-300/50 bg-red-500/15 px-4 py-3 font-semibold text-red-100 transition hover:bg-red-500/25 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {loggingOut ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <LogOut className="mr-2 h-4 w-4" />
+                )}
+                Đăng xuất booth
+              </button>
+            ) : (
+              <div className="rounded-xl border border-amber-300/40 bg-amber-500/10 px-4 py-3 text-sm font-medium text-amber-100">
+                Chỉ tài khoản ADMIN mới được phép đăng xuất booth.
+              </div>
+            )}
           </div>
 
           {message && (

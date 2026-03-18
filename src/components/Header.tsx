@@ -33,7 +33,8 @@ export default function Header() {
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const pathname = usePathname();
   const router = useRouter();
-  const { user, logout } = useAuth();
+  const { user, logout, accessToken } = useAuth();
+  const canAdminLogoutBooth = user?.role === "ADMIN";
   const userName = user?.name || null;
   const [boothMeta, setBoothMeta] = useState<BoothSessionMeta | null>(null);
   const [boothToken, setBoothToken] = useState<string | null>(null);
@@ -78,11 +79,11 @@ export default function Header() {
   };
 
   const handleBoothLogout = async () => {
-    if (!boothToken) return;
+    if (!boothToken || !accessToken || !canAdminLogoutBooth) return;
 
     try {
       setBoothLogoutLoading(true);
-      await apiClient.boothLogout({ boothSessionToken: boothToken });
+      await apiClient.boothLogout({ boothSessionToken: boothToken }, accessToken);
     } catch (error) {
       console.error("Booth logout failed:", error);
     } finally {
@@ -140,7 +141,7 @@ export default function Header() {
 
           {/* Auth/User Info */}
           <div className="hidden md:flex items-center space-x-3">
-            {boothMeta && boothToken && (
+            {boothMeta && boothToken && canAdminLogoutBooth && (
               <button
                 type="button"
                 onClick={handleBoothLogout}
@@ -261,7 +262,7 @@ export default function Header() {
             </div>
 
             <div className="pt-2 space-y-2 border-t border-gray-200">
-              {boothMeta && boothToken && (
+              {boothMeta && boothToken && canAdminLogoutBooth && (
                 <button
                   onClick={() => {
                     setIsOpen(false);

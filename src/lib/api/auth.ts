@@ -163,9 +163,17 @@ class ApiClient {
     });
   }
 
-  async boothLogout(data: BoothLogoutRequest): Promise<{ message: string }> {
+  async boothLogout(
+    data: BoothLogoutRequest,
+    accessToken?: string,
+  ): Promise<{ message: string }> {
     return this.request<{ message: string }>("/api/auth/booth-logout", {
       method: "POST",
+      headers: accessToken
+        ? {
+            Authorization: `Bearer ${accessToken}`,
+          }
+        : undefined,
       body: JSON.stringify(data),
     });
   }
