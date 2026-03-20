@@ -924,6 +924,16 @@ export interface AvailabilityResponse {
   slots: AvailableTimeSlot[];
 }
 
+export interface BookingDurationOption {
+  id: string;
+  type: BookingType;
+  durationMinutes: number;
+  isActive: boolean;
+  displayOrder: number | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
 // Practice
 export interface PracticeSession {
   id: string;

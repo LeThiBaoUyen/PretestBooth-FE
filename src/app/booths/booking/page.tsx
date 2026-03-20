@@ -7,6 +7,7 @@ import { CalendarDays, Clock, CheckCircle, AlertCircle } from "lucide-react";
 import Footer from "@/components/Footer";
 import { useAuth } from "@/lib/hooks";
 import { bookingsApi } from "@/lib/api/bookings";
+import { bookingDurationsApi } from "@/lib/api/bookingDurations";
 import type { AvailableTimeSlot } from "@/lib/api/types";
 import { useRouter } from "next/navigation";
 
@@ -25,7 +26,9 @@ export default function BookingPage() {
   
   const [selectedSlot, setSelectedSlot] = useState<AvailableTimeSlot | null>(null);
   const [bookingType, setBookingType] = useState<"PRACTICE" | "EXAM">("PRACTICE");
-  const [duration, setDuration] = useState<number>(30); // minutes
+  const [duration, setDuration] = useState<number>(30);
+  const [durationOptions, setDurationOptions] = useState<number[]>([]);
+  const [loadingDurations, setLoadingDurations] = useState(false);
   
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -68,8 +71,40 @@ export default function BookingPage() {
     fetchAvailability();
   }, [selectedDate]);
 
+  useEffect(() => {
+    const fetchDurationOptions = async () => {
+      setLoadingDurations(true);
+      setError(null);
+
+      try {
+        const options = await bookingDurationsApi.getDurationOptions({
+          type: bookingType,
+          isActive: true,
+        });
+
+        const minutes = options.map((item) => item.durationMinutes);
+        setDurationOptions(minutes);
+
+        if (minutes.length > 0) {
+          setDuration((current) => (minutes.includes(current) ? current : minutes[0]));
+        }
+      } catch {
+        setError("Không thể tải cấu hình thời lượng. Vui lòng thử lại sau.");
+        setDurationOptions([]);
+      } finally {
+        setLoadingDurations(false);
+      }
+    };
+
+    fetchDurationOptions();
+  }, [bookingType]);
+
   const handleBook = async () => {
     if (!selectedDate || !selectedSlot) return;
+    if (!durationOptions.includes(duration)) {
+      setError("Vui lòng chọn thời lượng hợp lệ.");
+      return;
+    }
     
     setIsSubmitting(true);
     setError(null);
@@ -184,16 +219,16 @@ export default function BookingPage() {
                     <label className={`flex-1 cursor-pointer p-4 rounded-xl border-2 transition text-center ${
                       bookingType === "PRACTICE" ? "border-navy-600 bg-navy-50" : "border-gray-200 hover:border-gray-300"
                     }`}>
-                      <input type="radio" name="type" className="sr-only" checked={bookingType === "PRACTICE"} onChange={() => { setBookingType("PRACTICE"); setDuration(30); }} />
+                      <input type="radio" name="type" className="sr-only" checked={bookingType === "PRACTICE"} onChange={() => { setBookingType("PRACTICE"); }} />
                       <span className="block font-bold text-gray-900">Luyện tập</span>
-                      <span className="text-xs text-gray-500">Tối đa 60 phút</span>
+                      <span className="text-xs text-gray-500">Theo cấu hình Admin</span>
                     </label>
                     <label className={`flex-1 cursor-pointer p-4 rounded-xl border-2 transition text-center ${
                       bookingType === "EXAM" ? "border-red-600 bg-red-50" : "border-gray-200 hover:border-gray-300"
                     }`}>
-                      <input type="radio" name="type" className="sr-only" checked={bookingType === "EXAM"} onChange={() => { setBookingType("EXAM"); setDuration(60); }} />
+                      <input type="radio" name="type" className="sr-only" checked={bookingType === "EXAM"} onChange={() => { setBookingType("EXAM"); }} />
                       <span className="block font-bold text-gray-900 text-red-700">Kiểm tra</span>
-                      <span className="text-xs text-red-500">Tối đa 75 phút</span>
+                      <span className="text-xs text-red-500">Theo cấu hình Admin</span>
                     </label>
                   </div>
 
@@ -201,23 +236,17 @@ export default function BookingPage() {
                     <label className="block text-sm font-medium text-gray-700 mb-2">Thời lượng mong muốn (phút)</label>
                     <select 
                       className="w-full bg-gray-50 border border-gray-300 text-gray-900 rounded-lg focus:ring-navy-500 focus:border-navy-500 block p-3"
+                      disabled={loadingDurations || durationOptions.length === 0}
                       value={duration}
                       onChange={(e) => setDuration(Number(e.target.value))}
                     >
-                      {bookingType === "PRACTICE" ? (
-                        <>
-                          <option value={30}>30 phút</option>
-                          <option value={45}>45 phút</option>
-                          <option value={60}>60 phút</option>
-                        </>
-                      ) : (
-                        <>
-                          <option value={30}>30 phút</option>
-                          <option value={45}>45 phút</option>
-                          <option value={60}>60 phút</option>
-                          <option value={75}>75 phút</option>
-                        </>
+                      {loadingDurations && <option value={duration}>Đang tải...</option>}
+                      {!loadingDurations && durationOptions.length === 0 && (
+                        <option value={duration}>Chưa có cấu hình thời lượng</option>
                       )}
+                      {!loadingDurations && durationOptions.map((item) => (
+                        <option key={item} value={item}>{item} phút</option>
+                      ))}
                     </select>
                   </div>
                 </div>
@@ -286,10 +315,10 @@ export default function BookingPage() {
 
                 <div className="mt-8 pt-6 border-t border-gray-100 flex justify-end">
                   <button
-                    disabled={!selectedSlot || isSubmitting}
+                    disabled={!selectedSlot || isSubmitting || durationOptions.length === 0}
                     onClick={handleBook}
                     className={`px-8 py-3 rounded-xl font-bold text-white transition shadow-lg ${
-                      !selectedSlot || isSubmitting
+                      !selectedSlot || isSubmitting || durationOptions.length === 0
                         ? "bg-gray-400 cursor-not-allowed shadow-none"
                         : "bg-navy-600 hover:bg-navy-700 hover:shadow-navy-200/50"
                     }`}
