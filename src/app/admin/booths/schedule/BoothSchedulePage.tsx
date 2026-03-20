@@ -35,7 +35,7 @@ export default function BoothSchedulePage() {
       });
       setBookings(Array.isArray(res?.data) ? res.data : []);
     } catch (e: any) {
-      setError(e?.message || "Khong the tai lich trinh booth.");
+      setError(e?.message || "Không thể tải lịch trình booth.");
       setBookings([]);
     } finally {
       setLoading(false);
@@ -107,7 +107,7 @@ export default function BoothSchedulePage() {
   if (userLoading) {
     return (
       <div className="py-12">
-        <div className="text-center text-gray-500">Dang kiem tra quyen truy cap...</div>
+        <div className="text-center text-gray-500">Đang kiểm tra quyền truy cập...</div>
       </div>
     );
   }
@@ -116,7 +116,7 @@ export default function BoothSchedulePage() {
     return (
       <div className="py-12">
         <div className="bg-white rounded-xl border border-gray-200 p-6 text-center text-gray-600">
-          Ban khong co quyen truy cap lich trinh booth.
+          Bạn không có quyền truy cập lịch trình booth.
         </div>
       </div>
     );
@@ -129,20 +129,20 @@ export default function BoothSchedulePage() {
           href="/admin/booths"
           className="inline-flex items-center rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-50"
         >
-          Quan ly Booth
+          Quản lý Booth
         </Link>
         <Link
           href="/admin/booths/schedule"
           className="inline-flex items-center rounded-full bg-navy-600 px-3 py-1.5 text-xs font-bold text-white"
         >
-          Lich trinh Booth
+          Lịch trình Booth
         </Link>
       </nav>
 
       <div className="flex flex-col lg:flex-row lg:items-center justify-between mb-8 gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-navy-700">Lich trinh Booth</h1>
-          <p className="text-gray-600 mt-2">Theo doi lich dat va trang thai check-in tu dong theo booth.</p>
+          <h1 className="text-3xl font-bold text-navy-700">Lịch trình Booth</h1>
+          <p className="text-gray-600 mt-2">Theo dõi lịch đặt và trạng thái check-in tự động theo booth.</p>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
@@ -151,14 +151,14 @@ export default function BoothSchedulePage() {
             className="inline-flex items-center rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
           >
             <ArrowLeft className="h-4 w-4 mr-2" />
-            Quan ly Booth
+            Quản lý Booth
           </Link>
           <button
             onClick={fetchBookings}
             className="inline-flex items-center rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
           >
             <RefreshCw className="h-4 w-4 mr-2" />
-            Lam moi
+            Làm mới
           </button>
         </div>
       </div>
@@ -180,9 +180,9 @@ export default function BoothSchedulePage() {
             value={typeFilter}
             onChange={(e) => setTypeFilter(e.target.value as BookingType | "ALL")}
           >
-            <option value="ALL">Tat ca muc dich</option>
-            <option value="PRACTICE">Luyen tap</option>
-            <option value="EXAM">Kiem tra</option>
+            <option value="ALL">Tất cả mục đích</option>
+            <option value="PRACTICE">Luyện tập</option>
+            <option value="EXAM">Kiểm tra</option>
           </select>
 
           <select
@@ -190,13 +190,13 @@ export default function BoothSchedulePage() {
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value as BookingStatus | "ALL")}
           >
-            <option value="ALL">Tat ca trang thai</option>
-            <option value="PENDING">Cho xac nhan</option>
-            <option value="CONFIRMED">Da xac nhan</option>
-            <option value="CHECKED_IN">Dang su dung</option>
-            <option value="COMPLETED">Da xong</option>
-            <option value="CANCELLED">Da huy</option>
-            <option value="NO_SHOW">Vang mat</option>
+            <option value="ALL">Tất cả trạng thái</option>
+            <option value="PENDING">Chờ xác nhận</option>
+            <option value="CONFIRMED">Đã xác nhận</option>
+            <option value="CHECKED_IN">Đang sử dụng</option>
+            <option value="COMPLETED">Đã xong</option>
+            <option value="CANCELLED">Đã hủy</option>
+            <option value="NO_SHOW">Vắng mặt</option>
           </select>
 
           <select
@@ -204,7 +204,7 @@ export default function BoothSchedulePage() {
             value={boothFilter}
             onChange={(e) => setBoothFilter(e.target.value)}
           >
-            <option value="ALL">Tat ca booth</option>
+            <option value="ALL">Tất cả booth</option>
             {boothOptions.map((booth) => (
               <option key={booth.id} value={booth.id}>
                 {booth.name}
@@ -217,7 +217,7 @@ export default function BoothSchedulePage() {
             <input
               value={keyword}
               onChange={(e) => setKeyword(e.target.value)}
-              placeholder="Loc theo sinh vien"
+              placeholder="Lọc theo sinh viên"
               className="ml-2 w-full border-0 bg-transparent p-0 text-sm outline-none"
             />
           </div>
@@ -225,10 +225,10 @@ export default function BoothSchedulePage() {
 
         <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
           <div className="flex flex-wrap gap-2 text-xs font-semibold">
-            <span className="rounded-full bg-navy-50 px-3 py-1 text-navy-700">Tong: {summary.total}</span>
-            <span className="rounded-full bg-amber-100 px-3 py-1 text-amber-700">Da xac nhan: {summary.confirmed}</span>
-            <span className="rounded-full bg-blue-100 px-3 py-1 text-blue-700">Dang su dung: {summary.inUse}</span>
-            <span className="rounded-full bg-emerald-100 px-3 py-1 text-emerald-700">Hoan tat: {summary.completed}</span>
+            <span className="rounded-full bg-navy-50 px-3 py-1 text-navy-700">Tổng: {summary.total}</span>
+            <span className="rounded-full bg-amber-100 px-3 py-1 text-amber-700">Đã xác nhận: {summary.confirmed}</span>
+            <span className="rounded-full bg-blue-100 px-3 py-1 text-blue-700">Đang sử dụng: {summary.inUse}</span>
+            <span className="rounded-full bg-emerald-100 px-3 py-1 text-emerald-700">Hoàn tất: {summary.completed}</span>
           </div>
 
           <button
@@ -237,36 +237,36 @@ export default function BoothSchedulePage() {
             className="inline-flex items-center rounded-lg border border-slate-200 px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
           >
             <RotateCcw className="h-3.5 w-3.5 mr-1" />
-            Dat lai bo loc
+            Đặt lại bộ lọc
           </button>
         </div>
       </div>
 
       <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
         <h2 className="text-lg font-bold text-navy-700 mb-6">
-          {date ? `Lich trinh ngay ${format(new Date(date), "dd/MM/yyyy")}` : "Tat ca lich trinh"}
+          {date ? `Lịch trình ngày ${format(new Date(date), "dd/MM/yyyy")}` : "Tất cả lịch trình"}
         </h2>
 
         {loading ? (
-          <div className="text-center py-20 text-gray-500">Dang tai du lieu...</div>
+          <div className="text-center py-20 text-gray-500">Đang tải dữ liệu...</div>
         ) : error ? (
           <div className="text-center py-20 text-red-500">{error}</div>
         ) : filteredBookings.length === 0 ? (
           <div className="text-center py-20 text-gray-500 flex flex-col items-center">
             <Wrench className="w-12 h-12 text-gray-300 mb-4" />
-            Khong co lich dat nao {date ? "trong ngay nay" : "duoc tim thay"}.
+            Không có lịch đặt nào {date ? "trong ngày này" : "được tìm thấy"}.
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="border-b-2 border-gray-100">
-                  <th className="pb-3 px-4 font-semibold text-gray-500 text-sm">Thoi gian</th>
+                  <th className="pb-3 px-4 font-semibold text-gray-500 text-sm">Thời gian</th>
                   <th className="pb-3 px-4 font-semibold text-gray-500 text-sm">Booth</th>
-                  <th className="pb-3 px-4 font-semibold text-gray-500 text-sm">Sinh vien</th>
-                  <th className="pb-3 px-4 font-semibold text-gray-500 text-sm">Muc dich</th>
-                  <th className="pb-3 px-4 font-semibold text-gray-500 text-sm">Trang thai</th>
-                  <th className="pb-3 px-4 font-semibold text-gray-500 text-sm text-right">Ghi chu</th>
+                  <th className="pb-3 px-4 font-semibold text-gray-500 text-sm">Sinh viên</th>
+                  <th className="pb-3 px-4 font-semibold text-gray-500 text-sm">Mục đích</th>
+                  <th className="pb-3 px-4 font-semibold text-gray-500 text-sm">Trạng thái</th>
+                  <th className="pb-3 px-4 font-semibold text-gray-500 text-sm text-right">Ghi chú</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50">
@@ -291,7 +291,7 @@ export default function BoothSchedulePage() {
                             booking.type === "EXAM" ? "bg-red-50 text-red-700" : "bg-blue-50 text-blue-700"
                           }`}
                         >
-                          {booking.type === "EXAM" ? "KIEM TRA" : "LUYEN TAP"}
+                          {booking.type === "EXAM" ? "KIỂM TRA" : "LUYỆN TẬP"}
                         </span>
                       </td>
                       <td className="py-4 px-4">
@@ -309,21 +309,21 @@ export default function BoothSchedulePage() {
                           }`}
                         >
                           {booking.status === "CONFIRMED"
-                            ? "Da xac nhan"
+                            ? "Đã xác nhận"
                             : booking.status === "CHECKED_IN"
-                              ? "Dang su dung"
+                              ? "Đang sử dụng"
                               : booking.status === "COMPLETED"
-                                ? "Da xong"
+                                ? "Đã xong"
                                 : booking.status === "CANCELLED"
-                                  ? "Da huy"
+                                  ? "Đã hủy"
                                   : booking.status === "NO_SHOW"
-                                    ? "Vang mat"
-                                    : "Cho xac nhan"}
+                                    ? "Vắng mặt"
+                                    : "Chờ xác nhận"}
                         </span>
                       </td>
                       <td className="py-4 px-4 text-right">
                         <span className="text-xs text-gray-500 font-medium">
-                          Check-in tu dong tai kiosk sau khi booth duoc active
+                          Check-in tự động tại kiosk sau khi booth được active
                         </span>
                       </td>
                     </tr>
