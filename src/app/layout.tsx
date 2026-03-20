@@ -1,8 +1,12 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
-import "@/client/app/globals.css";
+import "./globals.css";
 
-const inter = Inter({ subsets: ["latin"] });
+import QueryProvider from "@/components/providers/QueryProvider";
+import Header from "@/components/Header";
+import BackButton from "@/components/BackButton";
+
+const inter = Inter({ subsets: ["latin", "vietnamese"] });
 
 export const metadata: Metadata = {
   title: "PRETEST BOOTH - Đánh giá năng lực sinh viên",
@@ -17,7 +21,13 @@ export default function RootLayout({
 }) {
   return (
     <html lang="vi">
-      <body className={inter.className}>{children}</body>
+      <body className={inter.className}>
+        <QueryProvider>
+          <Header />
+          <BackButton />
+          {children}
+        </QueryProvider>
+      </body>
     </html>
   );
 }
