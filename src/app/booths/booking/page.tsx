@@ -7,8 +7,7 @@ import { CalendarDays, Clock, CheckCircle, AlertCircle } from "lucide-react";
 import Footer from "@/components/Footer";
 import { useAuth } from "@/lib/hooks";
 import { bookingsApi } from "@/lib/api/bookings";
-import { bookingDurationsApi } from "@/lib/api/bookingDurations";
-import type { AvailableTimeSlot } from "@/lib/api/types";
+import type { AvailabilityResponse, BookingType } from "@/lib/api/types";
 import { useRouter } from "next/navigation";
 
 export default function BookingPage() {
@@ -21,14 +20,13 @@ export default function BookingPage() {
 
   const [dates, setDates] = useState<Date[]>([]);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
-  const [slots, setSlots] = useState<AvailableTimeSlot[]>([]);
+  const [availability, setAvailability] = useState<AvailabilityResponse | null>(null);
   const [loadingSlots, setLoadingSlots] = useState(false);
-  
-  const [selectedSlot, setSelectedSlot] = useState<AvailableTimeSlot | null>(null);
-  const [bookingType, setBookingType] = useState<"PRACTICE" | "EXAM">("PRACTICE");
+
+  const [selectedBoothId, setSelectedBoothId] = useState<string>("");
+  const [selectedStartTime, setSelectedStartTime] = useState<string>("");
+  const [bookingType, setBookingType] = useState<BookingType>("PRACTICE");
   const [duration, setDuration] = useState<number>(30);
-  const [durationOptions, setDurationOptions] = useState<number[]>([]);
-  const [loadingDurations, setLoadingDurations] = useState(false);
   
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -52,16 +50,23 @@ export default function BookingPage() {
   // Fetch availability when date changes
   useEffect(() => {
     if (!selectedDate) return;
-    
+
     const fetchAvailability = async () => {
       setLoadingSlots(true);
-      setSelectedSlot(null);
+      setSelectedStartTime("");
       setError(null);
       try {
         const dateStr = format(selectedDate, "yyyy-MM-dd");
-        const res = await bookingsApi.getAvailability(dateStr);
-        setSlots(res.slots);
-      } catch (err: any) {
+        const res = await bookingsApi.getAvailability({
+          date: dateStr,
+          durationMinutes: duration,
+        });
+        setAvailability(res);
+
+        if (!selectedBoothId && res.booths.length > 0) {
+          setSelectedBoothId(res.booths[0].booth.id);
+        }
+      } catch {
         setError("Không thể tải lịch trống. Vui lòng thử lại sau.");
       } finally {
         setLoadingSlots(false);
@@ -69,70 +74,58 @@ export default function BookingPage() {
     };
 
     fetchAvailability();
-  }, [selectedDate]);
+  }, [selectedDate, duration]);
+
+  const selectedBoothSchedule = availability?.booths.find((item) => item.booth.id === selectedBoothId) || null;
+  const bookableStartTimes = new Set(selectedBoothSchedule?.bookableStartTimes || []);
 
   useEffect(() => {
-    const fetchDurationOptions = async () => {
-      setLoadingDurations(true);
-      setError(null);
-
-      try {
-        const options = await bookingDurationsApi.getDurationOptions({
-          type: bookingType,
-          isActive: true,
-        });
-
-        const minutes = options.map((item) => item.durationMinutes);
-        setDurationOptions(minutes);
-
-        if (minutes.length > 0) {
-          setDuration((current) => (minutes.includes(current) ? current : minutes[0]));
-        }
-      } catch {
-        setError("Không thể tải cấu hình thời lượng. Vui lòng thử lại sau.");
-        setDurationOptions([]);
-      } finally {
-        setLoadingDurations(false);
-      }
-    };
-
-    fetchDurationOptions();
-  }, [bookingType]);
-
-  const handleBook = async () => {
-    if (!selectedDate || !selectedSlot) return;
-    if (!durationOptions.includes(duration)) {
-      setError("Vui lòng chọn thời lượng hợp lệ.");
+    if (!availability || availability.booths.length === 0) {
+      setSelectedBoothId("");
       return;
     }
-    
+
+    const stillExists = availability.booths.some((item) => item.booth.id === selectedBoothId);
+    if (!stillExists) {
+      setSelectedBoothId(availability.booths[0].booth.id);
+      setSelectedStartTime("");
+    }
+  }, [availability, selectedBoothId]);
+
+  useEffect(() => {
+    if (selectedStartTime && !bookableStartTimes.has(selectedStartTime)) {
+      setSelectedStartTime("");
+    }
+  }, [selectedStartTime, selectedBoothId, availability]);
+
+  useEffect(() => {
+    if (!availability) return;
+    const { minDurationMinutes, maxDurationMinutes, slotStepMinutes } = availability.config;
+    const min = Math.max(minDurationMinutes, slotStepMinutes);
+    const max = Math.max(min, maxDurationMinutes);
+
+    if (duration < min || duration > max || duration % slotStepMinutes !== 0) {
+      setDuration(min);
+    }
+  }, [availability, duration]);
+
+  const handleBook = async () => {
+    if (!selectedStartTime || !selectedBoothId || !selectedBoothSchedule) return;
+
+    if (!bookableStartTimes.has(selectedStartTime)) {
+      setError("Mốc bắt đầu đã chọn không còn khả dụng cho thời lượng hiện tại.");
+      return;
+    }
+
     setIsSubmitting(true);
     setError(null);
-    
+
     try {
-      // Find a booth that is NOT booked at this slot
-      const dateStr = format(selectedDate, "yyyy-MM-dd");
-      const res = await bookingsApi.getAvailability(dateStr);
-      
-      const availableBooths = res.booths.filter(
-        b => !selectedSlot.bookedBoothIds.includes(b.id)
-      );
-
-      if (availableBooths.length === 0) {
-        throw new Error("Rất tiếc, đã hết Booth trống vào khung giờ này.");
-      }
-
-      const boothId = availableBooths[0].id; // Pick the first available
-      
-      const start = new Date(selectedSlot.startTime);
-      const end = new Date(start.getTime() + duration * 60000);
-
       await bookingsApi.createBooking({
-        boothId,
+        boothId: selectedBoothId,
         type: bookingType,
-        date: dateStr,
-        startTime: start.toISOString(),
-        endTime: end.toISOString(),
+        startTime: selectedStartTime,
+        durationMinutes: duration,
       });
 
       setSuccess(true);
@@ -146,6 +139,16 @@ export default function BookingPage() {
       setIsSubmitting(false);
     }
   };
+
+  const durationOptions = (() => {
+    if (!availability) return [30];
+    const { minDurationMinutes, maxDurationMinutes, slotStepMinutes } = availability.config;
+    const options: number[] = [];
+    for (let value = minDurationMinutes; value <= maxDurationMinutes; value += slotStepMinutes) {
+      options.push(value);
+    }
+    return options;
+  })();
 
   if (!user) return <div className="text-center py-20">Vui lòng đăng nhập...</div>;
   if (user.role !== "STUDENT") return <div className="text-center py-20 text-red-500">Chỉ sinh viên mới có thể đặt lịch.</div>;
@@ -212,7 +215,7 @@ export default function BookingPage() {
                 <div>
                   <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center">
                     <span className="bg-navy-600 text-white w-6 h-6 rounded-full inline-flex items-center justify-center text-sm mr-2">2</span>
-                    Mục đích sử dụng
+                    Mục đích và thời lượng
                   </h3>
                   
                   <div className="flex gap-4 mb-6">
@@ -236,19 +239,50 @@ export default function BookingPage() {
                     <label className="block text-sm font-medium text-gray-700 mb-2">Thời lượng mong muốn (phút)</label>
                     <select 
                       className="w-full bg-gray-50 border border-gray-300 text-gray-900 rounded-lg focus:ring-navy-500 focus:border-navy-500 block p-3"
-                      disabled={loadingDurations || durationOptions.length === 0}
+                      disabled={!availability || durationOptions.length === 0}
                       value={duration}
                       onChange={(e) => setDuration(Number(e.target.value))}
                     >
-                      {loadingDurations && <option value={duration}>Đang tải...</option>}
-                      {!loadingDurations && durationOptions.length === 0 && (
+                      {!availability && <option value={duration}>Đang tải...</option>}
+                      {availability && durationOptions.length === 0 && (
                         <option value={duration}>Chưa có cấu hình thời lượng</option>
                       )}
-                      {!loadingDurations && durationOptions.map((item) => (
+                      {availability && durationOptions.map((item) => (
                         <option key={item} value={item}>{item} phút</option>
                       ))}
                     </select>
+                    {availability && (
+                      <p className="text-xs text-gray-500 mt-2">
+                        Thời lượng sẽ tự cộng thêm {availability.config.bufferMinutes} phút buffer sau khi kết thúc.
+                      </p>
+                    )}
                   </div>
+                </div>
+
+                <div>
+                  <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center">
+                    <span className="bg-navy-600 text-white w-6 h-6 rounded-full inline-flex items-center justify-center text-sm mr-2">3</span>
+                    Chọn booth
+                  </h3>
+                  <select
+                    className="w-full bg-gray-50 border border-gray-300 text-gray-900 rounded-lg focus:ring-navy-500 focus:border-navy-500 block p-3"
+                    value={selectedBoothId}
+                    onChange={(e) => {
+                      setSelectedBoothId(e.target.value);
+                      setSelectedStartTime("");
+                    }}
+                    disabled={!availability || availability.booths.length === 0}
+                  >
+                    {!availability && <option>Đang tải danh sách booth...</option>}
+                    {availability && availability.booths.length === 0 && (
+                      <option>Không có booth hoạt động</option>
+                    )}
+                    {availability && availability.booths.map((item) => (
+                      <option key={item.booth.id} value={item.booth.id}>
+                        {item.booth.name}{item.booth.code ? ` (${item.booth.code})` : ""}
+                      </option>
+                    ))}
+                  </select>
                 </div>
 
               </div>
@@ -256,8 +290,8 @@ export default function BookingPage() {
               {/* Right Column: Time Slots */}
               <div className="col-span-1 lg:col-span-7">
                 <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center">
-                  <span className="bg-navy-600 text-white w-6 h-6 rounded-full inline-flex items-center justify-center text-sm mr-2">3</span>
-                  Khung giờ khả dụng
+                  <span className="bg-navy-600 text-white w-6 h-6 rounded-full inline-flex items-center justify-center text-sm mr-2">4</span>
+                  Timeline lịch booth (mỗi block {availability?.config.slotStepMinutes ?? 15} phút)
                 </h3>
                 
                 <div className="bg-gray-50 rounded-xl p-6 border border-gray-200 min-h-[400px]">
@@ -266,37 +300,62 @@ export default function BookingPage() {
                       <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-navy-600 mr-3"></div>
                       Đang tải khung giờ...
                     </div>
-                  ) : slots.length === 0 ? (
+                  ) : !selectedBoothSchedule || selectedBoothSchedule.timeline.length === 0 ? (
                     <div className="text-center text-gray-500 py-20 flex flex-col items-center">
                       <Clock className="w-12 h-12 text-gray-300 mb-3" />
                       Không có khung giờ nào khả dụng trong ngày này.
                     </div>
                   ) : (
                     <div>
-                      <p className="text-sm text-gray-500 mb-4 font-medium flex items-center">
-                        <span className="w-3 h-3 rounded-full bg-emerald-500 inline-block mr-2"></span> Trống
-                        <span className="w-3 h-3 rounded-full bg-red-400 inline-block ml-4 mr-2"></span> Đã đầy
+                      <p className="text-sm text-gray-500 mb-4 font-medium flex items-center gap-4 flex-wrap">
+                        <span className="inline-flex items-center">
+                          <span className="w-3 h-3 rounded-full bg-emerald-500 inline-block mr-2"></span> Trống
+                        </span>
+                        <span className="inline-flex items-center">
+                          <span className="w-3 h-3 rounded-full bg-red-400 inline-block mr-2"></span> Đang sử dụng
+                        </span>
+                        <span className="inline-flex items-center">
+                          <span className="w-3 h-3 rounded-full bg-amber-400 inline-block mr-2"></span> Buffer (không cho đặt)
+                        </span>
                       </p>
                       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-                        {slots.map(slot => {
-                          const isFull = slot.availableBooths === 0;
-                          const isSelected = selectedSlot?.startTime === slot.startTime;
+                        {selectedBoothSchedule.timeline.map((slot) => {
+                          const isBookableStart = slot.status === "FREE" && bookableStartTimes.has(slot.startTime);
+                          const isSelected = selectedStartTime === slot.startTime;
+
+                          const baseClass =
+                            slot.status === "OCCUPIED"
+                              ? "bg-red-100 border-red-200 text-red-700 cursor-not-allowed"
+                              : slot.status === "BUFFER"
+                                ? "bg-amber-100 border-amber-200 text-amber-700 cursor-not-allowed"
+                                : isBookableStart
+                                  ? "bg-emerald-50 border-emerald-300 text-emerald-700 hover:bg-emerald-100"
+                                  : "bg-white border-gray-200 text-gray-500 cursor-not-allowed";
+
                           return (
                             <button
                               key={slot.startTime}
-                              disabled={isFull}
-                              onClick={() => setSelectedSlot(slot)}
+                              disabled={!isBookableStart}
+                              onClick={() => setSelectedStartTime(slot.startTime)}
                               className={`py-3 px-2 rounded-lg text-sm font-bold border transition ${
-                                isFull 
-                                  ? "bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed" 
-                                  : isSelected
-                                    ? "bg-navy-600 border-navy-600 text-white shadow-md"
-                                    : "bg-white border-gray-200 text-navy-700 hover:border-navy-400 hover:bg-navy-50"
+                                isSelected
+                                  ? "bg-navy-600 border-navy-600 text-white shadow-md"
+                                  : baseClass
                               }`}
                             >
                               {format(new Date(slot.startTime), "HH:mm")}
-                              {(!isFull && !isSelected) && <span className="block text-[10px] font-normal text-emerald-600 mt-1">Còn {slot.availableBooths}</span>}
-                              {isFull && <span className="block text-[10px] font-normal text-red-500 mt-1">Hết chỗ</span>}
+                              {!isSelected && slot.status === "FREE" && isBookableStart && (
+                                <span className="block text-[10px] font-normal text-emerald-600 mt-1">Có thể đặt</span>
+                              )}
+                              {!isSelected && slot.status === "FREE" && !isBookableStart && (
+                                <span className="block text-[10px] font-normal text-gray-400 mt-1">Trống ngắn</span>
+                              )}
+                              {!isSelected && slot.status === "OCCUPIED" && (
+                                <span className="block text-[10px] font-normal text-red-500 mt-1">Đang dùng</span>
+                              )}
+                              {!isSelected && slot.status === "BUFFER" && (
+                                <span className="block text-[10px] font-normal text-amber-600 mt-1">Buffer</span>
+                              )}
                               {isSelected && <span className="block text-[10px] font-normal text-navy-200 mt-1">Đã chọn</span>}
                             </button>
                           );
@@ -315,10 +374,10 @@ export default function BookingPage() {
 
                 <div className="mt-8 pt-6 border-t border-gray-100 flex justify-end">
                   <button
-                    disabled={!selectedSlot || isSubmitting || durationOptions.length === 0}
+                    disabled={!selectedStartTime || isSubmitting || durationOptions.length === 0}
                     onClick={handleBook}
                     className={`px-8 py-3 rounded-xl font-bold text-white transition shadow-lg ${
-                      !selectedSlot || isSubmitting || durationOptions.length === 0
+                      !selectedStartTime || isSubmitting || durationOptions.length === 0
                         ? "bg-gray-400 cursor-not-allowed shadow-none"
                         : "bg-navy-600 hover:bg-navy-700 hover:shadow-navy-200/50"
                     }`}

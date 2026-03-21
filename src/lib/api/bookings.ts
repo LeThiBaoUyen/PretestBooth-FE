@@ -30,12 +30,16 @@ export const bookingsApi = {
     return httpClient.get<PaginatedBookings>(`/api/bookings?${query.toString()}`);
   },
 
-  getAvailability: (date: string) => {
-    return httpClient.get<AvailabilityResponse>(`/api/bookings/availability?date=${date}`);
+  getAvailability: (params: { date: string; boothId?: string; durationMinutes?: number }) => {
+    const query = new URLSearchParams();
+    query.append("date", params.date);
+    if (params.boothId) query.append("boothId", params.boothId);
+    if (params.durationMinutes) query.append("durationMinutes", params.durationMinutes.toString());
+    return httpClient.get<AvailabilityResponse>(`/api/bookings/availability?${query.toString()}`);
   },
 
   // Student specific
-  createBooking: (data: { boothId: string; type: BookingType; date: string; startTime: string; endTime: string }) => {
+  createBooking: (data: { boothId: string; type: BookingType; startTime: string; durationMinutes: number }) => {
     return httpClient.post<Booking>("/api/bookings", data);
   },
 

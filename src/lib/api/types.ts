@@ -899,6 +899,8 @@ export interface Booking {
   date: string;
   startTime: string;
   endTime: string;
+  durationMinutes: number;
+  bufferMinutes: number;
   status: BookingStatus;
   type: BookingType;
   checkedInAt: string | null;
@@ -912,16 +914,39 @@ export interface Booking {
 export interface AvailableTimeSlot {
   startTime: string;
   endTime: string;
-  totalBooths: number;
-  bookedBooths: number;
-  availableBooths: number;
-  bookedBoothIds: string[];
+  status: "FREE" | "OCCUPIED" | "BUFFER";
+  bookingId: string | null;
+}
+
+export interface AvailabilityBoothSchedule {
+  booth: {
+    id: string;
+    name: string;
+    code: string | null;
+    location: string | null;
+  };
+  timeline: AvailableTimeSlot[];
+  freeRanges: Array<{
+    startTime: string;
+    endTime: string;
+    minutes: number;
+  }>;
+  bookableStartTimes: string[];
 }
 
 export interface AvailabilityResponse {
   date: string;
-  booths: Booth[];
-  slots: AvailableTimeSlot[];
+  config: {
+    openHour: number;
+    closeHour: number;
+    slotStepMinutes: number;
+    bufferMinutes: number;
+    minDurationMinutes: number;
+    maxDurationMinutes: number;
+  };
+  requiredDurationMinutes: number;
+  requiredTotalMinutes: number;
+  booths: AvailabilityBoothSchedule[];
 }
 
 export interface BookingDurationOption {
