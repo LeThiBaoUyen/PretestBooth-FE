@@ -934,6 +934,36 @@ export interface BookingDurationOption {
   updatedAt: string;
 }
 
+export interface BoothStatusUpdatedEvent {
+  boothId: string;
+  status: BoothStatus;
+  previousStatus: BoothStatus;
+  note: string;
+  changedByUserId: string;
+  changedAt: string;
+}
+
+export interface BookingRealtimeEvent {
+  bookingId: string;
+  boothId: string;
+  userId: string;
+  status: "CHECKED_IN" | "COMPLETED";
+  type: BookingType;
+  startTime: string;
+  endTime: string;
+  checkedInAt?: string;
+  checkedOutAt?: string;
+  emittedAt: string;
+}
+
+export interface BoothNotificationEvent {
+  userId?: string;
+  boothId?: string;
+  message: string;
+  level?: "info" | "success" | "warning" | "error";
+  emittedAt: string;
+}
+
 // Practice
 export interface PracticeSession {
   id: string;

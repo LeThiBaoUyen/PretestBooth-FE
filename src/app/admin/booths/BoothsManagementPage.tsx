@@ -16,6 +16,8 @@ import { boothsApi } from "@/lib/api/booths";
 import { bookingDurationsApi } from "@/lib/api/bookingDurations";
 import { useAuth } from "@/lib/hooks";
 import type { BookingDurationOption, BookingType, Booth, BoothStatus, BoothStatusLog } from "@/lib/api/types";
+import type { BoothNotificationEvent, BoothStatusUpdatedEvent, BookingRealtimeEvent } from "@/lib/api/types";
+import { realtimeClient } from "@/lib/realtime/socketClient";
 
 const STATUS_OPTIONS: BoothStatus[] = ["ACTIVE", "MAINTENANCE", "INACTIVE"];
 const BOOKING_TYPE_OPTIONS: BookingType[] = ["PRACTICE", "EXAM"];
@@ -130,6 +132,7 @@ export default function BoothsManagementPage() {
   const [editingDurationId, setEditingDurationId] = useState<string | null>(null);
   const [durationForm, setDurationForm] = useState<DurationFormData>(emptyDurationForm);
   const [durationFilter, setDurationFilter] = useState<BookingType | "ALL">("ALL");
+  const [realtimeMessage, setRealtimeMessage] = useState<string | null>(null);
 
   const selectedBooth = useMemo(
     () => booths.find((booth) => booth.id === selectedBoothId) ?? null,
@@ -213,6 +216,54 @@ export default function BoothsManagementPage() {
 
     loadLogs(selectedBoothId);
   }, [selectedBoothId]);
+
+  useEffect(() => {
+    if (!canViewPage) {
+      return;
+    }
+
+    const offStatus = realtimeClient.subscribe<BoothStatusUpdatedEvent>(
+      "booth.status.updated",
+      (payload) => {
+        setBooths((prev) =>
+          prev.map((booth) =>
+            booth.id === payload.boothId ? { ...booth, status: payload.status } : booth,
+          ),
+        );
+
+        if (selectedBoothId === payload.boothId) {
+          void loadLogs(payload.boothId);
+        }
+      },
+    );
+
+    const offCheckin = realtimeClient.subscribe<BookingRealtimeEvent>("booking.checkin", () => {
+      void loadBooths();
+    });
+
+    const offCheckout = realtimeClient.subscribe<BookingRealtimeEvent>("booking.checkout", () => {
+      void loadBooths();
+    });
+
+    const offNotification = realtimeClient.subscribe<BoothNotificationEvent>(
+      "booth.notification",
+      (payload) => {
+        setRealtimeMessage(payload.message);
+        window.setTimeout(() => setRealtimeMessage(null), 5000);
+      },
+    );
+
+    if (selectedBoothId) {
+      realtimeClient.joinBooth(selectedBoothId);
+    }
+
+    return () => {
+      offStatus();
+      offCheckin();
+      offCheckout();
+      offNotification();
+    };
+  }, [canViewPage, selectedBoothId]);
 
   const resetForm = () => {
     setShowForm(false);
@@ -511,6 +562,12 @@ export default function BoothsManagementPage() {
 
   return (
     <div className="py-8 space-y-6">
+      {realtimeMessage && (
+        <div className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm font-semibold text-blue-800">
+          {realtimeMessage}
+        </div>
+      )}
+
       <nav className="mb-4 flex flex-wrap items-center gap-2" aria-label="Booth navigation">
         <Link
           href="/admin/booths"

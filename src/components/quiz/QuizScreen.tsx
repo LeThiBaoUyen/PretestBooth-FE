@@ -240,6 +240,23 @@ const QuizScreen = () => {
   }, [timeLeft, showResult, submitting, loading, handleConfirmSubmit]);
 
   useEffect(() => {
+    if (!showResult || !result || result.pendingItems <= 0 || !sessionId || !accessToken) {
+      return;
+    }
+
+    const pollId = setInterval(async () => {
+      try {
+        const latest = await examsApiClient.getResults(sessionId, accessToken);
+        setResult(latest);
+      } catch {
+        // Ignore polling failures and keep showing latest known state.
+      }
+    }, 5000);
+
+    return () => clearInterval(pollId);
+  }, [showResult, result?.pendingItems, sessionId, accessToken]);
+
+  useEffect(() => {
     return () => {
       if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
       if (codeSaveTimeoutRef.current) clearTimeout(codeSaveTimeoutRef.current);
@@ -326,7 +343,12 @@ const QuizScreen = () => {
       sourceCode: "",
     };
 
-    const matched = languages.find((l) => l.language === lang);
+    const normalizedLang = lang.toLowerCase();
+    const matched = languages.find((l) => {
+      if (l.language.toLowerCase() === normalizedLang) return true;
+      if (l.runtime?.toLowerCase().includes(normalizedLang)) return true;
+      return (l.aliases || []).some((alias) => alias.toLowerCase() === normalizedLang);
+    });
     const version = matched?.version || "*";
 
     const oldLanguage = prev.language || "";
@@ -506,6 +528,11 @@ const QuizScreen = () => {
                 Đúng {result.correctItems}/{result.totalItems}
                 {result.pendingItems > 0 && ` • Chờ chấm: ${result.pendingItems}`}
               </p>
+              {result.pendingItems > 0 && (
+                <p className="mt-2 text-xs text-amber-700">
+                  Hệ thống đang tự động cập nhật kết quả mỗi 5 giây.
+                </p>
+              )}
             </div>
 
             <button

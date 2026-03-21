@@ -13,19 +13,51 @@ import {
 import { useAuth } from "@/lib/hooks";
 import { dashboardApi } from "@/lib/api/dashboard";
 import type { AdminStats } from "@/lib/api/types";
+import type { BookingRealtimeEvent, BoothStatusUpdatedEvent } from "@/lib/api/types";
+import { realtimeClient } from "@/lib/realtime/socketClient";
 
 export default function AdminStatsDashboard() {
   const { user } = useAuth();
   const [stats, setStats] = useState<AdminStats | null>(null);
   const [loading, setLoading] = useState(true);
 
+  const loadAdminStats = () => {
+    if (!user || user.role !== "ADMIN") {
+      return;
+    }
+
+    dashboardApi.getAdminStats()
+      .then(setStats)
+      .catch(console.error)
+      .finally(() => setLoading(false));
+  };
+
   useEffect(() => {
     if (user && user.role === "ADMIN") {
-      dashboardApi.getAdminStats()
-        .then(setStats)
-        .catch(console.error)
-        .finally(() => setLoading(false));
+      loadAdminStats();
     }
+  }, [user]);
+
+  useEffect(() => {
+    if (!user || user.role !== "ADMIN") {
+      return;
+    }
+
+    const refresh = () => {
+      void loadAdminStats();
+    };
+
+    const offDashboard = realtimeClient.subscribe<{ emittedAt: string }>("dashboard.stats.updated", refresh);
+    const offCheckin = realtimeClient.subscribe<BookingRealtimeEvent>("booking.checkin", refresh);
+    const offCheckout = realtimeClient.subscribe<BookingRealtimeEvent>("booking.checkout", refresh);
+    const offBoothStatus = realtimeClient.subscribe<BoothStatusUpdatedEvent>("booth.status.updated", refresh);
+
+    return () => {
+      offDashboard();
+      offCheckin();
+      offCheckout();
+      offBoothStatus();
+    };
   }, [user]);
 
   if (!user || user.role !== "ADMIN") return null;

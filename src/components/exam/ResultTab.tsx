@@ -141,30 +141,32 @@ export default function ResultTab({
               )}
             </div>
 
-            {!result.passed && (
-              <div className="mt-4 space-y-3 text-sm">
-                <div>
-                  <span className="text-gray-500 font-medium">Input:</span>
-                  <pre className="mt-1 p-3 bg-gray-900 rounded-lg text-gray-300 overflow-x-auto font-mono text-xs">
-                    {result.input}
-                  </pre>
-                </div>
-                <div>
-                  <span className="text-gray-500 font-medium">Expected:</span>
-                  <pre className="mt-1 p-3 bg-gray-900 rounded-lg text-green-400 overflow-x-auto font-mono text-xs">
-                    {result.expectedOutput}
-                  </pre>
-                </div>
-                <div>
-                  <span className="text-gray-500 font-medium">
-                    Your Output:
-                  </span>
-                  <pre className="mt-1 p-3 bg-gray-900 rounded-lg text-red-400 overflow-x-auto font-mono text-xs">
-                    {result.actualOutput}
-                  </pre>
-                </div>
+            <div className="mt-4 space-y-3 text-sm">
+              <div>
+                <span className="text-gray-500 font-medium">Input:</span>
+                <pre className="mt-1 p-3 bg-gray-900 rounded-lg text-gray-300 overflow-x-auto font-mono text-xs">
+                  {result.input || "(empty)"}
+                </pre>
               </div>
-            )}
+              <div>
+                <span className="text-gray-500 font-medium">Expected:</span>
+                <pre className="mt-1 p-3 bg-gray-900 rounded-lg text-green-400 overflow-x-auto font-mono text-xs">
+                  {result.expectedOutput || "(empty)"}
+                </pre>
+              </div>
+              <div>
+                <span className="text-gray-500 font-medium">
+                  Your Output:
+                </span>
+                <pre
+                  className={`mt-1 p-3 bg-gray-900 rounded-lg overflow-x-auto font-mono text-xs ${
+                    result.passed ? "text-blue-300" : "text-red-400"
+                  }`}
+                >
+                  {result.actualOutput || "(empty)"}
+                </pre>
+              </div>
+            </div>
           </div>
         ))}
       </div>
