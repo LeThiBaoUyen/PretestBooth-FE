@@ -6,7 +6,9 @@ import { format } from "date-fns";
 import { bookingsApi } from "@/lib/api/bookings";
 import { useAuth } from "@/lib/hooks";
 import type { Booking, BookingStatus, BookingType } from "@/lib/api/types";
+import type { BookingRealtimeEvent, BoothStatusUpdatedEvent } from "@/lib/api/types";
 import { Calendar, Wrench, ArrowLeft, Search, RefreshCw, RotateCcw } from "lucide-react";
+import { realtimeClient } from "@/lib/realtime/socketClient";
 
 export default function BoothSchedulePage() {
   const { user, userLoading } = useAuth();
@@ -47,6 +49,26 @@ export default function BoothSchedulePage() {
       fetchBookings();
     }
   }, [canViewPage, date, statusFilter, typeFilter]);
+
+  useEffect(() => {
+    if (!canViewPage) {
+      return;
+    }
+
+    const refresh = () => {
+      void fetchBookings();
+    };
+
+    const offCheckin = realtimeClient.subscribe<BookingRealtimeEvent>("booking.checkin", refresh);
+    const offCheckout = realtimeClient.subscribe<BookingRealtimeEvent>("booking.checkout", refresh);
+    const offBoothStatus = realtimeClient.subscribe<BoothStatusUpdatedEvent>("booth.status.updated", refresh);
+
+    return () => {
+      offCheckin();
+      offCheckout();
+      offBoothStatus();
+    };
+  }, [canViewPage, date, statusFilter, typeFilter, boothFilter, keyword]);
 
   const filteredBookings = useMemo(() => {
     const q = keyword.trim().toLowerCase();

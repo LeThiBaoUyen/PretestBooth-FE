@@ -20,11 +20,11 @@ import { executionApi } from "@/lib/api/execution";
 import type { Problem as APIProblem, TestCase } from "@/lib/api/types";
 
 const LANGUAGE_MAP: Record<string, { language: string; version?: string }> = {
-  javascript: { language: "javascript", version: "18.15.0" },
-  python: { language: "python", version: "3.10.0" },
-  java: { language: "java", version: "15.0.2" },
-  cpp: { language: "c++", version: "10.2.0" },
-  c: { language: "c", version: "10.2.0" },
+  javascript: { language: "javascript" },
+  python: { language: "python" },
+  java: { language: "java" },
+  cpp: { language: "cpp" },
+  c: { language: "c" },
 };
 
 // Transform backend problem to UI problem format
@@ -120,7 +120,7 @@ function ExamContent() {
       const sampleTestCases =
         apiProblem.testCases?.filter((tc: TestCase) => tc.isSample) || [];
 
-      // Run test cases sequentially to avoid rate limiting (Piston limits to 1 request per 200ms)
+      // Run test cases sequentially to avoid burst traffic to execution service.
       const results = [];
       for (let idx = 0; idx < sampleTestCases.length; idx++) {
         const tc = sampleTestCases[idx];
@@ -140,7 +140,12 @@ function ExamContent() {
             id: idx + 1,
             input: tc.input,
             expectedOutput: tc.expectedOutput,
-            actualOutput: response.actualOutput,
+            actualOutput:
+              response.actualOutput ||
+              response.stdout ||
+              response.stderr ||
+              response.message ||
+              "(no output)",
             passed: response.passed,
             executionTime: response.executionTime,
           });
@@ -192,7 +197,7 @@ function ExamContent() {
         id: idx + 1,
         input: tc.input,
         expectedOutput: tc.expectedOutput,
-        actualOutput: tc.actualOutput,
+        actualOutput: tc.actualOutput || tc.stdout || tc.stderr || tc.message || "(no output)",
         passed: tc.passed,
         executionTime: tc.executionTime,
       }));

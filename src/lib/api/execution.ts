@@ -27,14 +27,71 @@ function getAccessToken(): string | null {
 
 class ExecutionApiClient {
   private baseURL: string;
+  private static readonly DEFAULT_TIMEOUT_MS = 30_000;
+  private static readonly EXECUTION_TIMEOUT_MS = 60_000;
 
   constructor(baseURL: string) {
     this.baseURL = baseURL;
   }
 
+  private async fetchWithTimeout(
+    url: string,
+    options: RequestInit,
+    timeoutMs: number,
+  ): Promise<Response> {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+    try {
+      return await fetch(url, {
+        ...options,
+        signal: controller.signal,
+      });
+    } finally {
+      clearTimeout(timeoutId);
+    }
+  }
+
+  private async requestWithRetry<T>(
+    endpoint: string,
+    options: RequestInit,
+    timeoutMs: number,
+    retries = 1,
+  ): Promise<T> {
+    let attempt = 0;
+    let lastError: Error | null = null;
+
+    while (attempt <= retries) {
+      try {
+        return await this.request<T>(endpoint, options, timeoutMs);
+      } catch (error) {
+        const err = error instanceof Error ? error : new Error("An unexpected error occurred");
+        lastError = err;
+
+        const isTransient =
+          err.message.includes("Execution request timed out") ||
+          err.message.includes("NetworkError") ||
+          err.message.includes("Failed to fetch") ||
+          err.message.includes("503") ||
+          err.message.includes("502") ||
+          err.message.includes("504");
+
+        if (!isTransient || attempt === retries) {
+          throw err;
+        }
+
+        await new Promise((resolve) => setTimeout(resolve, 500 * (attempt + 1)));
+        attempt += 1;
+      }
+    }
+
+    throw lastError || new Error("An unexpected error occurred");
+  }
+
   private async request<T>(
     endpoint: string,
     options: RequestInit = {},
+    timeoutMs = ExecutionApiClient.DEFAULT_TIMEOUT_MS,
   ): Promise<T> {
     const url = `${this.baseURL}${endpoint}`;
     const config: RequestInit = {
@@ -46,7 +103,7 @@ class ExecutionApiClient {
     };
 
     try {
-      const response = await fetch(url, config);
+      const response = await this.fetchWithTimeout(url, config, timeoutMs);
 
       // Handle 401 Unauthorized - try to refresh token
       if (response.status === 401) {
@@ -56,13 +113,14 @@ class ExecutionApiClient {
         if (refreshToken) {
           // Try to refresh the access token
           try {
-            const refreshResponse = await fetch(
+            const refreshResponse = await this.fetchWithTimeout(
               `${this.baseURL}/api/auth/refresh`,
               {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ refreshToken }),
               },
+              ExecutionApiClient.DEFAULT_TIMEOUT_MS,
             );
 
             if (refreshResponse.ok) {
@@ -82,7 +140,11 @@ class ExecutionApiClient {
                 },
               };
 
-              const retryResponse = await fetch(url, retryConfig);
+              const retryResponse = await this.fetchWithTimeout(
+                url,
+                retryConfig,
+                timeoutMs,
+              );
               const retryJson = await retryResponse.json();
 
               if (!retryResponse.ok) {
@@ -117,6 +179,9 @@ class ExecutionApiClient {
       // Backend wraps responses in { statusCode, message, data }
       return jsonResponse.data || jsonResponse;
     } catch (error) {
+      if (error instanceof Error && error.name === "AbortError") {
+        throw new Error("Execution request timed out");
+      }
       if (error instanceof Error) {
         throw error;
       }
@@ -135,11 +200,16 @@ class ExecutionApiClient {
     accessToken?: string,
   ): Promise<ExecuteCodeResponse> {
     const token = accessToken || getAccessToken();
-    return this.request<ExecuteCodeResponse>("/api/execution/run", {
-      method: "POST",
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
-      body: JSON.stringify(data),
-    });
+    return this.requestWithRetry<ExecuteCodeResponse>(
+      "/api/execution/run",
+      {
+        method: "POST",
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        body: JSON.stringify(data),
+      },
+      ExecutionApiClient.EXECUTION_TIMEOUT_MS,
+      1,
+    );
   }
 
   // Run code against a single test case
@@ -148,11 +218,16 @@ class ExecutionApiClient {
     accessToken?: string,
   ): Promise<RunTestCaseResponse> {
     const token = accessToken || getAccessToken();
-    return this.request<RunTestCaseResponse>("/api/execution/test", {
-      method: "POST",
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
-      body: JSON.stringify(data),
-    });
+    return this.requestWithRetry<RunTestCaseResponse>(
+      "/api/execution/test",
+      {
+        method: "POST",
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        body: JSON.stringify(data),
+      },
+      ExecutionApiClient.EXECUTION_TIMEOUT_MS,
+      1,
+    );
   }
 
   // Submit code for evaluation
@@ -161,11 +236,16 @@ class ExecutionApiClient {
     accessToken?: string,
   ): Promise<SubmissionResponse> {
     const token = accessToken || getAccessToken();
-    return this.request<SubmissionResponse>("/api/execution/submit", {
-      method: "POST",
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
-      body: JSON.stringify(data),
-    });
+    return this.requestWithRetry<SubmissionResponse>(
+      "/api/execution/submit",
+      {
+        method: "POST",
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        body: JSON.stringify(data),
+      },
+      ExecutionApiClient.EXECUTION_TIMEOUT_MS,
+      1,
+    );
   }
 }
 
