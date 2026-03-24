@@ -676,9 +676,27 @@ export interface CreateExamRequest {
   title: string;
   description?: string | null;
   subjectId?: string | null;
+  subjectIds?: string[];
   topicId?: string | null;
+  generationMode?: "RANDOM" | "MANUAL";
+  allocationPolicy?: "STRICT" | "FLEXIBLE";
   questionCount: number;
   problemCount: number;
+  questionDifficultyDistribution?: {
+    easy: number;
+    medium: number;
+    hard: number;
+  };
+  questionAllocationRules?: Array<{
+    subjectId: string;
+    difficulty?: Difficulty | null;
+    count: number;
+  }>;
+  problemDifficultyDistribution?: {
+    easy: number;
+    medium: number;
+    hard: number;
+  };
   includeProblemsRelatedToQuestions?: boolean;
   difficulty?: Difficulty | null;
   duration: number;
