@@ -59,6 +59,7 @@ export class TokenManager {
   clearTokens(): void {
     this.queryClient.removeQueries({ queryKey: ACCESS_TOKEN_QUERY_KEY });
     // Clear refresh token from cookies
+    if (typeof document === "undefined") return;
     document.cookie = `${REFRESH_TOKEN_COOKIE_NAME}=; path=/; max-age=0`;
   }
 
@@ -85,6 +86,7 @@ export class TokenManager {
 }
 
 let tokenManager: TokenManager | null = null;
+let fallbackQueryClient: QueryClient | null = null;
 
 /**
  * Initialize token manager with query client
@@ -99,9 +101,10 @@ export function initializeTokenManager(queryClient: QueryClient): TokenManager {
  */
 export function getTokenManager(): TokenManager {
   if (!tokenManager) {
-    throw new Error(
-      "TokenManager not initialized. Call initializeTokenManager first.",
-    );
+    // In production bundles, module init order can differ across chunks.
+    // Create a safe fallback manager instead of crashing the entire app.
+    fallbackQueryClient ??= new QueryClient();
+    tokenManager = new TokenManager(fallbackQueryClient);
   }
   return tokenManager;
 }

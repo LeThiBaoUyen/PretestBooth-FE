@@ -1,6 +1,8 @@
 import { httpClient } from "./httpClient";
 import type { User } from "./types";
 
+const API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000").replace(/\/+$/, "");
+
 export interface PaginatedUsers {
   data: Partial<User>[];
   total: number;
@@ -53,7 +55,7 @@ export const usersApi = {
 
   // File should be mapped toFormData in the UI layer and passed via fetch directly because httpClient forces JSON
   // We'll export a generic URL that the UI can hit using native fetch + tokens
-  getImportUrl: () => `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000"}/api/users/import`,
+  getImportUrl: () => `${API_BASE_URL}/api/users/import`,
 
   getExportUrl: (params?: {
     search?: string;
@@ -70,7 +72,7 @@ export const usersApi = {
     if (params?.sortOrder) query.append("sortOrder", params.sortOrder);
     if (params?.format) query.append("format", params.format);
 
-    const base = `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000"}/api/users/export`;
+    const base = `${API_BASE_URL}/api/users/export`;
     return `${base}?${query.toString()}`;
   },
 };
