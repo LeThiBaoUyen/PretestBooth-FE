@@ -21,6 +21,14 @@ const DIFFICULTY_OPTIONS: { label: string; value: Difficulty }[] = [
 const DURATIONS = [30, 45, 60, 90, 120];
 
 type SelectionMode = "random" | "manual";
+type AllocationPolicy = "STRICT" | "FLEXIBLE";
+type ExamVisibility = "PRIVATE" | "PUBLIC";
+type PublishMode = "now" | "schedule";
+type SubjectDifficultyCounts = {
+  easy: number;
+  medium: number;
+  hard: number;
+};
 
 /* ========== Toggle Switch ========== */
 function Toggle({
@@ -180,18 +188,32 @@ export default function ExamSelection({
   const [title, setTitle] = useState("");
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [topics, setTopics] = useState<Topic[]>([]);
-  const [subjectId, setSubjectId] = useState("");
+  const [subjectIds, setSubjectIds] = useState<string[]>([]);
   const [topicId, setTopicId] = useState("");
   const [duration, setDuration] = useState<number>(60);
-  const [difficulty, setDifficulty] = useState<Difficulty | "">("MEDIUM");
+  const [difficulty, setDifficulty] = useState<Difficulty | "">("");
   const [includeRelated, setIncludeRelated] = useState(false);
+  const [visibility, setVisibility] = useState<ExamVisibility>("PRIVATE");
+  const [publishMode, setPublishMode] = useState<PublishMode>("now");
+  const [publishAtLocal, setPublishAtLocal] = useState("");
 
   // Random mode counts
   const [questionCount, setQuestionCount] = useState(10);
   const [problemCount, setProblemCount] = useState(0);
+  const [useQuestionAllocationRules, setUseQuestionAllocationRules] =
+    useState(false);
+  const [subjectQuestionMatrix, setSubjectQuestionMatrix] = useState<
+    Record<string, SubjectDifficultyCounts>
+  >({});
+  const [useProblemDistribution, setUseProblemDistribution] = useState(false);
+  const [problemEasyCount, setProblemEasyCount] = useState(0);
+  const [problemMediumCount, setProblemMediumCount] = useState(0);
+  const [problemHardCount, setProblemHardCount] = useState(0);
 
   // Selection mode
   const [mode, setMode] = useState<SelectionMode>("random");
+  const [allocationPolicy, setAllocationPolicy] =
+    useState<AllocationPolicy>("STRICT");
 
   // Shuffle toggles
   const [shuffleQuestions, setShuffleQuestions] = useState(true);
@@ -235,9 +257,9 @@ export default function ExamSelection({
     fetchSubjects();
   }, [accessToken]);
 
-  // Fetch topics when subject changes
+  // Fetch topics when exactly one subject is selected
   useEffect(() => {
-    if (!subjectId) {
+    if (subjectIds.length !== 1) {
       setTopics([]);
       setTopicId("");
       return;
@@ -245,7 +267,7 @@ export default function ExamSelection({
     async function fetchTopics() {
       try {
         const data = await questionsApiClient.getTopicsBySubject(
-          subjectId,
+          subjectIds[0],
           accessToken || undefined,
         );
         setTopics(data);
@@ -254,7 +276,22 @@ export default function ExamSelection({
       }
     }
     fetchTopics();
-  }, [subjectId, accessToken]);
+  }, [subjectIds, accessToken]);
+
+  useEffect(() => {
+    setSubjectQuestionMatrix((prev) => {
+      const next: Record<string, SubjectDifficultyCounts> = {};
+      subjectIds.forEach((id) => {
+        next[id] =
+          prev[id] || {
+            easy: 0,
+            medium: 0,
+            hard: 0,
+          };
+      });
+      return next;
+    });
+  }, [subjectIds]);
 
   // Fetch questions for picker
   const fetchQuestions = useCallback(async () => {
@@ -267,7 +304,7 @@ export default function ExamSelection({
           limit: 10,
           search: qSearch || undefined,
           isPublished: true,
-          subjectId: subjectId || undefined,
+          subjectId: subjectIds.length === 1 ? subjectIds[0] : undefined,
           topicId: topicId || undefined,
         },
         accessToken || undefined,
@@ -279,7 +316,7 @@ export default function ExamSelection({
     } finally {
       setQLoading(false);
     }
-  }, [mode, qPage, qSearch, subjectId, topicId, accessToken]);
+  }, [mode, qPage, qSearch, subjectIds, topicId, accessToken]);
 
   useEffect(() => {
     fetchQuestions();
@@ -295,7 +332,7 @@ export default function ExamSelection({
         limit: 10,
         search: pSearch || undefined,
         isPublished: true,
-        subjectId: subjectId || undefined,
+        subjectId: subjectIds.length === 1 ? subjectIds[0] : undefined,
         topicId: topicId || undefined,
       });
       setPItems(res.data);
@@ -305,7 +342,7 @@ export default function ExamSelection({
     } finally {
       setPLoading(false);
     }
-  }, [mode, pPage, pSearch, subjectId, topicId]);
+  }, [mode, pPage, pSearch, subjectIds, topicId]);
 
   useEffect(() => {
     fetchProblems();
@@ -329,6 +366,14 @@ export default function ExamSelection({
     });
   };
 
+  const toggleSubject = (id: string) => {
+    setSubjectIds((prev) => {
+      const exists = prev.includes(id);
+      return exists ? prev.filter((v) => v !== id) : [...prev, id];
+    });
+    setTopicId("");
+  };
+
   // Compute effective counts
   const effectiveQuestionCount =
     mode === "manual" ? selectedQuestionIds.size : questionCount;
@@ -347,32 +392,135 @@ export default function ExamSelection({
       setError("Tổng số câu hỏi phải lớn hơn 0.");
       return;
     }
+
+    if (mode === "random" && useProblemDistribution) {
+      const sum = problemEasyCount + problemMediumCount + problemHardCount;
+      if (sum !== problemCount) {
+        setError("Tổng phân bổ độ khó bài code phải bằng số bài code.");
+        return;
+      }
+    }
+
+    if (mode === "random" && useQuestionAllocationRules) {
+      if (subjectIds.length === 0) {
+        setError("Vui lòng chọn ít nhất 1 môn khi dùng phân bổ theo môn.");
+        return;
+      }
+
+      const sum = subjectIds.reduce(
+        (acc, id) => {
+          const row = subjectQuestionMatrix[id];
+          return acc + (row?.easy || 0) + (row?.medium || 0) + (row?.hard || 0);
+        },
+        0,
+      );
+      if (sum !== questionCount) {
+        setError("Tổng số câu theo từng môn phải bằng số câu trắc nghiệm.");
+        return;
+      }
+    }
+
+    if (visibility === "PUBLIC" && publishMode === "schedule") {
+      if (!publishAtLocal) {
+        setError("Vui lòng chọn thời điểm hẹn giờ đăng đề.");
+        return;
+      }
+
+      const publishDate = new Date(publishAtLocal);
+      if (Number.isNaN(publishDate.getTime())) {
+        setError("Thời điểm đăng không hợp lệ.");
+        return;
+      }
+
+      if (publishDate.getTime() <= Date.now()) {
+        setError("Thời điểm hẹn giờ phải lớn hơn thời điểm hiện tại.");
+        return;
+      }
+    }
+
     setLoading(true);
     setError("");
     try {
-      await examsApiClient.createExam(
-        {
-          title:
-            title ||
-            `Đề thi tự tạo - ${new Date().toLocaleDateString("vi-VN")}`,
-          subjectId: subjectId || undefined,
-          topicId: topicId || undefined,
-          questionCount: mode === "manual" ? 0 : questionCount,
-          problemCount: mode === "manual" ? 0 : problemCount,
-          includeProblemsRelatedToQuestions: includeRelated,
-          difficulty: difficulty || undefined,
-          duration,
-          shuffleQuestions,
-          shuffleChoices,
-          ...(mode === "manual" && selectedQuestionIds.size > 0
-            ? { questionIds: Array.from(selectedQuestionIds) }
-            : {}),
-          ...(mode === "manual" && selectedProblemIds.size > 0
-            ? { problemIds: Array.from(selectedProblemIds) }
-            : {}),
-        },
-        accessToken,
-      );
+      const payload = {
+        title:
+          title ||
+          `Đề thi tự tạo - ${new Date().toLocaleDateString("vi-VN")}`,
+        subjectId: subjectIds.length === 1 ? subjectIds[0] : undefined,
+        subjectIds: subjectIds.length > 0 ? subjectIds : undefined,
+        topicId: topicId || undefined,
+        questionCount: mode === "manual" ? 0 : questionCount,
+        problemCount: mode === "manual" ? 0 : problemCount,
+        includeProblemsRelatedToQuestions: includeRelated,
+        difficulty: difficulty || undefined,
+        allocationPolicy: mode === "random" ? allocationPolicy : undefined,
+        ...(mode === "random" && useProblemDistribution
+          ? {
+              problemDifficultyDistribution: {
+                easy: problemEasyCount,
+                medium: problemMediumCount,
+                hard: problemHardCount,
+              },
+            }
+          : {}),
+        ...(mode === "random" && useQuestionAllocationRules
+          ? {
+              questionAllocationRules: subjectIds.reduce<
+                Array<{ subjectId: string; difficulty: Difficulty; count: number }>
+              >((rules, subjectId) => {
+                const row = subjectQuestionMatrix[subjectId] || {
+                  easy: 0,
+                  medium: 0,
+                  hard: 0,
+                };
+
+                if (row.easy > 0) {
+                  rules.push({
+                    subjectId,
+                    difficulty: "EASY",
+                    count: row.easy,
+                  });
+                }
+                if (row.medium > 0) {
+                  rules.push({
+                    subjectId,
+                    difficulty: "MEDIUM",
+                    count: row.medium,
+                  });
+                }
+                if (row.hard > 0) {
+                  rules.push({
+                    subjectId,
+                    difficulty: "HARD",
+                    count: row.hard,
+                  });
+                }
+
+                return rules;
+              }, []),
+            }
+          : {}),
+        duration,
+        shuffleQuestions,
+        shuffleChoices,
+        visibility,
+        publishNow: visibility === "PUBLIC" && publishMode === "now",
+        ...(visibility === "PUBLIC" && publishMode === "schedule"
+          ? { publishAt: new Date(publishAtLocal).toISOString() }
+          : {}),
+        ...(mode === "manual" && selectedQuestionIds.size > 0
+          ? { questionIds: Array.from(selectedQuestionIds) }
+          : {}),
+        ...(mode === "manual" && selectedProblemIds.size > 0
+          ? { problemIds: Array.from(selectedProblemIds) }
+          : {}),
+      };
+
+      if (mode === "manual") {
+        await examsApiClient.createManualExam(payload, accessToken);
+      } else {
+        await examsApiClient.createRandomExam(payload, accessToken);
+      }
+
       onExamCreated();
     } catch (err: any) {
       setError(err.message || "Không thể tạo đề thi. Vui lòng thử lại.");
@@ -409,24 +557,28 @@ export default function ExamSelection({
       {/* Subject */}
       <div className="mb-4">
         <label className="block text-navy-700 font-semibold mb-2">
-          Môn học
+          Môn học (có thể chọn nhiều)
         </label>
-        <select
-          className="w-full px-4 py-3 border border-navy-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-navy-400 bg-white text-navy-700"
-          value={subjectId}
-          onChange={(e) => setSubjectId(e.target.value)}
-        >
-          <option value="">-- Tất cả --</option>
-          {subjects.map((s) => (
-            <option key={s.id} value={s.id}>
-              {s.name}
-            </option>
-          ))}
-        </select>
+        <div className="max-h-44 overflow-y-auto rounded-lg border border-navy-200 p-3">
+          <div className="mb-2 text-xs text-navy-500">Để trống = lấy tất cả môn</div>
+          <div className="space-y-1">
+            {subjects.map((s) => (
+              <label key={s.id} className="flex items-center gap-2 text-sm text-navy-700">
+                <input
+                  type="checkbox"
+                  className="w-4 h-4 rounded border-navy-300 text-navy-600 focus:ring-navy-500"
+                  checked={subjectIds.includes(s.id)}
+                  onChange={() => toggleSubject(s.id)}
+                />
+                <span>{s.name}</span>
+              </label>
+            ))}
+          </div>
+        </div>
       </div>
 
       {/* Topic */}
-      {subjectId && topics.length > 0 && (
+      {subjectIds.length === 1 && topics.length > 0 && (
         <div className="mb-4">
           <label className="block text-navy-700 font-semibold mb-2">
             Chủ đề
@@ -443,6 +595,12 @@ export default function ExamSelection({
               </option>
             ))}
           </select>
+        </div>
+      )}
+
+      {subjectIds.length > 1 && (
+        <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
+          Đang chọn nhiều môn, bộ lọc Chủ đề sẽ tạm tắt để tránh xung đột dữ liệu.
         </div>
       )}
 
@@ -483,6 +641,103 @@ export default function ExamSelection({
         </select>
       </div>
 
+      {/* Visibility & publish time */}
+      <div className="mb-4 rounded-lg border border-navy-200 p-4">
+        <label className="block text-navy-700 font-semibold mb-2">
+          Quyền truy cập đề thi
+        </label>
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+          <label
+            className={`cursor-pointer rounded-lg border px-3 py-2 text-sm transition ${
+              visibility === "PRIVATE"
+                ? "border-navy-500 bg-navy-50 text-navy-700"
+                : "border-navy-200 bg-white text-navy-600"
+            }`}
+          >
+            <input
+              type="radio"
+              name="visibility"
+              className="mr-2"
+              checked={visibility === "PRIVATE"}
+              onChange={() => setVisibility("PRIVATE")}
+            />
+            Private (ẩn với sinh viên)
+          </label>
+          <label
+            className={`cursor-pointer rounded-lg border px-3 py-2 text-sm transition ${
+              visibility === "PUBLIC"
+                ? "border-navy-500 bg-navy-50 text-navy-700"
+                : "border-navy-200 bg-white text-navy-600"
+            }`}
+          >
+            <input
+              type="radio"
+              name="visibility"
+              className="mr-2"
+              checked={visibility === "PUBLIC"}
+              onChange={() => setVisibility("PUBLIC")}
+            />
+            Public (cho phép sinh viên thấy đề)
+          </label>
+        </div>
+
+        {visibility === "PUBLIC" && (
+          <div className="mt-3 space-y-3">
+            <label className="block text-sm font-semibold text-navy-700">
+              Thời điểm đăng
+            </label>
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+              <label
+                className={`cursor-pointer rounded-lg border px-3 py-2 text-sm transition ${
+                  publishMode === "now"
+                    ? "border-navy-500 bg-navy-50 text-navy-700"
+                    : "border-navy-200 bg-white text-navy-600"
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="publishMode"
+                  className="mr-2"
+                  checked={publishMode === "now"}
+                  onChange={() => setPublishMode("now")}
+                />
+                Đăng ngay bây giờ
+              </label>
+              <label
+                className={`cursor-pointer rounded-lg border px-3 py-2 text-sm transition ${
+                  publishMode === "schedule"
+                    ? "border-navy-500 bg-navy-50 text-navy-700"
+                    : "border-navy-200 bg-white text-navy-600"
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="publishMode"
+                  className="mr-2"
+                  checked={publishMode === "schedule"}
+                  onChange={() => setPublishMode("schedule")}
+                />
+                Hẹn giờ đăng
+              </label>
+            </div>
+
+            {publishMode === "schedule" && (
+              <div>
+                <label className="mb-1 block text-xs text-navy-600">
+                  Chọn ngày giờ đăng
+                </label>
+                <input
+                  type="datetime-local"
+                  className="w-full rounded-lg border border-navy-200 px-3 py-2 text-sm"
+                  value={publishAtLocal}
+                  onChange={(e) => setPublishAtLocal(e.target.value)}
+                />
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
       {/* ====== Selection Mode Toggle ====== */}
       {canManualPick && (
         <div className="mb-5">
@@ -519,6 +774,49 @@ export default function ExamSelection({
       {/* ====== Random Mode ====== */}
       {mode === "random" && (
         <>
+          <div className="mb-4 rounded-lg border border-navy-200 p-4">
+            <label className="block text-navy-700 font-semibold mb-2">
+              Chính sách phân bổ
+            </label>
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+              <label
+                className={`cursor-pointer rounded-lg border px-3 py-2 text-sm transition ${
+                  allocationPolicy === "STRICT"
+                    ? "border-navy-500 bg-navy-50 text-navy-700"
+                    : "border-navy-200 bg-white text-navy-600"
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="allocationPolicy"
+                  className="mr-2"
+                  checked={allocationPolicy === "STRICT"}
+                  onChange={() => setAllocationPolicy("STRICT")}
+                />
+                Strict
+              </label>
+              <label
+                className={`cursor-pointer rounded-lg border px-3 py-2 text-sm transition ${
+                  allocationPolicy === "FLEXIBLE"
+                    ? "border-navy-500 bg-navy-50 text-navy-700"
+                    : "border-navy-200 bg-white text-navy-600"
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="allocationPolicy"
+                  className="mr-2"
+                  checked={allocationPolicy === "FLEXIBLE"}
+                  onChange={() => setAllocationPolicy("FLEXIBLE")}
+                />
+                Flexible
+              </label>
+            </div>
+            <p className="mt-2 text-xs text-navy-500">
+              Strict: thiếu dữ liệu sẽ báo lỗi. Flexible: cố gắng bù bằng mức độ khác trong cùng bộ lọc.
+            </p>
+          </div>
+
           <div className="mb-4">
             <label className="block text-navy-700 font-semibold mb-2">
               Số câu trắc nghiệm
@@ -534,6 +832,113 @@ export default function ExamSelection({
               }
             />
           </div>
+
+          {questionCount > 0 && (
+            <div className="mb-4 rounded-lg border border-navy-200 p-4">
+              <label className="flex items-center gap-2 text-sm font-semibold text-navy-700">
+                <input
+                  type="checkbox"
+                  className="w-4 h-4 rounded border-navy-300 text-navy-600 focus:ring-navy-500"
+                  checked={useQuestionAllocationRules}
+                  onChange={(e) => setUseQuestionAllocationRules(e.target.checked)}
+                />
+                <span>Phân bổ câu theo từng môn</span>
+              </label>
+
+              {useQuestionAllocationRules && (
+                <>
+                  {subjectIds.length === 0 ? (
+                    <p className="mt-2 text-xs text-amber-700">
+                      Cần chọn ít nhất 1 môn để cấu hình phân bổ theo môn.
+                    </p>
+                  ) : (
+                    <div className="mt-3 space-y-2">
+                      {subjectIds.map((id) => {
+                        const subject = subjects.find((s) => s.id === id);
+                        const row = subjectQuestionMatrix[id] || {
+                          easy: 0,
+                          medium: 0,
+                          hard: 0,
+                        };
+                        return (
+                          <div
+                            key={id}
+                            className="grid grid-cols-1 gap-2 rounded-lg border border-navy-100 p-3 sm:grid-cols-4"
+                          >
+                            <div className="text-sm text-navy-700 sm:col-span-1">
+                              {subject?.name || id}
+                            </div>
+                            <div>
+                              <label className="mb-1 block text-xs text-navy-600">Easy</label>
+                              <input
+                                type="number"
+                                min={0}
+                                className="w-full rounded-lg border border-navy-200 px-3 py-2 text-sm"
+                                value={row.easy}
+                                onChange={(e) =>
+                                  setSubjectQuestionMatrix((prev) => ({
+                                    ...prev,
+                                    [id]: {
+                                      ...(prev[id] || { easy: 0, medium: 0, hard: 0 }),
+                                      easy: Math.max(0, Number(e.target.value)),
+                                    },
+                                  }))
+                                }
+                              />
+                            </div>
+                            <div>
+                              <label className="mb-1 block text-xs text-navy-600">Medium</label>
+                              <input
+                                type="number"
+                                min={0}
+                                className="w-full rounded-lg border border-navy-200 px-3 py-2 text-sm"
+                                value={row.medium}
+                                onChange={(e) =>
+                                  setSubjectQuestionMatrix((prev) => ({
+                                    ...prev,
+                                    [id]: {
+                                      ...(prev[id] || { easy: 0, medium: 0, hard: 0 }),
+                                      medium: Math.max(0, Number(e.target.value)),
+                                    },
+                                  }))
+                                }
+                              />
+                            </div>
+                            <div>
+                              <label className="mb-1 block text-xs text-navy-600">Hard</label>
+                              <input
+                                type="number"
+                                min={0}
+                                className="w-full rounded-lg border border-navy-200 px-3 py-2 text-sm"
+                                value={row.hard}
+                                onChange={(e) =>
+                                  setSubjectQuestionMatrix((prev) => ({
+                                    ...prev,
+                                    [id]: {
+                                      ...(prev[id] || { easy: 0, medium: 0, hard: 0 }),
+                                      hard: Math.max(0, Number(e.target.value)),
+                                    },
+                                  }))
+                                }
+                              />
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  <p className="mt-2 text-xs text-navy-500">
+                    Tổng hiện tại: {subjectIds.reduce((acc, id) => {
+                      const row = subjectQuestionMatrix[id];
+                      return acc + (row?.easy || 0) + (row?.medium || 0) + (row?.hard || 0);
+                    }, 0)} / {questionCount}
+                  </p>
+                </>
+              )}
+            </div>
+          )}
+
           <div className="mb-4">
             <label className="block text-navy-700 font-semibold mb-2">
               Số bài code
@@ -549,6 +954,69 @@ export default function ExamSelection({
               }
             />
           </div>
+
+          {problemCount > 0 && (
+            <div className="mb-4 rounded-lg border border-navy-200 p-4">
+              <label className="flex items-center gap-2 text-sm font-semibold text-navy-700">
+                <input
+                  type="checkbox"
+                  className="w-4 h-4 rounded border-navy-300 text-navy-600 focus:ring-navy-500"
+                  checked={useProblemDistribution}
+                  onChange={(e) => {
+                    const checked = e.target.checked;
+                    setUseProblemDistribution(checked);
+                    if (!checked) {
+                      setProblemEasyCount(0);
+                      setProblemMediumCount(0);
+                      setProblemHardCount(0);
+                    }
+                  }}
+                />
+                <span>Phân bổ độ khó bài code</span>
+              </label>
+
+              {useProblemDistribution && (
+                <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-3">
+                  <div>
+                    <label className="mb-1 block text-xs text-navy-600">Easy</label>
+                    <input
+                      type="number"
+                      min={0}
+                      className="w-full rounded-lg border border-navy-200 px-3 py-2 text-sm"
+                      value={problemEasyCount}
+                      onChange={(e) => setProblemEasyCount(Math.max(0, Number(e.target.value)))}
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-xs text-navy-600">Medium</label>
+                    <input
+                      type="number"
+                      min={0}
+                      className="w-full rounded-lg border border-navy-200 px-3 py-2 text-sm"
+                      value={problemMediumCount}
+                      onChange={(e) => setProblemMediumCount(Math.max(0, Number(e.target.value)))}
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-xs text-navy-600">Hard</label>
+                    <input
+                      type="number"
+                      min={0}
+                      className="w-full rounded-lg border border-navy-200 px-3 py-2 text-sm"
+                      value={problemHardCount}
+                      onChange={(e) => setProblemHardCount(Math.max(0, Number(e.target.value)))}
+                    />
+                  </div>
+                </div>
+              )}
+
+              {useProblemDistribution && (
+                <p className="mt-2 text-xs text-navy-500">
+                  Tổng hiện tại: {problemEasyCount + problemMediumCount + problemHardCount} / {problemCount}
+                </p>
+              )}
+            </div>
+          )}
           {problemCount > 0 && questionCount > 0 && (
             <div className="mb-4 flex items-center gap-3">
               <input

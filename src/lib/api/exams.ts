@@ -17,6 +17,35 @@ import { httpClient } from "./httpClient";
 class ExamsApiClient {
   // ==================== EXAM CRUD ====================
 
+  async createRandomExam(
+    data: CreateExamRequest,
+    _accessToken: string,
+  ): Promise<Exam> {
+    return httpClient.post<Exam>("/api/exams/create-random", {
+      ...data,
+      generationMode: "RANDOM",
+      questionIds: undefined,
+      problemIds: undefined,
+    });
+  }
+
+  async createManualExam(
+    data: CreateExamRequest,
+    _accessToken: string,
+  ): Promise<Exam> {
+    return httpClient.post<Exam>("/api/exams/create-manual", {
+      ...data,
+      generationMode: "MANUAL",
+      allocationPolicy: "STRICT",
+      questionCount: 0,
+      problemCount: 0,
+      questionDifficultyDistribution: undefined,
+      questionAllocationRules: undefined,
+      problemDifficultyDistribution: undefined,
+      difficulty: null,
+    });
+  }
+
   async createExam(
     data: CreateExamRequest,
     _accessToken: string,

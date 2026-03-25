@@ -565,6 +565,7 @@ export interface CreateTopicRequest {
 
 export type ExamSection = "QUESTION" | "PROBLEM";
 export type ExamSessionStatus = "IN_PROGRESS" | "SUBMITTED" | "GRADED";
+export type ExamVisibility = "PRIVATE" | "PUBLIC";
 
 export interface Exam {
   id: string;
@@ -578,6 +579,9 @@ export interface Exam {
   shuffleQuestions: boolean;
   shuffleChoices: boolean;
   isPublished: boolean;
+  visibility?: ExamVisibility;
+  publishAt?: string | null;
+  publishedAt?: string | null;
   subjectId: string | null;
   topicId: string | null;
   subject?: { id: string; name: string } | null;
@@ -598,6 +602,9 @@ export interface ExamListItem {
   duration: number;
   difficulty: Difficulty | null;
   isPublished: boolean;
+  visibility?: ExamVisibility;
+  publishAt?: string | null;
+  publishedAt?: string | null;
   subjectId: string | null;
   topicId: string | null;
   subject?: { id: string; name: string } | null;
@@ -676,9 +683,27 @@ export interface CreateExamRequest {
   title: string;
   description?: string | null;
   subjectId?: string | null;
+  subjectIds?: string[];
   topicId?: string | null;
+  generationMode?: "RANDOM" | "MANUAL";
+  allocationPolicy?: "STRICT" | "FLEXIBLE";
   questionCount: number;
   problemCount: number;
+  questionDifficultyDistribution?: {
+    easy: number;
+    medium: number;
+    hard: number;
+  };
+  questionAllocationRules?: Array<{
+    subjectId: string;
+    difficulty?: Difficulty | null;
+    count: number;
+  }>;
+  problemDifficultyDistribution?: {
+    easy: number;
+    medium: number;
+    hard: number;
+  };
   includeProblemsRelatedToQuestions?: boolean;
   difficulty?: Difficulty | null;
   duration: number;
@@ -686,6 +711,9 @@ export interface CreateExamRequest {
   problemIds?: string[];
   shuffleQuestions?: boolean;
   shuffleChoices?: boolean;
+  visibility?: ExamVisibility;
+  publishAt?: string | null;
+  publishNow?: boolean;
 }
 
 export interface UpdateExamRequest {
@@ -693,6 +721,9 @@ export interface UpdateExamRequest {
   description?: string | null;
   duration?: number;
   isPublished?: boolean;
+  visibility?: ExamVisibility;
+  publishAt?: string | null;
+  publishNow?: boolean;
   shuffleQuestions?: boolean;
   shuffleChoices?: boolean;
 }
