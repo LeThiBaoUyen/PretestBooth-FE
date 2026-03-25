@@ -22,6 +22,8 @@ const DURATIONS = [30, 45, 60, 90, 120];
 
 type SelectionMode = "random" | "manual";
 type AllocationPolicy = "STRICT" | "FLEXIBLE";
+type ExamVisibility = "PRIVATE" | "PUBLIC";
+type PublishMode = "now" | "schedule";
 type SubjectDifficultyCounts = {
   easy: number;
   medium: number;
@@ -191,6 +193,9 @@ export default function ExamSelection({
   const [duration, setDuration] = useState<number>(60);
   const [difficulty, setDifficulty] = useState<Difficulty | "">("");
   const [includeRelated, setIncludeRelated] = useState(false);
+  const [visibility, setVisibility] = useState<ExamVisibility>("PRIVATE");
+  const [publishMode, setPublishMode] = useState<PublishMode>("now");
+  const [publishAtLocal, setPublishAtLocal] = useState("");
 
   // Random mode counts
   const [questionCount, setQuestionCount] = useState(10);
@@ -415,6 +420,24 @@ export default function ExamSelection({
       }
     }
 
+    if (visibility === "PUBLIC" && publishMode === "schedule") {
+      if (!publishAtLocal) {
+        setError("Vui lòng chọn thời điểm hẹn giờ đăng đề.");
+        return;
+      }
+
+      const publishDate = new Date(publishAtLocal);
+      if (Number.isNaN(publishDate.getTime())) {
+        setError("Thời điểm đăng không hợp lệ.");
+        return;
+      }
+
+      if (publishDate.getTime() <= Date.now()) {
+        setError("Thời điểm hẹn giờ phải lớn hơn thời điểm hiện tại.");
+        return;
+      }
+    }
+
     setLoading(true);
     setError("");
     try {
@@ -479,6 +502,11 @@ export default function ExamSelection({
         duration,
         shuffleQuestions,
         shuffleChoices,
+        visibility,
+        publishNow: visibility === "PUBLIC" && publishMode === "now",
+        ...(visibility === "PUBLIC" && publishMode === "schedule"
+          ? { publishAt: new Date(publishAtLocal).toISOString() }
+          : {}),
         ...(mode === "manual" && selectedQuestionIds.size > 0
           ? { questionIds: Array.from(selectedQuestionIds) }
           : {}),
@@ -611,6 +639,103 @@ export default function ExamSelection({
             </option>
           ))}
         </select>
+      </div>
+
+      {/* Visibility & publish time */}
+      <div className="mb-4 rounded-lg border border-navy-200 p-4">
+        <label className="block text-navy-700 font-semibold mb-2">
+          Quyền truy cập đề thi
+        </label>
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+          <label
+            className={`cursor-pointer rounded-lg border px-3 py-2 text-sm transition ${
+              visibility === "PRIVATE"
+                ? "border-navy-500 bg-navy-50 text-navy-700"
+                : "border-navy-200 bg-white text-navy-600"
+            }`}
+          >
+            <input
+              type="radio"
+              name="visibility"
+              className="mr-2"
+              checked={visibility === "PRIVATE"}
+              onChange={() => setVisibility("PRIVATE")}
+            />
+            Private (ẩn với sinh viên)
+          </label>
+          <label
+            className={`cursor-pointer rounded-lg border px-3 py-2 text-sm transition ${
+              visibility === "PUBLIC"
+                ? "border-navy-500 bg-navy-50 text-navy-700"
+                : "border-navy-200 bg-white text-navy-600"
+            }`}
+          >
+            <input
+              type="radio"
+              name="visibility"
+              className="mr-2"
+              checked={visibility === "PUBLIC"}
+              onChange={() => setVisibility("PUBLIC")}
+            />
+            Public (cho phép sinh viên thấy đề)
+          </label>
+        </div>
+
+        {visibility === "PUBLIC" && (
+          <div className="mt-3 space-y-3">
+            <label className="block text-sm font-semibold text-navy-700">
+              Thời điểm đăng
+            </label>
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+              <label
+                className={`cursor-pointer rounded-lg border px-3 py-2 text-sm transition ${
+                  publishMode === "now"
+                    ? "border-navy-500 bg-navy-50 text-navy-700"
+                    : "border-navy-200 bg-white text-navy-600"
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="publishMode"
+                  className="mr-2"
+                  checked={publishMode === "now"}
+                  onChange={() => setPublishMode("now")}
+                />
+                Đăng ngay bây giờ
+              </label>
+              <label
+                className={`cursor-pointer rounded-lg border px-3 py-2 text-sm transition ${
+                  publishMode === "schedule"
+                    ? "border-navy-500 bg-navy-50 text-navy-700"
+                    : "border-navy-200 bg-white text-navy-600"
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="publishMode"
+                  className="mr-2"
+                  checked={publishMode === "schedule"}
+                  onChange={() => setPublishMode("schedule")}
+                />
+                Hẹn giờ đăng
+              </label>
+            </div>
+
+            {publishMode === "schedule" && (
+              <div>
+                <label className="mb-1 block text-xs text-navy-600">
+                  Chọn ngày giờ đăng
+                </label>
+                <input
+                  type="datetime-local"
+                  className="w-full rounded-lg border border-navy-200 px-3 py-2 text-sm"
+                  value={publishAtLocal}
+                  onChange={(e) => setPublishAtLocal(e.target.value)}
+                />
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* ====== Selection Mode Toggle ====== */}
