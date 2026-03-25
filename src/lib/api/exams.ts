@@ -1,5 +1,6 @@
 import type {
   Exam,
+  ExamListItem,
   PaginatedExams,
   QueryExamsParams,
   CreateExamRequest,
@@ -9,10 +10,12 @@ import type {
   SaveAnswerRequest,
   SessionResult,
   GradeSessionRequest,
+  ExamSessionListItem,
   PaginatedExamSessions,
   QueryExamSessionsParams,
 } from "./types";
 import { httpClient } from "./httpClient";
+import { normalizePaginated } from "./response";
 
 class ExamsApiClient {
   // ==================== EXAM CRUD ====================
@@ -71,7 +74,11 @@ class ExamsApiClient {
     if (params?.sortOrder) searchParams.append("sortOrder", params.sortOrder);
 
     const queryString = searchParams.toString();
-    return httpClient.get<PaginatedExams>(`/api/exams${queryString ? `?${queryString}` : ""}`);
+    const res = await httpClient.get<PaginatedExams | ExamListItem[]>(`/api/exams${queryString ? `?${queryString}` : ""}`);
+    return normalizePaginated<ExamListItem>(res, {
+      page: params?.page,
+      limit: params?.limit,
+    }) as PaginatedExams;
   }
 
   async getExam(id: string, _accessToken?: string): Promise<Exam> {
@@ -150,7 +157,11 @@ class ExamsApiClient {
     if (params?.sortOrder) searchParams.append("sortOrder", params.sortOrder);
 
     const queryString = searchParams.toString();
-    return httpClient.get<PaginatedExamSessions>(`/api/exams/sessions${queryString ? `?${queryString}` : ""}`);
+    const res = await httpClient.get<PaginatedExamSessions | ExamSessionListItem[]>(`/api/exams/sessions${queryString ? `?${queryString}` : ""}`);
+    return normalizePaginated<ExamSessionListItem>(res, {
+      page: params?.page,
+      limit: params?.limit,
+    }) as PaginatedExamSessions;
   }
 }
 

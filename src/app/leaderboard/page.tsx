@@ -31,7 +31,7 @@ export default function LeaderboardPage() {
         .catch(console.error);
 
       pointsApi.getHistory(1, 50)
-        .then(res => setHistory(res.data))
+        .then((res) => setHistory(Array.isArray(res?.data) ? res.data : []))
         .catch(console.error)
         .finally(() => setLoadingHistory(false));
     }

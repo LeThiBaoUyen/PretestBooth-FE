@@ -1,5 +1,6 @@
 import { httpClient } from "./httpClient";
 import type { Booking, AvailabilityResponse, BookingStatus, BookingType } from "./types";
+import { normalizePaginated } from "./response";
 
 export interface PaginatedBookings {
   data: Booking[];
@@ -11,7 +12,7 @@ export interface PaginatedBookings {
 
 export const bookingsApi = {
   // Student & Admin
-  getBookings: (params: {
+  getBookings: async (params: {
     page?: number;
     limit?: number;
     status?: BookingStatus;
@@ -27,7 +28,11 @@ export const bookingsApi = {
     if (params.date) query.append("date", params.date);
     if (params.sortOrder) query.append("sortOrder", params.sortOrder);
     
-    return httpClient.get<PaginatedBookings>(`/api/bookings?${query.toString()}`);
+    const res = await httpClient.get<PaginatedBookings | Booking[]>(`/api/bookings?${query.toString()}`);
+    return normalizePaginated<Booking>(res, {
+      page: params.page,
+      limit: params.limit,
+    }) as PaginatedBookings;
   },
 
   getAvailability: (date: string) => {

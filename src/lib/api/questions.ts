@@ -2,6 +2,7 @@ import type {
   Subject,
   Topic,
   Question,
+  QuestionListItem,
   PaginatedQuestions,
   QueryQuestionsParams,
   CreateQuestionRequest,
@@ -9,8 +10,9 @@ import type {
   CreateSubjectRequest,
   CreateTopicRequest,
 } from "./types";
+import { normalizeArray, normalizePaginated } from "./response";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
+const API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000").replace(/\/+$/, "");
 
 class QuestionsApiClient {
   private baseURL: string;
@@ -54,11 +56,12 @@ class QuestionsApiClient {
   // ==================== SUBJECTS ====================
 
   async getSubjects(accessToken?: string): Promise<Subject[]> {
-    return this.request<Subject[]>("/api/questions/subjects", {
+    const res = await this.request<Subject[] | { data?: Subject[] }>("/api/questions/subjects", {
       headers: accessToken
         ? { Authorization: `Bearer ${accessToken}` }
         : undefined,
     });
+    return normalizeArray<Subject>(res);
   }
 
   async createSubject(
@@ -97,7 +100,7 @@ class QuestionsApiClient {
     subjectId: string,
     accessToken?: string,
   ): Promise<Topic[]> {
-    return this.request<Topic[]>(
+    const res = await this.request<Topic[] | { data?: Topic[] }>(
       `/api/questions/subjects/${subjectId}/topics`,
       {
         headers: accessToken
@@ -105,6 +108,7 @@ class QuestionsApiClient {
           : undefined,
       },
     );
+    return normalizeArray<Topic>(res);
   }
 
   async createTopic(
@@ -160,7 +164,7 @@ class QuestionsApiClient {
     if (params?.sortOrder) searchParams.append("sortOrder", params.sortOrder);
 
     const queryString = searchParams.toString();
-    return this.request<PaginatedQuestions>(
+    const res = await this.request<PaginatedQuestions | QuestionListItem[]>(
       `/api/questions${queryString ? `?${queryString}` : ""}`,
       {
         headers: accessToken
@@ -168,6 +172,10 @@ class QuestionsApiClient {
           : undefined,
       },
     );
+    return normalizePaginated<QuestionListItem>(res, {
+      page: params?.page,
+      limit: params?.limit,
+    }) as PaginatedQuestions;
   }
 
   async getQuestionById(id: string, accessToken?: string): Promise<Question> {

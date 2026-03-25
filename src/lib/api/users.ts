@@ -1,5 +1,6 @@
 import { httpClient } from "./httpClient";
 import type { User } from "./types";
+import { normalizePaginated } from "./response";
 
 const API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000").replace(/\/+$/, "");
 
@@ -31,7 +32,7 @@ export interface UpdateStudentPayload {
 }
 
 export const usersApi = {
-  getUsers: (params: { page?: number; limit?: number; role?: string; search?: string; className?: string; isLocked?: boolean }) => {
+  getUsers: async (params: { page?: number; limit?: number; role?: string; search?: string; className?: string; isLocked?: boolean }) => {
     const query = new URLSearchParams();
     if (params.page) query.append("page", params.page.toString());
     if (params.limit) query.append("limit", params.limit.toString());
@@ -40,7 +41,11 @@ export const usersApi = {
     if (params.className) query.append("className", params.className);
     if (params.isLocked !== undefined) query.append("isLocked", params.isLocked.toString());
 
-    return httpClient.get<PaginatedUsers>(`/api/users?${query.toString()}`);
+    const res = await httpClient.get<PaginatedUsers | Partial<User>[]>(`/api/users?${query.toString()}`);
+    return normalizePaginated<Partial<User>>(res, {
+      page: params.page,
+      limit: params.limit,
+    });
   },
 
   getUser: (id: string) => httpClient.get<Partial<User>>(`/api/users/${id}`),

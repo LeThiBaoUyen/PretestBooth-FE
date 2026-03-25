@@ -2,13 +2,15 @@
 
 import type {
   Problem,
+  ProblemListItem,
   PaginatedProblems,
   QueryProblemsParams,
   CreateProblemRequest,
   UpdateProblemRequest,
 } from "./types";
+import { normalizePaginated } from "./response";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
+const API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000").replace(/\/+$/, "");
 
 class ProblemsApiClient {
   private baseURL: string;
@@ -68,9 +70,13 @@ class ProblemsApiClient {
     if (params?.topicId) searchParams.append("topicId", params.topicId);
 
     const queryString = searchParams.toString();
-    return this.request<PaginatedProblems>(
+    const res = await this.request<PaginatedProblems | ProblemListItem[]>(
       `/api/problems${queryString ? `?${queryString}` : ""}`,
     );
+    return normalizePaginated<ProblemListItem>(res, {
+      page: params?.page,
+      limit: params?.limit,
+    }) as PaginatedProblems;
   }
 
   async getProblemBySlug(slug: string, accessToken?: string): Promise<Problem> {

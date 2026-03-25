@@ -1,19 +1,22 @@
 import { httpClient } from "./httpClient";
 import type { Booth, BoothStatus, BoothStatusLog } from "./types";
 import type { GenerateBoothActivationOtpResponse } from "./types";
+import { normalizeArray } from "./response";
 
 export const boothsApi = {
   // Common
-  getBooths: (params?: { status?: BoothStatus }) => {
+  getBooths: async (params?: { status?: BoothStatus }) => {
     const query = new URLSearchParams();
     if (params?.status) query.append("status", params.status);
-    return httpClient.get<Booth[]>(`/api/booths${query.toString() ? `?${query.toString()}` : ""}`);
+    const res = await httpClient.get<Booth[] | { data?: Booth[] }>(`/api/booths${query.toString() ? `?${query.toString()}` : ""}`);
+    return normalizeArray<Booth>(res);
   },
 
-  getAvailableBooths: (date: string, startTime: string, endTime: string) => {
-    return httpClient.get<Booth[]>(
+  getAvailableBooths: async (date: string, startTime: string, endTime: string) => {
+    const res = await httpClient.get<Booth[] | { data?: Booth[] }>(
       `/api/booths/available?date=${date}&startTime=${startTime}&endTime=${endTime}`
     );
+    return normalizeArray<Booth>(res);
   },
 
   getBooth: (id: string) => httpClient.get<Booth>(`/api/booths/${id}`),
@@ -28,8 +31,10 @@ export const boothsApi = {
   ) =>
     httpClient.patch<Booth>(`/api/booths/${id}`, data),
 
-  getBoothStatusLogs: (id: string) =>
-    httpClient.get<BoothStatusLog[]>(`/api/booths/${id}/status-logs`),
+  getBoothStatusLogs: async (id: string) => {
+    const res = await httpClient.get<BoothStatusLog[] | { data?: BoothStatusLog[] }>(`/api/booths/${id}/status-logs`);
+    return normalizeArray<BoothStatusLog>(res);
+  },
 
   generateActivationOtp: (boothCode: string) =>
     httpClient.post<GenerateBoothActivationOtpResponse>("/api/booths/activation-otp", { boothCode }),

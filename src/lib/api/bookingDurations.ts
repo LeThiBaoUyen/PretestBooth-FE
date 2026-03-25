@@ -1,15 +1,17 @@
 import { httpClient } from "./httpClient";
 import type { BookingDurationOption, BookingType } from "./types";
+import { normalizeArray } from "./response";
 
 export const bookingDurationsApi = {
-  getDurationOptions: (params?: { type?: BookingType; isActive?: boolean }) => {
+  getDurationOptions: async (params?: { type?: BookingType; isActive?: boolean }) => {
     const query = new URLSearchParams();
 
     if (params?.type) query.append("type", params.type);
     if (params?.isActive !== undefined) query.append("isActive", String(params.isActive));
 
     const suffix = query.toString() ? `?${query.toString()}` : "";
-    return httpClient.get<BookingDurationOption[]>(`/api/booking-durations${suffix}`);
+    const res = await httpClient.get<BookingDurationOption[] | { data?: BookingDurationOption[] }>(`/api/booking-durations${suffix}`);
+    return normalizeArray<BookingDurationOption>(res);
   },
 
   createDurationOption: (data: {

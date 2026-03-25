@@ -1,4 +1,5 @@
 import { httpClient } from "./httpClient";
+import { normalizeArray, normalizePaginated } from "./response";
 
 export interface PointTransaction {
   id: string;
@@ -28,11 +29,15 @@ export interface LeaderboardUser {
 export const pointsApi = {
   getMyPoints: () => httpClient.get<{ totalPoints: number }>("/api/points/me"),
 
-  getHistory: (page = 1, limit = 20) => 
-    httpClient.get<PaginatedPointTransactions>(`/api/points/history?page=${page}&limit=${limit}`),
+  getHistory: async (page = 1, limit = 20) => {
+    const res = await httpClient.get<PaginatedPointTransactions | PointTransaction[]>(`/api/points/history?page=${page}&limit=${limit}`);
+    return normalizePaginated<PointTransaction>(res, { page, limit }) as PaginatedPointTransactions;
+  },
 
-  getLeaderboard: (limit = 20) => 
-    httpClient.get<LeaderboardUser[]>(`/api/points/leaderboard?limit=${limit}`),
+  getLeaderboard: async (limit = 20) => {
+    const res = await httpClient.get<LeaderboardUser[] | { data?: LeaderboardUser[] }>(`/api/points/leaderboard?limit=${limit}`);
+    return normalizeArray<LeaderboardUser>(res);
+  },
 
   // Admin only
   manualAdjust: (data: { userId: string; points: number; reason: string }) => 

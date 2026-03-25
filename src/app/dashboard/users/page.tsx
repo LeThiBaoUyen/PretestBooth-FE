@@ -216,10 +216,17 @@ export default function AdminUsersPage() {
         isLocked: lockFilter === "ALL" ? undefined : lockFilter === "LOCKED",
         role: "STUDENT",
       });
-      setUsers(res.data);
-      setTotal(res.total);
+      if (Array.isArray(res)) {
+        setUsers(res);
+        setTotal(res.length);
+      } else {
+        setUsers(Array.isArray((res as any)?.data) ? (res as any).data : []);
+        setTotal(Number((res as any)?.total ?? 0));
+      }
     } catch (e) {
       console.error(e);
+      setUsers([]);
+      setTotal(0);
     } finally {
       setLoading(false);
     }
@@ -553,6 +560,8 @@ export default function AdminUsersPage() {
   };
 
   if (!user || (user.role !== "ADMIN" && user.role !== "LECTURER")) return null;
+
+  const safeUsers = Array.isArray(users) ? users : [];
 
   return (
     <div className="py-8">
@@ -900,7 +909,7 @@ export default function AdminUsersPage() {
 
         {loading ? (
           <div className="text-center py-20 text-gray-500">Đang tải dữ liệu...</div>
-        ) : users.length === 0 ? (
+        ) : safeUsers.length === 0 ? (
           <div className="text-center py-20 text-gray-500 bg-white">Không tìm thấy sinh viên nào.</div>
         ) : (
           <div className="overflow-x-auto">
@@ -916,7 +925,7 @@ export default function AdminUsersPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50 bg-white">
-                {users.map((student) => (
+                {safeUsers.map((student) => (
                   <tr key={student.id} className="hover:bg-gray-50 transition">
                     <td className="py-4 px-6">
                       <div className="font-bold text-gray-900">{student.name || "Chưa cập nhật"}</div>

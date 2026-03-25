@@ -37,7 +37,7 @@ export default function ExamLibrary() {
         const data = await questionsApiClient.getSubjects(
           accessToken,
         );
-        setSubjects(data);
+        setSubjects(Array.isArray(data) ? data : []);
       } catch {
         setSubjects([]);
       }
@@ -72,8 +72,13 @@ export default function ExamLibrary() {
         },
         accessToken,
       );
-      setExams(result.data);
-      setTotal(result.total);
+      if (Array.isArray(result)) {
+        setExams(result as ExamListItem[]);
+        setTotal((result as ExamListItem[]).length);
+      } else {
+        setExams(Array.isArray((result as any)?.data) ? (result as any).data : []);
+        setTotal(Number((result as any)?.total ?? 0));
+      }
     } catch (err: any) {
       setExams([]);
       setTotal(0);
@@ -87,7 +92,9 @@ export default function ExamLibrary() {
     fetchExams();
   }, [fetchExams]);
 
-  const subjectNames = ["Tất cả", ...subjects.map((s) => s.name)];
+  const safeSubjects = Array.isArray(subjects) ? subjects : [];
+  const safeExams = Array.isArray(exams) ? exams : [];
+  const subjectNames = ["Tất cả", ...safeSubjects.map((s) => s.name)];
 
   if (userLoading) {
     return (
@@ -221,7 +228,7 @@ export default function ExamLibrary() {
       ) : (
         <>
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-            {exams.map((exam) => (
+            {safeExams.map((exam) => (
               <div
                 key={exam.id}
                 className="bg-white rounded-xl shadow-sm p-5 flex flex-col justify-between border border-slate-200 relative hover:shadow-md transition"
@@ -285,7 +292,7 @@ export default function ExamLibrary() {
                 )}
               </div>
             ))}
-            {exams.length === 0 && (
+            {safeExams.length === 0 && (
               <div className="col-span-full text-center text-gray-500 py-10">
                 Không tìm thấy bộ đề phù hợp.
               </div>
