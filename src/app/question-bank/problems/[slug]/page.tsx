@@ -57,7 +57,7 @@ export default function ProblemDetailPage() {
   if (isLoading) {
     return (
       <>
-        <main className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-100 pt-16 pb-20">
+        <main className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-100 pt-6 pb-20">
           <div className="flex justify-center items-center py-20">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-navy-600"></div>
           </div>
@@ -70,7 +70,7 @@ export default function ProblemDetailPage() {
   if (error || !problem) {
     return (
       <>
-        <main className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-100 pt-16 pb-20">
+        <main className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-100 pt-6 pb-20">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
             <div className="bg-red-50 border border-red-200 rounded-lg p-12 text-center">
               <div className="text-6xl mb-4">❌</div>
@@ -96,7 +96,7 @@ export default function ProblemDetailPage() {
 
   return (
     <>
-      <main className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-100 pt-16 pb-20">
+      <main className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-100 pt-6 pb-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           {/* Problem Header */}
           <div className="bg-white rounded-xl shadow-md p-6 mb-6">

@@ -561,14 +561,23 @@ export default function BoothsManagementPage() {
   }
 
   return (
-    <div className="py-8 space-y-6">
+    <div className="pb-8 space-y-6">
       {realtimeMessage && (
         <div className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm font-semibold text-blue-800">
           {realtimeMessage}
         </div>
       )}
 
-      <nav className="mb-4 flex flex-wrap items-center gap-2" aria-label="Booth navigation">
+      <div className="ui-page-header">
+        <div>
+          <h1 className="ui-page-title">Quản lý Booth</h1>
+          <p className="ui-page-subtitle">
+            Đổi trạng thái có ghi chú bắt buộc, lưu lịch sử thao tác theo thời gian.
+          </p>
+        </div>
+      </div>
+
+      <nav className="-mt-2 flex flex-wrap items-center gap-2" aria-label="Booth navigation">
         <Link
           href="/admin/booths"
           className="inline-flex items-center rounded-full bg-navy-600 px-3 py-1.5 text-xs font-bold text-white"
@@ -583,34 +592,25 @@ export default function BoothsManagementPage() {
         </Link>
       </nav>
 
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-3xl font-bold text-navy-700">Quản lý Booth</h1>
-          <p className="text-sm text-gray-600 mt-1">
-            Đổi trạng thái có ghi chú bắt buộc, lưu lịch sử thao tác theo thời gian.
-          </p>
-        </div>
-
-        <div className="flex gap-2">
+      <div className="-mt-2 flex flex-wrap justify-end gap-2">
+        <button
+          type="button"
+          onClick={loadBooths}
+          className="inline-flex items-center rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
+        >
+          <RefreshCw className="mr-2 h-4 w-4" />
+          Làm mới
+        </button>
+        {canManageBooths && (
           <button
             type="button"
-            onClick={loadBooths}
-            className="inline-flex items-center rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
+            onClick={openCreateForm}
+            className="inline-flex items-center rounded-lg bg-navy-600 px-3 py-2 text-sm font-medium text-white hover:bg-navy-700"
           >
-            <RefreshCw className="mr-2 h-4 w-4" />
-            Làm mới
+            <Plus className="mr-2 h-4 w-4" />
+            Tạo booth
           </button>
-          {canManageBooths && (
-            <button
-              type="button"
-              onClick={openCreateForm}
-              className="inline-flex items-center rounded-lg bg-navy-600 px-3 py-2 text-sm font-medium text-white hover:bg-navy-700"
-            >
-              <Plus className="mr-2 h-4 w-4" />
-              Tạo booth
-            </button>
-          )}
-        </div>
+        )}
       </div>
 
       {error && (
