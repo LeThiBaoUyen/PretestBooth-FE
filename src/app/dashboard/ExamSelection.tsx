@@ -560,7 +560,6 @@ export default function ExamSelection({
           Môn học (có thể chọn nhiều)
         </label>
         <div className="max-h-44 overflow-y-auto rounded-lg border border-navy-200 p-3">
-          <div className="mb-2 text-xs text-navy-500">Để trống = lấy tất cả môn</div>
           <div className="space-y-1">
             {subjects.map((s) => (
               <label key={s.id} className="flex items-center gap-2 text-sm text-navy-700">

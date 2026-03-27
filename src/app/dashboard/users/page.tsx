@@ -564,16 +564,17 @@ export default function AdminUsersPage() {
   const safeUsers = Array.isArray(users) ? users : [];
 
   return (
-    <div className="py-8">
-      <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-3">
-        <div>
-          <h1 className="text-3xl font-bold text-navy-600">Quản lý Sinh viên</h1>
-          <p className="text-gray-600 mt-2">
-            Quản lý tài khoản sinh viên và nhập danh sách với bước xem trước trước khi xác nhận.
-          </p>
-        </div>
+    <div className="pb-8">
+      <div className="ui-page-header">
+        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <div>
+            <h1 className="ui-page-title">Quản lý Sinh viên</h1>
+            <p className="ui-page-subtitle">
+              Quản lý tài khoản sinh viên và nhập danh sách với bước xem trước trước khi xác nhận.
+            </p>
+          </div>
 
-        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2">
           <button
             onClick={handleCreateStudent}
             className="inline-flex items-center px-4 py-2 bg-navy-600 text-white text-sm font-semibold rounded-lg hover:bg-navy-700 transition"
@@ -618,6 +619,7 @@ export default function AdminUsersPage() {
             Import file
           </button>
         </div>
+      </div>
       </div>
 
       {showForm && (

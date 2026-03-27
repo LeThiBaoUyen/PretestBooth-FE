@@ -12,6 +12,11 @@ export const metadata: Metadata = {
   title: "PRETEST BOOTH - Đánh giá năng lực sinh viên",
   description:
     "Nền tảng đánh giá năng lực sinh viên của Đại học Công nghiệp TP.HCM",
+  icons: {
+    icon: "/assets/iuhcm-logo.png",
+    shortcut: "/assets/iuhcm-logo.png",
+    apple: "/assets/iuhcm-logo.png",
+  },
 };
 
 export default function RootLayout({
