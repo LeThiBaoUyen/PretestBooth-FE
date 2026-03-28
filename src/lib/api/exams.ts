@@ -128,6 +128,16 @@ class ExamsApiClient {
     return httpClient.post<SessionResult>(`/api/exams/sessions/${sessionId}/submit`);
   }
 
+  /**
+   * Auto-submit session when time expires (backend validates time limit)
+   */
+  async autoSubmitSession(
+    sessionId: string,
+    _accessToken: string,
+  ): Promise<SessionResult> {
+    return httpClient.post<SessionResult>(`/api/exams/sessions/${sessionId}/auto-submit`);
+  }
+
   async getResults(
     sessionId: string,
     _accessToken: string,

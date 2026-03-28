@@ -229,7 +229,33 @@ const QuizScreen = () => {
     const timer = setTimeout(() => {
       setTimeLeft((prev) => {
         if (prev <= 1) {
-          handleConfirmSubmit();
+          // Auto-submit: try backend endpoint first, fallback to client submit
+          const triggerAutoSubmit = async () => {
+            if (!sessionId || !accessToken || submittingRef.current) return;
+            submittingRef.current = true;
+            setSubmitting(true);
+
+            try {
+              // Try server-side auto-submit first (validates time on backend)
+              const res = await examsApiClient.autoSubmitSession(sessionId, accessToken);
+              setResult(res);
+              setShowResult(true);
+            } catch (err: any) {
+              // Fallback: try regular submit (if auto-submit endpoint fails)
+              try {
+                const res = await examsApiClient.submitSession(sessionId, accessToken);
+                setResult(res);
+                setShowResult(true);
+              } catch {
+                setError(err?.message || "Không thể nộp bài tự động.");
+              }
+            } finally {
+              submittingRef.current = false;
+              setSubmitting(false);
+            }
+          };
+
+          triggerAutoSubmit();
           return 0;
         }
         return prev - 1;

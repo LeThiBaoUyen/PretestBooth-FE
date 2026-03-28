@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { examsApiClient } from "@/lib/api/exams";
 import { useAuth } from "@/lib/hooks";
-import type { Exam } from "@/lib/api/types";
+import type { Exam, ExamSessionListItem } from "@/lib/api/types";
 
 export default function ExamDetailPage({
   params,
@@ -15,7 +15,9 @@ export default function ExamDetailPage({
   const router = useRouter();
   const { accessToken, user } = useAuth();
   const [exam, setExam] = useState<Exam | null>(null);
+  const [existingSession, setExistingSession] = useState<ExamSessionListItem | null>(null);
   const [loading, setLoading] = useState(true);
+  const [checkingSession, setCheckingSession] = useState(false);
   const [error, setError] = useState("");
   const [deleting, setDeleting] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -39,6 +41,33 @@ export default function ExamDetailPage({
     fetchExam();
   }, [id, accessToken]);
 
+  // Check for existing IN_PROGRESS session
+  useEffect(() => {
+    async function checkExistingSession() {
+      if (!id || !accessToken || !user?.id) return;
+      setCheckingSession(true);
+      try {
+        const sessions = await examsApiClient.listSessions(
+          { status: "IN_PROGRESS", page: 1, limit: 100 },
+          accessToken,
+        );
+        // Find session for this exam
+        const currentExamSession = sessions.data?.find((s) => s.examId === id && s.status === "IN_PROGRESS");
+        if (currentExamSession) {
+          setExistingSession(currentExamSession);
+        } else {
+          setExistingSession(null);
+        }
+      } catch {
+        // Silently fail if we can't fetch sessions
+        setExistingSession(null);
+      } finally {
+        setCheckingSession(false);
+      }
+    }
+    checkExistingSession();
+  }, [id, accessToken, user?.id]);
+
   const handleStartExam = async () => {
     if (!accessToken || !exam) {
       router.push("/login");
@@ -49,6 +78,18 @@ export default function ExamDetailPage({
       router.push(`/quiz?sessionId=${session.id}`);
     } catch (err: any) {
       alert(err.message || "Không thể bắt đầu đề thi");
+    }
+  };
+
+  const handleResumeExam = async () => {
+    if (!accessToken || !existingSession) {
+      router.push("/login");
+      return;
+    }
+    try {
+      router.push(`/quiz?sessionId=${existingSession.id}`);
+    } catch (err: any) {
+      alert(err.message || "Không thể tiếp tục đề thi");
     }
   };
 
@@ -244,12 +285,31 @@ export default function ExamDetailPage({
 
               {/* Action buttons */}
               <div className="flex gap-3 pt-4 border-t border-gray-200">
-                <button
-                  className="flex-1 px-6 py-3 rounded-lg font-bold text-white bg-navy-600 hover:bg-navy-700 transition text-lg"
-                  onClick={handleStartExam}
-                >
-                  ▶️ Bắt đầu thi ngay
-                </button>
+                {existingSession ? (
+                  <>
+                    <button
+                      className="flex-1 px-6 py-3 rounded-lg font-bold text-white bg-amber-600 hover:bg-amber-700 transition text-lg"
+                      onClick={handleResumeExam}
+                      disabled={checkingSession}
+                    >
+                      ⏸️ Tiếp tục bài thi
+                    </button>
+                    <button
+                      className="flex-1 px-6 py-3 rounded-lg font-bold text-gray-600 border border-gray-300 hover:bg-gray-50 transition text-lg"
+                      onClick={() => setExistingSession(null)}
+                      disabled={checkingSession}
+                    >
+                      ➕ Làm bài mới
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    className="flex-1 px-6 py-3 rounded-lg font-bold text-white bg-navy-600 hover:bg-navy-700 transition text-lg"
+                    onClick={handleStartExam}
+                  >
+                    ▶️ Bắt đầu thi ngay
+                  </button>
+                )}
                 {canManage && (
                   <>
                     <Link
