@@ -12,6 +12,7 @@ export interface User {
   isLocked?: boolean;
   lockedReason?: string;
   totalPoints?: number;
+  kycStatus?: "NOT_STARTED" | "PENDING" | "VERIFIED" | "REJECTED";
 }
 
 export interface LoginRequest {
@@ -62,7 +63,15 @@ export interface BoothLoginResponse extends LoginResponse {
     status: string;
     startTime: string;
     endTime: string;
-  };
+  } | null;
+  pendingCheckinBooking: {
+    id: string;
+    boothId: string;
+    type: "PRACTICE" | "EXAM";
+    status: string;
+    startTime: string;
+    endTime: string;
+  } | null;
 }
 
 export interface BoothSessionStatusResponse {
@@ -937,6 +946,11 @@ export interface Booking {
   type: BookingType;
   checkedInAt: string | null;
   checkedOutAt: string | null;
+  checkinStatus?: "PENDING" | "PASSED" | "FAILED";
+  checkinSimilarityScore?: number | null;
+  checkinThreshold?: number;
+  checkinVerifiedAt?: string | null;
+  checkinAttemptCount?: number;
   createdAt: string;
   updatedAt: string;
   booth?: Booth;
@@ -996,6 +1010,56 @@ export interface BoothNotificationEvent {
   message: string;
   level?: "info" | "success" | "warning" | "error";
   emittedAt: string;
+}
+
+// KYC & Facial check-in
+export interface LivenessPayload {
+  action: "BLINK" | "SMILE";
+  passed: boolean;
+  confidence?: number;
+}
+
+export interface KycRegisterRequest {
+  image: string;
+  consentVersion: string;
+  liveness: LivenessPayload;
+}
+
+export interface KycRegisterResponse {
+  userId: string;
+  kycStatus: "VERIFIED";
+  embeddingDimension: number;
+  embeddingModel: string;
+  embeddingVersion: string;
+  verifiedAt: string;
+}
+
+export interface KycStatusResponse {
+  kycStatus: "NOT_STARTED" | "PENDING" | "VERIFIED" | "REJECTED";
+  hasEmbedding: boolean;
+  kycRegisteredAt: string | null;
+  kycVerifiedAt: string | null;
+  kycLastAttemptAt: string | null;
+  faceEmbeddingUpdatedAt: string | null;
+}
+
+export interface CheckinVerifyRequest {
+  bookingId: string;
+  image: string;
+  liveness: LivenessPayload;
+  threshold?: number;
+  verifierDeviceId?: string;
+}
+
+export interface CheckinVerifyResponse {
+  bookingId: string;
+  matched: boolean;
+  similarityScore: number;
+  threshold: number;
+  reason?: string;
+  checkinStatus?: "PENDING" | "PASSED" | "FAILED";
+  bookingStatus?: BookingStatus;
+  checkedInAt?: string | null;
 }
 
 // Practice

@@ -102,11 +102,16 @@ export default function LoginPage() {
         | "PRACTICE"
         | "EXAM"
         | undefined;
+      const pendingCheckinBooking = (response as any)?.pendingCheckinBooking as
+        | { id: string; type: "PRACTICE" | "EXAM" }
+        | undefined;
       const kioskRedirect = checkedInType
         ? checkedInType === "PRACTICE"
           ? "/practice"
           : "/exams"
-        : null;
+        : pendingCheckinBooking
+          ? `/booth/check-in?bookingId=${encodeURIComponent(pendingCheckinBooking.id)}&type=${pendingCheckinBooking.type}`
+          : null;
 
       setSubmitMessage("Đăng nhập thành công! Đang chuyển hướng...");
       setTimeout(() => {
@@ -156,7 +161,7 @@ export default function LoginPage() {
                     Booth đang active: {boothMeta.boothName} ({boothMeta.boothCode})
                   </p>
                   <p className="mt-1 text-xs">
-                    Đăng nhập tại màn này sẽ dùng luồng kiosk và tự check-in theo lịch đã đặt.
+                    Đăng nhập tại màn này sẽ dùng luồng kiosk và yêu cầu xác thực khuôn mặt trước khi check-in.
                   </p>
                   <p className="mt-1 text-xs">
                     Nếu đăng nhập bằng tài khoản ADMIN, hệ thống sẽ chuyển sang đăng nhập quản trị để bạn có thể thoát booth.

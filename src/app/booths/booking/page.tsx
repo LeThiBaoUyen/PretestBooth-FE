@@ -3,11 +3,12 @@
 import { useState, useEffect } from "react";
 import { format, addDays, isSameDay } from "date-fns";
 import { vi } from "date-fns/locale";
-import { CalendarDays, Clock, CheckCircle, AlertCircle } from "lucide-react";
+import { CalendarDays, Clock, CheckCircle, AlertCircle, ShieldCheck } from "lucide-react";
 import Footer from "@/components/Footer";
 import { useAuth } from "@/lib/hooks";
 import { bookingsApi } from "@/lib/api/bookings";
 import { bookingDurationsApi } from "@/lib/api/bookingDurations";
+import { kycApi } from "@/lib/api/kyc";
 import type { AvailableTimeSlot } from "@/lib/api/types";
 import { useRouter } from "next/navigation";
 
@@ -33,6 +34,9 @@ export default function BookingPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const [loadingKyc, setLoadingKyc] = useState(true);
+  const [kycStatus, setKycStatus] = useState<"NOT_STARTED" | "PENDING" | "VERIFIED" | "REJECTED">("NOT_STARTED");
+  const [hasFaceEmbedding, setHasFaceEmbedding] = useState(false);
 
   // Generate selectable dates (from today + 7 days, for next 30 days)
   useEffect(() => {
@@ -99,7 +103,37 @@ export default function BookingPage() {
     fetchDurationOptions();
   }, [bookingType]);
 
+  useEffect(() => {
+    if (!user || user.role !== "STUDENT") {
+      setLoadingKyc(false);
+      return;
+    }
+
+    const fetchKycStatus = async () => {
+      try {
+        setLoadingKyc(true);
+        const response = await kycApi.getStatus();
+        setKycStatus(response.kycStatus);
+        setHasFaceEmbedding(response.hasEmbedding);
+      } catch {
+        setKycStatus("NOT_STARTED");
+        setHasFaceEmbedding(false);
+      } finally {
+        setLoadingKyc(false);
+      }
+    };
+
+    fetchKycStatus();
+  }, [user]);
+
+  const isKycVerified = kycStatus === "VERIFIED" && hasFaceEmbedding;
+
   const handleBook = async () => {
+    if (!isKycVerified) {
+      setError("Bạn cần hoàn tất Facial KYC trước khi đặt lịch.");
+      return;
+    }
+
     if (!selectedDate || !selectedSlot) return;
     if (!durationOptions.includes(duration)) {
       setError("Vui lòng chọn thời lượng hợp lệ.");
@@ -149,6 +183,36 @@ export default function BookingPage() {
 
   if (!user) return <div className="text-center py-20">Vui lòng đăng nhập...</div>;
   if (user.role !== "STUDENT") return <div className="text-center py-20 text-red-500">Chỉ sinh viên mới có thể đặt lịch.</div>;
+  if (loadingKyc) return <div className="text-center py-20">Đang kiểm tra trạng thái KYC...</div>;
+
+  if (!isKycVerified) {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-100 flex flex-col">
+        <main className="flex-1 flex items-center justify-center px-4">
+          <div className="max-w-xl w-full rounded-2xl border border-amber-200 bg-amber-50 p-8 text-amber-900 shadow-sm">
+            <div className="flex items-start gap-3">
+              <ShieldCheck className="h-7 w-7 mt-0.5" />
+              <div>
+                <h1 className="text-2xl font-bold">Cần hoàn tất Facial KYC</h1>
+                <p className="mt-3 text-sm">
+                  Bạn chưa có dữ liệu khuôn mặt hợp lệ trong hệ thống. Vui lòng hoàn tất bước KYC
+                  một lần trước khi đặt lịch booth.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => router.push("/dashboard/kyc")}
+                  className="mt-5 rounded-lg bg-amber-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-amber-700"
+                >
+                  Đi đến trang KYC
+                </button>
+              </div>
+            </div>
+          </div>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-100 flex flex-col">

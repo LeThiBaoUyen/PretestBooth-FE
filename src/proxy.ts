@@ -15,6 +15,7 @@ const protectedPrefixes = [
   "/submissions",
   "/leaderboard",
   "/booths/booking",
+  "/booth/check-in",
 ];
 
 const guestOnlyRoutes = ["/login", "/register", "/forgot", "/reset"];
