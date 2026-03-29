@@ -196,6 +196,7 @@ export default function ExamSelection({
   const [visibility, setVisibility] = useState<ExamVisibility>("PRIVATE");
   const [publishMode, setPublishMode] = useState<PublishMode>("now");
   const [publishAtLocal, setPublishAtLocal] = useState("");
+  const [examType, setExamType] = useState<"PRACTICE" | "EXAM">("EXAM");
 
   // Random mode counts
   const [questionCount, setQuestionCount] = useState(10);
@@ -513,6 +514,7 @@ export default function ExamSelection({
         ...(mode === "manual" && selectedProblemIds.size > 0
           ? { problemIds: Array.from(selectedProblemIds) }
           : {}),
+        type: examType,
       };
 
       if (mode === "manual") {
@@ -638,6 +640,51 @@ export default function ExamSelection({
             </option>
           ))}
         </select>
+      </div>
+
+      {/* Exam Type */}
+      <div className="mb-4">
+        <label className="block text-navy-700 font-semibold mb-2">
+          Loại đề thi
+        </label>
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+          <label
+            className={`cursor-pointer rounded-lg border px-3 py-2 text-sm transition ${
+              examType === "PRACTICE"
+                ? "border-navy-500 bg-navy-50 text-navy-700"
+                : "border-navy-200 bg-white text-navy-600"
+            }`}
+          >
+            <input
+              type="radio"
+              name="examType"
+              className="mr-2"
+              checked={examType === "PRACTICE"}
+              onChange={() => setExamType("PRACTICE")}
+            />
+            🏋️ Đề Luyện Tập
+          </label>
+          <label
+            className={`cursor-pointer rounded-lg border px-3 py-2 text-sm transition ${
+              examType === "EXAM"
+                ? "border-navy-500 bg-navy-50 text-navy-700"
+                : "border-navy-200 bg-white text-navy-600"
+            }`}
+          >
+            <input
+              type="radio"
+              name="examType"
+              className="mr-2"
+              checked={examType === "EXAM"}
+              onChange={() => setExamType("EXAM")}
+            />
+            📋 Đề Thi Chính Thức
+          </label>
+        </div>
+        <p className="mt-2 text-xs text-navy-500">
+          • Đề Luyện Tập: Dành cho sinh viên đăng ký luyện tập<br/>
+          • Đề Thi Chính Thức: Dành cho sinh viên đăng ký thi
+        </p>
       </div>
 
       {/* Visibility & publish time */}

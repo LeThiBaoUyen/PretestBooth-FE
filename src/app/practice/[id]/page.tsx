@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { Clock, Send, CheckCircle2, ArrowLeft, ArrowRight, BookOpen } from "lucide-react";
 import { useAuth } from "@/lib/hooks";
 import { practiceApi } from "@/lib/api/practice";
+import ProctoringOverlay from "@/components/ProctoringOverlay";
 import type { PracticeSession } from "@/lib/api/types";
 import Editor from "@monaco-editor/react";
 
@@ -163,6 +164,7 @@ export default function PracticeExecutionPage() {
 
   return (
     <div className="min-h-screen bg-gray-100 flex flex-col h-screen">
+      {session && <ProctoringOverlay sessionId={session.id} isActive={true} />}
       {/* Top Header Row */}
       <div className="bg-white shadow-sm border-b border-gray-200 px-6 py-4 flex items-center justify-between shrink-0">
         <div className="flex items-center">

@@ -614,6 +614,7 @@ export interface ExamListItem {
   sessionCount: number;
   shuffleQuestions: boolean;
   shuffleChoices: boolean;
+  type?: "PRACTICE" | "EXAM";
   createdAt: string;
 }
 
@@ -714,6 +715,7 @@ export interface CreateExamRequest {
   visibility?: ExamVisibility;
   publishAt?: string | null;
   publishNow?: boolean;
+  type?: "PRACTICE" | "EXAM";
 }
 
 export interface UpdateExamRequest {
@@ -726,6 +728,7 @@ export interface UpdateExamRequest {
   publishNow?: boolean;
   shuffleQuestions?: boolean;
   shuffleChoices?: boolean;
+  type?: "PRACTICE" | "EXAM";
 }
 
 // Shuffled session returned when starting/resuming an exam

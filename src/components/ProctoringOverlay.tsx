@@ -11,11 +11,27 @@ interface ProctoringOverlayProps {
   isActive?: boolean;
 }
 
+const PROCTORING_NOTICE_KEY = "proctoring_violation_notice";
+
 export default function ProctoringOverlay({ sessionId, isActive = true }: ProctoringOverlayProps) {
   const webcamRef = useRef<Webcam>(null);
   const [hasPermission, setHasPermission] = useState<boolean | null>(null);
   const [warnings, setWarnings] = useState<string[]>([]);
   const [showWarning, setShowWarning] = useState(false);
+
+  const redirectWithViolationNotice = useCallback((path: string, title: string, description: string) => {
+    if (typeof window !== "undefined") {
+      window.sessionStorage.setItem(
+        PROCTORING_NOTICE_KEY,
+        JSON.stringify({
+          title,
+          description,
+          createdAt: new Date().toISOString(),
+        }),
+      );
+      window.location.assign(path);
+    }
+  }, []);
 
   // Request camera early
   useEffect(() => {
@@ -40,14 +56,38 @@ export default function ProctoringOverlay({ sessionId, isActive = true }: Procto
       setShowWarning(true);
       setTimeout(() => setShowWarning(false), 5000);
 
+      // Handle immediate termination for EXAM
+      if (res.actionTaken === "EXAM_TERMINATED_TAB_SWITCH") {
+        redirectWithViolationNotice(
+          "/dashboard",
+          "Bạn đã vi phạm quy chế thi",
+          "Phiên thi đã bị kết thúc vì bạn chuyển tab/rời khỏi màn hình thi.",
+        );
+        return;
+      }
+
+      // Handle termination for PRACTICE  
+      if (res.actionTaken === "PRACTICE_TERMINATED_TAB_SWITCH") {
+        redirectWithViolationNotice(
+          "/practice",
+          "Bạn đã vi phạm quy định phiên luyện tập",
+          "Phiên luyện tập đã kết thúc vì bạn rời khỏi màn hình làm bài.",
+        );
+        return;
+      }
+
+      // Legacy handling for EXAM_CANCELLED (from other violations)
       if (res.actionTaken === "EXAM_CANCELLED") {
-        alert("BÀI THI CỦA BẠN ĐÃ BỊ HỦY do vi phạm quy chế thi quá mức cho phép.");
-        window.location.href = "/dashboard";
+        redirectWithViolationNotice(
+          "/dashboard",
+          "Bạn đã vi phạm quy chế thi",
+          "Bài thi đã bị hủy do mức độ vi phạm vượt ngưỡng cho phép.",
+        );
       }
     } catch (err) {
       console.error("Proctoring report failed:", err);
     }
-  }, [sessionId, isActive]);
+  }, [sessionId, isActive, redirectWithViolationNotice]);
 
   // Monitor visibility and focus
   useEffect(() => {

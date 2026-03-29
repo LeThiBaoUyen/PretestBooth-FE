@@ -7,6 +7,7 @@ import { examsApiClient } from "@/lib/api/exams";
 import { executionApi } from "@/lib/api/execution";
 import { useAuth } from "@/lib/hooks";
 import CodeEditor from "@/components/exam/CodeEditor";
+import ProctoringOverlay from "@/components/ProctoringOverlay";
 import type {
   ExecuteCodeResponse,
   LanguageInfo,
@@ -503,6 +504,7 @@ const QuizScreen = () => {
 
   return (
     <div className="min-h-[calc(100vh-64px)] bg-gradient-to-br from-slate-50 via-white to-blue-50">
+      {sessionId && <ProctoringOverlay sessionId={sessionId} isActive={true} />}
       {showConfirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
           <div className="w-full max-w-lg rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl">

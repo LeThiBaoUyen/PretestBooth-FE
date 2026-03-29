@@ -18,7 +18,7 @@ export interface ReportProctoringEventRequest {
 export interface ReportProctoringEventResponse {
   eventId: string;
   totalSeverity: number;
-  actionTaken: "LOGGED" | "POINT_PENALTY" | "EXAM_CANCELLED";
+  actionTaken: "LOGGED" | "POINT_PENALTY" | "EXAM_CANCELLED" | "EXAM_TERMINATED_TAB_SWITCH" | "PRACTICE_TERMINATED_TAB_SWITCH";
 }
 
 export interface ProctoringReport {

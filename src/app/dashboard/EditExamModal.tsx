@@ -26,6 +26,9 @@ export default function EditExamModal({
     exam.shuffleQuestions,
   );
   const [shuffleChoices, setShuffleChoices] = useState(exam.shuffleChoices);
+  const [examType, setExamType] = useState<"PRACTICE" | "EXAM">(
+    exam.type || "EXAM",
+  );
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -44,6 +47,7 @@ export default function EditExamModal({
         isPublished,
         shuffleQuestions,
         shuffleChoices,
+        type: examType,
       };
       await examsApiClient.updateExam(exam.id, data, accessToken);
       onUpdated();
@@ -164,6 +168,47 @@ export default function EditExamModal({
               className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${shuffleChoices ? "translate-x-5" : ""}`}
             />
           </button>
+        </div>
+
+        {/* Exam Type */}
+        <div className="mb-6">
+          <label className="block text-navy-700 font-semibold mb-2 text-sm">
+            Loại đề thi
+          </label>
+          <div className="grid grid-cols-2 gap-2">
+            <label
+              className={`cursor-pointer rounded-lg border px-3 py-2 text-xs transition text-center ${
+                examType === "PRACTICE"
+                  ? "border-navy-500 bg-navy-50 text-navy-700"
+                  : "border-navy-200 bg-white text-navy-600"
+              }`}
+            >
+              <input
+                type="radio"
+                name="examType"
+                className="mr-1"
+                checked={examType === "PRACTICE"}
+                onChange={() => setExamType("PRACTICE")}
+              />
+              🏋️ Luyện Tập
+            </label>
+            <label
+              className={`cursor-pointer rounded-lg border px-3 py-2 text-xs transition text-center ${
+                examType === "EXAM"
+                  ? "border-navy-500 bg-navy-50 text-navy-700"
+                  : "border-navy-200 bg-white text-navy-600"
+              }`}
+            >
+              <input
+                type="radio"
+                name="examType"
+                className="mr-1"
+                checked={examType === "EXAM"}
+                onChange={() => setExamType("EXAM")}
+              />
+              📋 Thi Chính Thức
+            </label>
+          </div>
         </div>
 
         {/* Info box */}
