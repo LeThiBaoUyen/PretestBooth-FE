@@ -14,8 +14,16 @@ import {
 } from "lucide-react";
 import { boothsApi } from "@/lib/api/booths";
 import { bookingDurationsApi } from "@/lib/api/bookingDurations";
+import { checkinApi } from "@/lib/api/checkin";
 import { useAuth } from "@/lib/hooks";
-import type { BookingDurationOption, BookingType, Booth, BoothStatus, BoothStatusLog } from "@/lib/api/types";
+import type {
+  BookingDurationOption,
+  BookingType,
+  Booth,
+  BoothStatus,
+  BoothStatusLog,
+  CheckinThresholdConfig,
+} from "@/lib/api/types";
 import type { BoothNotificationEvent, BoothStatusUpdatedEvent, BookingRealtimeEvent } from "@/lib/api/types";
 import { realtimeClient } from "@/lib/realtime/socketClient";
 
@@ -132,6 +140,10 @@ export default function BoothsManagementPage() {
   const [editingDurationId, setEditingDurationId] = useState<string | null>(null);
   const [durationForm, setDurationForm] = useState<DurationFormData>(emptyDurationForm);
   const [durationFilter, setDurationFilter] = useState<BookingType | "ALL">("ALL");
+  const [thresholdConfig, setThresholdConfig] = useState<CheckinThresholdConfig | null>(null);
+  const [thresholdInput, setThresholdInput] = useState("0.6");
+  const [thresholdLoading, setThresholdLoading] = useState(true);
+  const [thresholdSubmitting, setThresholdSubmitting] = useState(false);
   const [realtimeMessage, setRealtimeMessage] = useState<string | null>(null);
 
   const selectedBooth = useMemo(
@@ -153,6 +165,20 @@ export default function BoothsManagementPage() {
   const resetDurationForm = () => {
     setEditingDurationId(null);
     setDurationForm(emptyDurationForm);
+  };
+
+  const loadCheckinThreshold = async () => {
+    try {
+      setThresholdLoading(true);
+      const threshold = await checkinApi.getThreshold();
+      setThresholdConfig(threshold);
+      setThresholdInput(String(threshold.threshold));
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Không thể tải ngưỡng xác thực khuôn mặt");
+      setThresholdConfig(null);
+    } finally {
+      setThresholdLoading(false);
+    }
   };
 
   const loadDurationOptions = async () => {
@@ -205,6 +231,7 @@ export default function BoothsManagementPage() {
     if (canViewPage) {
       loadBooths();
       loadDurationOptions();
+      loadCheckinThreshold();
     }
   }, [canViewPage]);
 
@@ -541,6 +568,33 @@ export default function BoothsManagementPage() {
     }
   };
 
+  const saveCheckinThreshold = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+
+    if (!canManageBooths) {
+      setError("Bạn không có quyền thực hiện thao tác này");
+      return;
+    }
+
+    const threshold = Number(thresholdInput);
+    if (!Number.isFinite(threshold) || threshold < 0.5 || threshold > 0.99) {
+      setError("Ngưỡng xác thực phải nằm trong khoảng 0.5 - 0.99");
+      return;
+    }
+
+    try {
+      setThresholdSubmitting(true);
+      setError(null);
+      const saved = await checkinApi.updateThreshold({ threshold });
+      setThresholdConfig(saved);
+      setThresholdInput(String(saved.threshold));
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Không thể cập nhật ngưỡng xác thực khuôn mặt");
+    } finally {
+      setThresholdSubmitting(false);
+    }
+  };
+
   if (userLoading || loading) {
     return (
       <div className="rounded-lg border border-gray-200 bg-white p-8 text-center">
@@ -695,6 +749,67 @@ export default function BoothsManagementPage() {
           </div>
         </form>
       )}
+
+      <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 className="text-lg font-semibold text-gray-900">Ngưỡng xác thực khuôn mặt</h2>
+            <p className="text-sm text-gray-600">Áp dụng cho toàn bộ luồng check-in booth. Giá trị thấp hơn sẽ dễ pass hơn.</p>
+          </div>
+          <button
+            type="button"
+            onClick={loadCheckinThreshold}
+            className="inline-flex items-center rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
+          >
+            <RefreshCw className="mr-2 h-4 w-4" />
+            Làm mới ngưỡng
+          </button>
+        </div>
+
+        {thresholdLoading ? (
+          <div className="flex items-center gap-2 text-sm text-gray-600">
+            <Loader2 className="h-4 w-4 animate-spin" /> Đang tải ngưỡng xác thực...
+          </div>
+        ) : (
+          <form onSubmit={saveCheckinThreshold} className="grid grid-cols-1 gap-3 md:grid-cols-5">
+            <input
+              type="number"
+              min={0.5}
+              max={0.99}
+              step={0.01}
+              value={thresholdInput}
+              onChange={(e) => setThresholdInput(e.target.value)}
+              disabled={!canManageBooths || thresholdSubmitting}
+              className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none disabled:bg-gray-100"
+              placeholder="0.6"
+            />
+
+            <div className="md:col-span-3 rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-700">
+              <p>
+                Giá trị hiện tại: <span className="font-semibold">{thresholdConfig?.threshold ?? "-"}</span>
+              </p>
+              <p className="text-xs text-gray-500">
+                Nguồn cấu hình: {thresholdConfig?.source ?? "-"} • Cập nhật lúc: {thresholdConfig?.updatedAt ? formatDateTime(thresholdConfig.updatedAt) : "-"}
+              </p>
+            </div>
+
+            <div className="flex gap-2">
+              {canManageBooths ? (
+                <button
+                  type="submit"
+                  disabled={thresholdSubmitting}
+                  className="inline-flex items-center rounded-lg bg-navy-600 px-3 py-2 text-sm font-medium text-white hover:bg-navy-700 disabled:cursor-not-allowed disabled:bg-navy-300"
+                >
+                  {thresholdSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  Lưu ngưỡng
+                </button>
+              ) : (
+                <span className="self-center text-xs text-gray-500">Chỉ ADMIN mới được chỉnh ngưỡng</span>
+              )}
+            </div>
+          </form>
+        )}
+      </div>
 
       <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">

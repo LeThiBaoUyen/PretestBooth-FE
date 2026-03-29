@@ -1046,8 +1046,6 @@ export interface KycStatusResponse {
 export interface CheckinVerifyRequest {
   bookingId: string;
   image: string;
-  liveness: LivenessPayload;
-  threshold?: number;
   verifierDeviceId?: string;
 }
 
@@ -1060,6 +1058,18 @@ export interface CheckinVerifyResponse {
   checkinStatus?: "PENDING" | "PASSED" | "FAILED";
   bookingStatus?: BookingStatus;
   checkedInAt?: string | null;
+}
+
+export interface CheckinThresholdConfig {
+  key: string;
+  threshold: number;
+  source: "database" | "env" | "default";
+  updatedAt: string | null;
+  updatedByUserId?: string | null;
+}
+
+export interface UpdateCheckinThresholdRequest {
+  threshold: number;
 }
 
 // Practice

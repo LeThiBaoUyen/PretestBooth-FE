@@ -9,16 +9,6 @@ import { checkinApi } from "@/lib/api/checkin";
 import { boothSessionManager } from "@/lib/auth/boothSession";
 import { useAuth } from "@/lib/hooks/useAuth";
 
-const LIVENESS_ACTIONS: Array<"BLINK" | "SMILE"> = ["BLINK", "SMILE"];
-
-function randomAction() {
-  return LIVENESS_ACTIONS[Math.floor(Math.random() * LIVENESS_ACTIONS.length)];
-}
-
-function getActionLabel(action: "BLINK" | "SMILE") {
-  return action === "BLINK" ? "Nháy mắt" : "Mỉm cười";
-}
-
 export default function BoothCheckInPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -26,8 +16,6 @@ export default function BoothCheckInPage() {
 
   const bookingId = searchParams.get("bookingId");
   const bookingType = (searchParams.get("type") || "") as "PRACTICE" | "EXAM";
-  const [challengeAction, setChallengeAction] = useState<"BLINK" | "SMILE">(randomAction());
-  const [livenessPassed, setLivenessPassed] = useState(false);
   const [image, setImage] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
@@ -40,19 +28,12 @@ export default function BoothCheckInPage() {
   }, [bookingType]);
 
   const resetAttempt = () => {
-    setLivenessPassed(false);
     setImage(null);
-    setChallengeAction(randomAction());
   };
 
   const handleVerify = async () => {
     if (!bookingId) {
       setError("Thiếu bookingId để xác thực check-in.");
-      return;
-    }
-
-    if (!livenessPassed) {
-      setError("Vui lòng hoàn thành bước liveness trước khi xác thực.");
       return;
     }
 
@@ -68,11 +49,6 @@ export default function BoothCheckInPage() {
       const response = await checkinApi.verify({
         bookingId,
         image,
-        liveness: {
-          action: challengeAction,
-          passed: true,
-          confidence: 0.95,
-        },
         verifierDeviceId: boothSessionManager.getMeta()?.boothCode,
       });
 
@@ -110,7 +86,7 @@ export default function BoothCheckInPage() {
         <section className="rounded-2xl border border-white/20 bg-white/10 p-6 backdrop-blur">
           <h1 className="text-2xl font-bold">Booth Facial Check-in</h1>
           <p className="mt-2 text-sm text-slate-200">
-            Hoàn thành thử thách liveness và chụp khuôn mặt để xác thực check-in trước khi vào ca học.
+            Chụp khuôn mặt để xác thực check-in trước khi vào ca học.
           </p>
           {bookingId && (
             <p className="mt-2 text-xs text-slate-300">Booking ID: {bookingId}</p>
@@ -119,26 +95,9 @@ export default function BoothCheckInPage() {
 
         <section className="grid gap-6 rounded-2xl border border-white/20 bg-white/10 p-6 backdrop-blur lg:grid-cols-2">
           <div className="space-y-4">
-            <div className="rounded-xl border border-amber-200/40 bg-amber-200/10 p-4 text-sm text-amber-100">
-              <p className="font-semibold">Thử thách hiện tại: {getActionLabel(challengeAction)}</p>
-              <p className="mt-1">Thực hiện thao tác trước camera rồi nhấn xác nhận.</p>
-            </div>
-
-            <button
-              type="button"
-              onClick={() => setLivenessPassed(true)}
-              className="rounded-lg border border-white/40 px-4 py-2 text-sm font-semibold hover:bg-white/15"
-            >
-              Tôi đã hoàn thành thao tác {getActionLabel(challengeAction)}
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setChallengeAction(randomAction())}
-              className="ml-3 rounded-lg border border-white/30 px-4 py-2 text-sm font-semibold hover:bg-white/15"
-            >
-              Đổi thử thách
-            </button>
+            <p className="rounded-xl border border-cyan-200/40 bg-cyan-200/10 p-4 text-sm text-cyan-100">
+              Nhìn thẳng camera, đảm bảo đủ sáng rồi bấm xác thực.
+            </p>
 
             <button
               type="button"
