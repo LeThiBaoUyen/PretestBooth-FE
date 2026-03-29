@@ -158,6 +158,9 @@ export default function AdminStatsDashboard() {
           ) : (
             <div className="space-y-4">
               {stats.recentProctoringEvents.map((event) => (
+                (() => {
+                  const student = event?.examSession?.user || event?.practiceSession?.user;
+                  return (
                 <div key={event.id} className="flex items-start space-x-4 p-4 rounded-xl border border-gray-100 hover:bg-gray-50 transition">
                   <div className={`p-2 font-bold rounded-lg text-white mt-1 ${
                     event.warningLevel >= 3 ? "bg-red-500" : 
@@ -181,10 +184,12 @@ export default function AdminStatsDashboard() {
                     <p className="text-sm text-gray-600 mt-1">
                       Mức cảnh báo: <span className="font-semibold text-gray-900">{event.warningLevel}</span> 
                       <span className="mx-2">•</span>
-                      Sinh viên: <span className="font-semibold">{event.session.user.name} ({event.session.user.studentCode})</span>
+                      Sinh viên: <span className="font-semibold">{student?.name || "Không xác định"} ({student?.studentCode || "N/A"})</span>
                     </p>
                   </div>
                 </div>
+                  );
+                })()
               ))}
             </div>
           )}

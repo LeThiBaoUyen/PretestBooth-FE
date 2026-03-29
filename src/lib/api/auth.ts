@@ -27,7 +27,7 @@ import type {
 } from "./types";
 import { httpClient } from "./httpClient";
 
-const API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000").replace(/\/+$/, "");
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
 
 class ApiClient {
   private baseURL: string;

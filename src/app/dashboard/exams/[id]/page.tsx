@@ -28,9 +28,12 @@ export default function ExamDetailPage({
 
   useEffect(() => {
     async function fetchExam() {
+      if (!accessToken) {
+        return;
+      }
       setLoading(true);
       try {
-        const data = await examsApiClient.getExam(id, accessToken || undefined);
+        const data = await examsApiClient.getExam(id, accessToken);
         setExam(data);
       } catch (err: any) {
         setError(err.message || "Không thể tải đề thi");
@@ -38,7 +41,7 @@ export default function ExamDetailPage({
         setLoading(false);
       }
     }
-    fetchExam();
+    void fetchExam();
   }, [id, accessToken]);
 
   // Check for existing IN_PROGRESS session

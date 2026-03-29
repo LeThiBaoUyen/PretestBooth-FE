@@ -1,8 +1,5 @@
 import { httpClient } from "./httpClient";
 import type { User } from "./types";
-import { normalizePaginated } from "./response";
-
-const API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000").replace(/\/+$/, "");
 
 export interface PaginatedUsers {
   data: Partial<User>[];
@@ -32,7 +29,7 @@ export interface UpdateStudentPayload {
 }
 
 export const usersApi = {
-  getUsers: async (params: { page?: number; limit?: number; role?: string; search?: string; className?: string; isLocked?: boolean }) => {
+  getUsers: (params: { page?: number; limit?: number; role?: string; search?: string; className?: string; isLocked?: boolean }) => {
     const query = new URLSearchParams();
     if (params.page) query.append("page", params.page.toString());
     if (params.limit) query.append("limit", params.limit.toString());
@@ -41,11 +38,7 @@ export const usersApi = {
     if (params.className) query.append("className", params.className);
     if (params.isLocked !== undefined) query.append("isLocked", params.isLocked.toString());
 
-    const res = await httpClient.get<PaginatedUsers | Partial<User>[]>(`/api/users?${query.toString()}`);
-    return normalizePaginated<Partial<User>>(res, {
-      page: params.page,
-      limit: params.limit,
-    });
+    return httpClient.get<PaginatedUsers>(`/api/users?${query.toString()}`);
   },
 
   getUser: (id: string) => httpClient.get<Partial<User>>(`/api/users/${id}`),
@@ -60,7 +53,7 @@ export const usersApi = {
 
   // File should be mapped toFormData in the UI layer and passed via fetch directly because httpClient forces JSON
   // We'll export a generic URL that the UI can hit using native fetch + tokens
-  getImportUrl: () => `${API_BASE_URL}/api/users/import`,
+  getImportUrl: () => `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000"}/api/users/import`,
 
   getExportUrl: (params?: {
     search?: string;
@@ -77,7 +70,7 @@ export const usersApi = {
     if (params?.sortOrder) query.append("sortOrder", params.sortOrder);
     if (params?.format) query.append("format", params.format);
 
-    const base = `${API_BASE_URL}/api/users/export`;
+    const base = `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000"}/api/users/export`;
     return `${base}?${query.toString()}`;
   },
 };
