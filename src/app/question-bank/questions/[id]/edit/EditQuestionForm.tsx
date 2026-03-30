@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { questionsApiClient } from "@/lib/api/questions";
 import { useAuth } from "@/lib/hooks";
@@ -44,11 +44,21 @@ const TYPE_OPTIONS: { value: QuestionType; label: string; icon: string }[] = [
 export default function EditQuestionForm() {
   const params = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const queryClient = useQueryClient();
   const { accessToken, user } = useAuth();
   const questionId = params.id as string;
+  const returnTo = searchParams.get("returnTo");
+  const reviewSessionId = searchParams.get("reviewSessionId");
 
   const isAuthorized = user && ["LECTURER", "ADMIN"].includes(user.role);
+
+  const resolveRedirectAfterSave = () => {
+    if (returnTo && returnTo.startsWith("/")) {
+      return returnTo;
+    }
+    return `/question-bank/questions/${questionId}`;
+  };
 
   // Form state
   const [content, setContent] = useState("");
@@ -165,10 +175,21 @@ export default function EditQuestionForm() {
       if (!accessToken) throw new Error("Bạn cần đăng nhập");
       return questionsApiClient.updateQuestion(questionId, data, accessToken);
     },
-    onSuccess: () => {
+    onSuccess: async () => {
       queryClient.invalidateQueries({ queryKey: ["question", questionId] });
       queryClient.invalidateQueries({ queryKey: ["questions"] });
-      router.push(`/question-bank/questions/${questionId}`);
+      queryClient.invalidateQueries({ queryKey: ["question-review-sessions"] });
+
+      if (reviewSessionId && accessToken) {
+        await questionsApiClient.resubmitQuestionReview(
+          {
+            sessionId: reviewSessionId,
+          },
+          accessToken,
+        );
+      }
+
+      router.push(resolveRedirectAfterSave());
     },
     onError: (error) => {
       setFormError(
@@ -617,7 +638,7 @@ export default function EditQuestionForm() {
                 Đang lưu...
               </>
             ) : (
-              "Lưu thay đổi"
+              reviewSessionId ? "Lưu và gửi duyệt lại" : "Lưu thay đổi"
             )}
           </button>
         </div>

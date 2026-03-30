@@ -8,6 +8,13 @@ import type {
   UpdateQuestionRequest,
   CreateSubjectRequest,
   CreateTopicRequest,
+  QueryReviewSessionsParams,
+  QuestionReviewSessionsResponse,
+  SubmitQuestionReviewRequest,
+  ResubmitQuestionReviewRequest,
+  GenerateReviewSessionsRequest,
+  GenerateReviewSessionsResponse,
+  QuestionReviewStats,
 } from "./types";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
@@ -212,6 +219,78 @@ class QuestionsApiClient {
     return this.request<Question>(`/api/questions/${id}/publish`, {
       method: "PATCH",
       headers: { Authorization: `Bearer ${accessToken}` },
+    });
+  }
+
+  // ==================== QUESTION REVIEWS ====================
+
+  async getReviewSessions(
+    params: QueryReviewSessionsParams,
+    accessToken: string,
+  ): Promise<QuestionReviewSessionsResponse> {
+    const searchParams = new URLSearchParams();
+    if (params.quarter) searchParams.append("quarter", params.quarter.toString());
+    if (params.year) searchParams.append("year", params.year.toString());
+    if (params.status) searchParams.append("status", params.status);
+    if (params.page) searchParams.append("page", params.page.toString());
+    if (params.limit) searchParams.append("limit", params.limit.toString());
+
+    const queryString = searchParams.toString();
+    return this.request<QuestionReviewSessionsResponse>(
+      `/api/questions/review/sessions${queryString ? `?${queryString}` : ""}`,
+      {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      },
+    );
+  }
+
+  async getReviewStats(
+    params: Pick<QueryReviewSessionsParams, "quarter" | "year">,
+    accessToken: string,
+  ): Promise<QuestionReviewStats & { quarter: number; year: number; completionRate: number }> {
+    const searchParams = new URLSearchParams();
+    if (params.quarter) searchParams.append("quarter", params.quarter.toString());
+    if (params.year) searchParams.append("year", params.year.toString());
+
+    const queryString = searchParams.toString();
+    return this.request<QuestionReviewStats & { quarter: number; year: number; completionRate: number }>(
+      `/api/questions/review/stats${queryString ? `?${queryString}` : ""}`,
+      {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      },
+    );
+  }
+
+  async submitQuestionReview(
+    data: SubmitQuestionReviewRequest,
+    accessToken: string,
+  ): Promise<{ message: string }> {
+    return this.request<{ message: string }>(`/api/questions/review/submit`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${accessToken}` },
+      body: JSON.stringify(data),
+    });
+  }
+
+  async resubmitQuestionReview(
+    data: ResubmitQuestionReviewRequest,
+    accessToken: string,
+  ): Promise<{ message: string }> {
+    return this.request<{ message: string }>(`/api/questions/review/resubmit`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${accessToken}` },
+      body: JSON.stringify(data),
+    });
+  }
+
+  async generateReviewSessions(
+    data: GenerateReviewSessionsRequest,
+    accessToken: string,
+  ): Promise<GenerateReviewSessionsResponse> {
+    return this.request<GenerateReviewSessionsResponse>(`/api/questions/review/sessions/generate`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${accessToken}` },
+      body: JSON.stringify(data),
     });
   }
 }
