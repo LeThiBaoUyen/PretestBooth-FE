@@ -49,6 +49,12 @@ export default function QuestionBankHome() {
           >
             Quản lý Subject và Topic
           </Link>
+          <Link
+            href="/question-bank/review"
+            className="inline-flex w-fit items-center rounded-lg border border-amber-200 bg-amber-50 px-4 py-2 text-sm font-semibold text-amber-700 hover:bg-amber-100"
+          >
+            Review câu hỏi theo quý
+          </Link>
         </div>
       </div>
 

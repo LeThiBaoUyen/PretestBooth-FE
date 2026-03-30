@@ -570,6 +570,103 @@ export interface CreateTopicRequest {
   name: string;
 }
 
+export type QuestionReviewStatus =
+  | "PENDING"
+  | "RESUBMITTED"
+  | "APPROVED"
+  | "NEEDS_REVISION"
+  | "SKIPPED";
+
+export interface QuestionReviewReviewer {
+  id: string;
+  name: string | null;
+  email: string;
+}
+
+export interface QuestionReviewAction {
+  id: string;
+  sessionId: string;
+  status: QuestionReviewStatus;
+  notes: string | null;
+  reviewedBy: string;
+  reviewedAt: string;
+  createdAt: string;
+  reviewer?: QuestionReviewReviewer;
+}
+
+export interface QuestionReviewSession {
+  id: string;
+  quarter: number;
+  year: number;
+  academicYear: string;
+  startDate: string;
+  endDate: string;
+  status: QuestionReviewStatus;
+  notes: string | null;
+  reviewedBy: string | null;
+  reviewedAt: string | null;
+  questionId: string;
+  createdAt: string;
+  updatedAt: string;
+  question: Question;
+  reviewer?: QuestionReviewReviewer | null;
+  actions?: QuestionReviewAction[];
+}
+
+export interface QuestionReviewStats {
+  total: number;
+  pending: number;
+  resubmitted: number;
+  approved: number;
+  needsRevision: number;
+  skipped: number;
+}
+
+export interface ReviewSessionsPagination {
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}
+
+export interface QuestionReviewSessionsResponse {
+  data: QuestionReviewSession[];
+  pagination: ReviewSessionsPagination;
+  stats: QuestionReviewStats;
+}
+
+export interface QueryReviewSessionsParams {
+  quarter?: number;
+  year?: number;
+  status?: QuestionReviewStatus;
+  page?: number;
+  limit?: number;
+}
+
+export interface SubmitQuestionReviewRequest {
+  sessionId: string;
+  status: Extract<QuestionReviewStatus, "APPROVED" | "NEEDS_REVISION">;
+  notes?: string;
+}
+
+export interface ResubmitQuestionReviewRequest {
+  sessionId: string;
+  notes?: string;
+}
+
+export interface GenerateReviewSessionsRequest {
+  quarter?: number;
+  year?: number;
+}
+
+export interface GenerateReviewSessionsResponse {
+  quarter: number;
+  year: number;
+  academicYear: string;
+  totalPublishedQuestions: number;
+  createdSessions: number;
+}
+
 // ==================== EXAMS ====================
 
 export type ExamSection = "QUESTION" | "PROBLEM";

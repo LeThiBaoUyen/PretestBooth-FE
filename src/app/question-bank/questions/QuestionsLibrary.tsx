@@ -441,6 +441,12 @@ export default function QuestionsLibrary() {
             >
               Subject/Topic
             </Link>
+            <Link
+              href="/question-bank/review"
+              className="px-4 py-2 bg-amber-50 border border-amber-200 text-amber-700 rounded-lg hover:bg-amber-100 transition font-medium text-sm"
+            >
+              Review theo quý
+            </Link>
             <input
               type="file"
               ref={fileInputRef}
