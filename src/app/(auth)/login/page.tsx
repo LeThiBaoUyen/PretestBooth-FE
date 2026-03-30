@@ -22,11 +22,15 @@ export default function LoginPage() {
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [submitMessage, setSubmitMessage] = useState("");
-  const boothMeta = boothSessionManager.getMeta();
+  const [boothMeta, setBoothMeta] = useState<ReturnType<
+    typeof boothSessionManager.getMeta
+  > | null>(null);
   const [nextPath, setNextPath] = useState<string | null>(null);
 
   useEffect(() => {
-    if (typeof window === "undefined") return;
+    // Keep first client render aligned with server HTML, then hydrate client-only data.
+    setBoothMeta(boothSessionManager.getMeta());
+
     const params = new URLSearchParams(window.location.search);
     setNextPath(params.get("next"));
   }, []);

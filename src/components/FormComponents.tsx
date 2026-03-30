@@ -1,6 +1,6 @@
 "use client";
 
-import type { ChangeEvent } from "react";
+import { useState, type ChangeEvent } from "react";
 
 interface InputProps {
   type?: string;
@@ -25,10 +25,16 @@ export function FormInput({
   error,
   maxLength,
 }: InputProps) {
+  const [isPasswordVisible, setIsPasswordVisible] = useState(false);
+  const isPasswordField = type === "password";
+  const effectiveType =
+    isPasswordField && isPasswordVisible ? "text" : type;
+
   return (
     <div>
+      <div className="relative">
       <input
-        type={type}
+        type={effectiveType}
         name={name}
         placeholder={placeholder}
         value={value}
@@ -37,11 +43,24 @@ export function FormInput({
         pattern={pattern}
         maxLength={maxLength}
         className={`text-gray-900 w-full px-4 py-3 rounded-lg border-2 focus:outline-none focus:ring-2 focus:ring-blue-400 transition ${
+          isPasswordField ? "pr-20 " : ""
+        }${
           error
             ? "border-red-500 bg-red-50"
             : "border-gray-300 bg-white focus:border-blue-600"
         }`}
       />
+      {isPasswordField && (
+        <button
+          type="button"
+          onClick={() => setIsPasswordVisible((prev) => !prev)}
+          className="absolute inset-y-0 right-3 my-auto h-fit text-sm font-medium text-gray-600 hover:text-gray-900"
+          aria-label={isPasswordVisible ? "Ẩn mật khẩu" : "Hiện mật khẩu"}
+        >
+          {isPasswordVisible ? "Ẩn" : "Hiện"}
+        </button>
+      )}
+      </div>
       {error && <p className="text-red-500 text-sm mt-1">{error}</p>}
     </div>
   );
