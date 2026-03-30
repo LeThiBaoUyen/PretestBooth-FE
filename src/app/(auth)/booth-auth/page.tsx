@@ -21,7 +21,7 @@ export default function BoothAuthPage() {
 
   useEffect(() => {
     if (boothSessionManager.getToken() && boothSessionManager.getMeta()) {
-      router.replace("/booth");
+      router.replace("/login");
     }
   }, [router]);
 
@@ -38,7 +38,7 @@ export default function BoothAuthPage() {
         boothName: response.boothName,
       });
       setSubmitMessage("Kích hoạt booth thành công. Chuyển sang khu vực kiosk...");
-      setTimeout(() => router.push("/booth"), 800);
+      setTimeout(() => router.push("/login"), 800);
     },
     onError: (error: Error) => {
       setSubmitMessage(error.message || "Không thể kích hoạt booth.");
@@ -131,8 +131,8 @@ export default function BoothAuthPage() {
           </div>
 
           <div className="mt-6 text-center text-sm">
-            <Link href="/booth" className="text-navy-600 hover:text-navy-700 font-semibold">
-              Vào khu vực kiosk
+            <Link href="/login" className="text-navy-600 hover:text-navy-700 font-semibold">
+              Đến màn hình đăng nhập kiosk
             </Link>
           </div>
         </div>

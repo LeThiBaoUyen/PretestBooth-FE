@@ -15,7 +15,7 @@ export default function BackButton() {
     "/reset",
     "/verify-email",
     "/booth-auth",
-    "/booth",
+    "/booth/check-in",
   ];
 
   if (hiddenRoutes.some((route) => pathname === route || pathname.startsWith(`${route}/`))) {

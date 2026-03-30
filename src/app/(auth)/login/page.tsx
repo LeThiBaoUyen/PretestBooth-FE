@@ -170,9 +170,12 @@ export default function LoginPage() {
                   <p className="mt-1 text-xs">
                     Nếu đăng nhập bằng tài khoản ADMIN, hệ thống sẽ chuyển sang đăng nhập quản trị để bạn có thể thoát booth.
                   </p>
-                  <Link href="/booth" className="mt-2 inline-block text-xs font-bold text-emerald-700 hover:text-emerald-900">
-                    Quay lại khu vực kiosk
-                  </Link>
+                  <p className="mt-1 text-xs">
+                    Cần kích hoạt lại hoặc đổi booth?{" "}
+                    <Link href="/booth-auth" className="font-bold text-emerald-700 hover:text-emerald-900">
+                      Mở trang kích hoạt booth
+                    </Link>
+                  </p>
                 </div>
               )}
             </div>

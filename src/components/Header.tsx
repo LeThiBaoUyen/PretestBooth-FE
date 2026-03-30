@@ -3,9 +3,9 @@ import Link from "next/link";
 import Image from "next/image";
 import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { useAuth } from "@/lib/hooks/useAuth";
 import { apiClient } from "@/lib/api/auth";
 import { boothSessionManager, type BoothSessionMeta } from "@/lib/auth/boothSession";
+import { useAuth } from "@/lib/hooks/useAuth";
 import { Menu, X, ChevronDown, LayoutDashboard, LogOut, User } from "lucide-react";
 
 type NavItem = {
@@ -52,7 +52,7 @@ export default function Header() {
     "/reset",
     "/verify-email",
     "/booth-auth",
-    "/booth",
+    "/booth/check-in",
   ];
 
   if (hideHeaderRoutes.some((route) => pathname === route || pathname.startsWith(`${route}/`))) {
@@ -141,19 +141,6 @@ export default function Header() {
 
           {/* Auth/User Info */}
           <div className="hidden md:flex items-center space-x-3">
-            {boothMeta && boothToken && canAdminLogoutBooth && (
-              <button
-                type="button"
-                onClick={handleBoothLogout}
-                disabled={boothLogoutLoading}
-                className="inline-flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-700 hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-60"
-                title={`Booth active: ${boothMeta.boothName} (${boothMeta.boothCode})`}
-              >
-                <LogOut className="h-3.5 w-3.5" />
-                {boothLogoutLoading ? "Đang thoát booth..." : `Thoát ${boothMeta.boothCode}`}
-              </button>
-            )}
-
             {userName ? (
               <div className="relative">
                 <button
@@ -189,6 +176,23 @@ export default function Header() {
                       <LayoutDashboard className="h-4 w-4" />
                       Dashboard
                     </Link>
+                    {boothMeta && boothToken && canAdminLogoutBooth && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setDropdownOpen(false);
+                          handleBoothLogout();
+                        }}
+                        disabled={boothLogoutLoading}
+                        className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-emerald-700 hover:bg-emerald-50 transition font-medium disabled:cursor-not-allowed disabled:opacity-60"
+                        title={`Booth active: ${boothMeta.boothName} (${boothMeta.boothCode})`}
+                      >
+                        <LogOut className="h-4 w-4" />
+                        {boothLogoutLoading
+                          ? "Đang đăng xuất booth..."
+                          : `Đăng xuất booth ${boothMeta.boothCode}`}
+                      </button>
+                    )}
                     <Link
                       href="/dashboard/profile"
                       className="flex items-center gap-2 px-4 py-2.5 text-slate-700 hover:bg-slate-50 transition"
@@ -262,19 +266,6 @@ export default function Header() {
             </div>
 
             <div className="pt-2 space-y-2 border-t border-gray-200">
-              {boothMeta && boothToken && canAdminLogoutBooth && (
-                <button
-                  onClick={() => {
-                    setIsOpen(false);
-                    handleBoothLogout();
-                  }}
-                  disabled={boothLogoutLoading}
-                  className="w-full rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-left text-xs font-bold text-emerald-700"
-                >
-                  {boothLogoutLoading ? "Đang thoát booth..." : `Thoát booth ${boothMeta.boothCode}`}
-                </button>
-              )}
-
               {userName ? (
                 <>
                   <div className="px-4 py-2 bg-navy-100 rounded-lg">
@@ -291,6 +282,20 @@ export default function Header() {
                     <User className="h-4 w-4" />
                     Hồ sơ cá nhân
                   </Link>
+                  {boothMeta && boothToken && canAdminLogoutBooth && (
+                    <button
+                      onClick={() => {
+                        setIsOpen(false);
+                        handleBoothLogout();
+                      }}
+                      disabled={boothLogoutLoading}
+                      className="w-full text-left text-emerald-700 hover:text-emerald-800 py-2 transition font-medium disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {boothLogoutLoading
+                        ? "Đang đăng xuất booth..."
+                        : `Đăng xuất booth ${boothMeta.boothCode}`}
+                    </button>
+                  )}
                   <button
                     onClick={() => {
                       setIsOpen(false);
