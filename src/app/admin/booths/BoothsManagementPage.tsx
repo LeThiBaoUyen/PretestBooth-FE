@@ -77,16 +77,28 @@ const emptyDurationForm: DurationFormData = {
 };
 
 const statusLabel: Record<BoothStatus, string> = {
-  ACTIVE: "Đang hoạt động",
+  ACTIVE: "Sẵn sàng",
   MAINTENANCE: "Bảo trì",
   INACTIVE: "Ngưng hoạt động",
 };
 
 const statusColor: Record<BoothStatus, string> = {
-  ACTIVE: "bg-emerald-100 text-emerald-700",
+  ACTIVE: "bg-cyan-100 text-cyan-700",
   MAINTENANCE: "bg-amber-100 text-amber-700",
   INACTIVE: "bg-slate-200 text-slate-700",
 };
+
+function getRuntimeStatusLabel(booth: Booth) {
+  if (booth.status !== "ACTIVE") return statusLabel[booth.status];
+  return booth.isSessionActive ? "Đang hoạt động" : "Sẵn sàng";
+}
+
+function getRuntimeStatusColor(booth: Booth) {
+  if (booth.status !== "ACTIVE") return statusColor[booth.status];
+  return booth.isSessionActive
+    ? "bg-emerald-100 text-emerald-700"
+    : "bg-cyan-100 text-cyan-700";
+}
 
 function formatDateTime(value?: string | Date | null) {
   if (!value) return "-";
@@ -264,18 +276,30 @@ export default function BoothsManagementPage() {
       },
     );
 
-    const offCheckin = realtimeClient.subscribe<BookingRealtimeEvent>("booking.checkin", () => {
+    const offCheckin = realtimeClient.subscribe<BookingRealtimeEvent>("booking.checkin", (payload) => {
       void loadBooths();
+      if (payload.boothId === selectedBoothId) {
+        void loadLogs(payload.boothId);
+      }
     });
 
-    const offCheckout = realtimeClient.subscribe<BookingRealtimeEvent>("booking.checkout", () => {
+    const offCheckout = realtimeClient.subscribe<BookingRealtimeEvent>("booking.checkout", (payload) => {
       void loadBooths();
+      if (payload.boothId === selectedBoothId) {
+        void loadLogs(payload.boothId);
+      }
     });
 
     const offNotification = realtimeClient.subscribe<BoothNotificationEvent>(
       "booth.notification",
       (payload) => {
         setRealtimeMessage(payload.message);
+        if (payload.boothId) {
+          void loadBooths();
+          if (payload.boothId === selectedBoothId) {
+            void loadLogs(payload.boothId);
+          }
+        }
         window.setTimeout(() => setRealtimeMessage(null), 5000);
       },
     );
@@ -472,6 +496,11 @@ export default function BoothsManagementPage() {
       setOtpModal((prev) => ({ ...prev, submitting: true }));
       setError(null);
       const result = await boothsApi.generateActivationOtp(boothCode);
+      await loadBooths();
+      if (result.boothId) {
+        setSelectedBoothId(result.boothId);
+        await loadLogs(result.boothId);
+      }
       setOtpModal((prev) => ({
         ...prev,
         otp: result.otp,
@@ -999,13 +1028,20 @@ export default function BoothsManagementPage() {
                       >
                         <div className="flex items-center gap-2">
                           <p className="font-semibold text-gray-900">{booth.name}</p>
-                          <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${statusColor[booth.status]}`}>
-                            {statusLabel[booth.status]}
+                          <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${getRuntimeStatusColor(booth)}`}>
+                            {getRuntimeStatusLabel(booth)}
                           </span>
                         </div>
                         <p className="mt-1 text-xs font-semibold text-gray-500">
                           Booth code: {booth.code || "Chưa đặt code"}
                         </p>
+                        {booth.status === "ACTIVE" && (
+                          <p className="mt-1 text-xs text-gray-500">
+                            {booth.isSessionActive
+                              ? `Kiosk online từ: ${formatDateTime(booth.sessionActivatedAt || null)}`
+                              : "Kiosk chưa đăng nhập"}
+                          </p>
+                        )}
                         <p className="mt-1 text-sm text-gray-600">{booth.location || "Chưa có vị trí"}</p>
                         {booth.description && (
                           <p className="mt-1 text-xs text-gray-500">{booth.description}</p>
@@ -1091,9 +1127,15 @@ export default function BoothsManagementPage() {
                     <span>{log.changedByUser?.name || log.changedByUser?.email || "Không rõ người thao tác"}</span>
                   </div>
                   <div className="mt-1 text-sm text-gray-800">
-                    <span className="font-medium">{statusLabel[log.fromStatus]}</span>
-                    <span className="mx-1">→</span>
-                    <span className="font-medium">{statusLabel[log.toStatus]}</span>
+                    {log.fromStatus === log.toStatus ? (
+                      <span className="font-medium">{statusLabel[log.toStatus]}</span>
+                    ) : (
+                      <>
+                        <span className="font-medium">{statusLabel[log.fromStatus]}</span>
+                        <span className="mx-1">→</span>
+                        <span className="font-medium">{statusLabel[log.toStatus]}</span>
+                      </>
+                    )}
                   </div>
                   {log.note && <p className="mt-1 text-sm text-gray-600">{log.note}</p>}
                 </div>

@@ -1029,6 +1029,8 @@ export interface Booth {
   description: string | null;
   location: string | null;
   status: BoothStatus;
+  isSessionActive?: boolean;
+  sessionActivatedAt?: string | null;
   statusLogs?: BoothStatusLog[];
   _count?: { bookings: number };
   createdAt: string;
