@@ -1,20 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Settings, Play, Target, Clock, BookOpen, AlertCircle } from "lucide-react";
 import Footer from "@/components/Footer";
 import { useAuth } from "@/lib/hooks";
 import { practiceApi } from "@/lib/api/practice";
 import type { Difficulty } from "@/lib/api/types";
-
-const PROCTORING_NOTICE_KEY = "proctoring_violation_notice";
-
-type ProctoringNotice = {
-  title: string;
-  description: string;
-  createdAt: string;
-};
 
 export default function PracticeSetupPage() {
   const { user } = useAuth();
@@ -26,22 +18,6 @@ export default function PracticeSetupPage() {
   
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<ProctoringNotice | null>(null);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const raw = window.sessionStorage.getItem(PROCTORING_NOTICE_KEY);
-    if (!raw) return;
-
-    try {
-      const parsed = JSON.parse(raw) as ProctoringNotice;
-      setNotice(parsed);
-    } catch {
-      // ignore malformed data
-    } finally {
-      window.sessionStorage.removeItem(PROCTORING_NOTICE_KEY);
-    }
-  }, []);
 
   const handleStart = async () => {
     setIsSubmitting(true);
@@ -75,16 +51,6 @@ export default function PracticeSetupPage() {
           </div>
 
           <div className="p-8 space-y-8">
-            {notice && (
-              <div className="p-4 bg-red-50 text-red-700 rounded-lg flex items-start border border-red-200 text-sm font-medium">
-                <AlertCircle className="w-5 h-5 mr-3 flex-shrink-0" />
-                <div>
-                  <div className="font-bold">{notice.title}</div>
-                  <div className="mt-1">{notice.description}</div>
-                </div>
-              </div>
-            )}
-
             {error && (
               <div className="p-4 bg-red-50 text-red-700 rounded-lg flex items-start border border-red-200 text-sm font-medium">
                 <AlertCircle className="w-5 h-5 mr-3 flex-shrink-0" />

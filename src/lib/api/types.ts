@@ -841,6 +841,8 @@ export interface UpdateExamRequest {
 export interface ShuffledExamSession {
   id: string;
   examId: string;
+  examType: "PRACTICE" | "EXAM";
+  proctoringEnabled: boolean;
   examTitle: string;
   duration: number;
   status: ExamSessionStatus;
