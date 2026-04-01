@@ -48,12 +48,23 @@ export default function DashboardPage() {
       href: "/exams",
       icon: FileText,
     },
-    {
-      label: "Ngân hàng câu hỏi",
-      description: "Truy cập kho câu hỏi và bộ lọc theo môn học/chủ đề.",
-      href: "/question-bank",
-      icon: BookOpen,
-    },
+    ...(user?.role === "STUDENT"
+      ? [
+          {
+            label: "Danh sách bài lập trình",
+            description: "Luyện tập các bài lập trình theo độ khó và chủ đề.",
+            href: "/problems",
+            icon: BookOpen,
+          } satisfies DashboardLink,
+        ]
+      : [
+          {
+            label: "Ngân hàng câu hỏi",
+            description: "Truy cập kho câu hỏi và bộ lọc theo môn học/chủ đề.",
+            href: "/question-bank",
+            icon: BookOpen,
+          } satisfies DashboardLink,
+        ]),
     {
       label: "Lịch sử nộp bài",
       description: "Theo dõi tiến độ làm bài và kết quả đã nộp.",

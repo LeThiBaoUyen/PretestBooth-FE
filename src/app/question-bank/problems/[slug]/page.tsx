@@ -15,6 +15,7 @@ export default function ProblemDetailPage() {
   const router = useRouter();
   const { user } = useAuth();
   const slug = params.slug as string;
+  const problemListPath = user?.role === "STUDENT" ? "/problems" : "/question-bank/problems";
   const [activeTab, setActiveTab] = useState<"description" | "submissions">(
     "description",
   );
@@ -81,7 +82,7 @@ export default function ProblemDetailPage() {
                 Bài tập này không tồn tại hoặc đã bị xóa.
               </p>
               <button
-                onClick={() => router.push("/question-bank/problems")}
+                onClick={() => router.push(problemListPath)}
                 className="bg-navy-600 text-white px-6 py-3 rounded-lg hover:bg-navy-700 transition"
               >
                 Quay lại danh sách
@@ -121,17 +122,26 @@ export default function ProblemDetailPage() {
                   </span>
                 </div>
               </div>
-              {/* Edit Button */}
-              {user &&
-                (user.id === problem.creatorId || user.role === "ADMIN") &&
-                ["LECTURER", "ADMIN"].includes(user.role) && (
-                  <Link
-                    href={`/question-bank/problems/${problem.slug}/edit`}
-                    className="px-4 py-2 bg-navy-600 text-white rounded-lg hover:bg-navy-700 transition font-medium text-sm flex items-center gap-2 whitespace-nowrap"
-                  >
-                    ✏️ Chỉnh sửa
-                  </Link>
-                )}
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                <button
+                  type="button"
+                  onClick={() => router.push(`/exam?problem=${slug}`)}
+                  className="px-5 py-2.5 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition font-semibold text-sm whitespace-nowrap"
+                >
+                  Bắt đầu làm bài
+                </button>
+
+                {user &&
+                  (user.id === problem.creatorId || user.role === "ADMIN") &&
+                  ["LECTURER", "ADMIN"].includes(user.role) && (
+                    <Link
+                      href={`/question-bank/problems/${problem.slug}/edit`}
+                      className="px-4 py-2 bg-navy-600 text-white rounded-lg hover:bg-navy-700 transition font-medium text-sm flex items-center gap-2 whitespace-nowrap"
+                    >
+                      ✏️ Chỉnh sửa
+                    </Link>
+                  )}
+              </div>
             </div>
 
             {/* Tabs */}
@@ -288,15 +298,6 @@ export default function ProblemDetailPage() {
             )}
           </div>
 
-          {/* Action Button */}
-          <div className="text-center">
-            <button
-              onClick={() => router.push(`/exam?problem=${slug}`)}
-              className="bg-navy-600 text-white px-8 py-3 rounded-lg hover:bg-navy-700 transition font-semibold text-lg"
-            >
-              Bắt đầu làm bài
-            </button>
-          </div>
         </div>
       </main>
       <Footer />

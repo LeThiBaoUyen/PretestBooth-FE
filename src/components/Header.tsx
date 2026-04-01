@@ -16,7 +16,8 @@ type NavItem = {
 
 const navItems: NavItem[] = [
   { label: "Đề thi", href: "/exams" },
-  { label: "Ngân hàng câu hỏi", href: "/question-bank" },
+  { label: "Danh sách bài lập trình", href: "/problems", roles: ["STUDENT"] },
+  { label: "Ngân hàng câu hỏi", href: "/question-bank", roles: ["LECTURER", "ADMIN"] },
   { label: "Lịch sử nộp bài", href: "/submissions" },
   { label: "Quản lý Booth", href: "/admin/booths", roles: ["LECTURER", "ADMIN"] },
   { label: "Quản lý Sinh viên", href: "/admin/users", roles: ["ADMIN"] },

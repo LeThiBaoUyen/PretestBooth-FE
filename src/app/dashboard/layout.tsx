@@ -65,10 +65,16 @@ const dashboardNavItems: NavItem[] = [
 
 const externalNavItems: NavItem[] = [
   {
+    label: "Danh sách bài lập trình",
+    href: "/problems",
+    icon: BookOpen,
+    roles: ["STUDENT"],
+  },
+  {
     label: "Ngân hàng câu hỏi",
     href: "/question-bank",
     icon: BookOpen,
-    roles: ["STUDENT", "LECTURER", "ADMIN"],
+    roles: ["LECTURER", "ADMIN"],
   },
   {
     label: "Lịch sử nộp bài",
@@ -94,6 +100,7 @@ function getSectionTitle(pathname: string) {
   if (pathname.startsWith("/admin/booths/schedule")) return "Lịch trình Booth";
   if (pathname.startsWith("/admin/booths")) return "Quản lý Booth";
   if (pathname.startsWith("/admin/users")) return "Quản trị người dùng";
+  if (pathname.startsWith("/problems")) return "Danh sách bài lập trình";
   if (pathname.startsWith("/question-bank")) return "Ngân hàng câu hỏi";
   if (pathname.startsWith("/submissions")) return "Lịch sử nộp bài";
   if (pathname.startsWith("/booths/booking")) return "Đặt lịch booth";

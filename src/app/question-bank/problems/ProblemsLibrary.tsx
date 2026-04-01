@@ -147,6 +147,7 @@ export default function ProblemsLibrary() {
 
   const isAuthorized = user && ["LECTURER", "ADMIN"].includes(user.role);
   const isStudent = user?.role === "STUDENT";
+  const problemDetailBasePath = isStudent ? "/problems" : "/question-bank/problems";
 
   const {
     data,
@@ -623,7 +624,7 @@ export default function ProblemsLibrary() {
                       <td className="px-6 py-4 text-gray-600">{(page - 1) * limit + index + 1}</td>
                       <td className="px-6 py-4">
                         <Link
-                          href={`/question-bank/problems/${problem.slug}`}
+                          href={`${problemDetailBasePath}/${problem.slug}`}
                           className="text-navy-600 hover:text-navy-700 font-medium hover:underline"
                         >
                           {problem.title}
