@@ -2,12 +2,14 @@
 
 import Link from "next/link";
 import Image from "next/image";
+import { ArrowLeft } from "lucide-react";
 
 interface ExamHeaderProps {
   problemTitle: string;
   difficulty: "Easy" | "Medium" | "Hard";
   isRunning: boolean;
   isSubmitting: boolean;
+  onBack: () => void;
   onRun: () => void;
   onSubmit: () => void;
 }
@@ -17,6 +19,7 @@ export default function ExamHeader({
   difficulty,
   isRunning,
   isSubmitting,
+  onBack,
   onRun,
   onSubmit,
 }: ExamHeaderProps) {
@@ -34,6 +37,15 @@ export default function ExamHeader({
   return (
     <header className="h-14 bg-white border-b border-gray-200 flex items-center justify-between px-4 shadow-sm">
       <div className="flex items-center gap-4">
+        <button
+          type="button"
+          onClick={onBack}
+          className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-50"
+        >
+          <ArrowLeft className="h-3.5 w-3.5" />
+          Quay lại
+        </button>
+
         {/* Logo */}
         <Link href="/" className="flex items-center space-x-2">
           <Image

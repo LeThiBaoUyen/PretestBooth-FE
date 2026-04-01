@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback, useEffect, useMemo, Suspense } from "react";
+import { useRouter } from "next/navigation";
 import { useSearchParams } from "next/navigation";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import {
@@ -67,6 +68,7 @@ function transformProblem(apiProblem: APIProblem): Problem {
 }
 
 function ExamContent() {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const problemSlug = searchParams.get("problem") || "two-sum";
 
@@ -229,6 +231,7 @@ function ExamContent() {
         difficulty={problem.difficulty}
         isRunning={runMutation.isPending}
         isSubmitting={submitMutation.isPending}
+        onBack={() => router.push(`/problems/${problemSlug}`)}
         onRun={() => runMutation.mutate()}
         onSubmit={() => submitMutation.mutate()}
       />

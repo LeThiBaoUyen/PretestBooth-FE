@@ -54,6 +54,7 @@ export default function Header() {
     "/verify-email",
     "/booth-auth",
     "/booth/check-in",
+    "/exam",
   ];
 
   if (hideHeaderRoutes.some((route) => pathname === route || pathname.startsWith(`${route}/`))) {
