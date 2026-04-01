@@ -56,6 +56,7 @@ const QuizScreen = () => {
   const [timeLeft, setTimeLeft] = useState(0);
 
   const [showConfirm, setShowConfirm] = useState(false);
+  const [showExitConfirm, setShowExitConfirm] = useState(false);
   const [showResult, setShowResult] = useState(false);
   const [result, setResult] = useState<SessionResult | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -67,9 +68,41 @@ const QuizScreen = () => {
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const codeSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const submittingRef = useRef(false);
+  const allowUnsafeNavigationRef = useRef(false);
+  const pendingExitActionRef = useRef<(() => void) | null>(null);
 
   const currentItem = items[currentIndex];
   const currentAnswer = currentItem ? answerMap[currentItem.id] : undefined;
+  const shouldGuardLeaving = Boolean(
+    session &&
+    session.status === "IN_PROGRESS" &&
+    !showResult &&
+    !submitting,
+  );
+
+  const requestExitConfirmation = useCallback((action: () => void) => {
+    pendingExitActionRef.current = action;
+    setShowExitConfirm(true);
+  }, []);
+
+  const handleCancelExit = useCallback(() => {
+    pendingExitActionRef.current = null;
+    setShowExitConfirm(false);
+  }, []);
+
+  const handleConfirmExit = useCallback(() => {
+    const action = pendingExitActionRef.current;
+    pendingExitActionRef.current = null;
+    setShowExitConfirm(false);
+
+    if (!action) return;
+
+    allowUnsafeNavigationRef.current = true;
+    action();
+    window.setTimeout(() => {
+      allowUnsafeNavigationRef.current = false;
+    }, 0);
+  }, []);
 
   const answeredCount = useMemo(
     () => items.filter((item) => {
@@ -290,6 +323,78 @@ const QuizScreen = () => {
     };
   }, []);
 
+  useEffect(() => {
+    if (!shouldGuardLeaving) return;
+
+    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+      if (allowUnsafeNavigationRef.current) return;
+      event.preventDefault();
+      event.returnValue = "";
+    };
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [shouldGuardLeaving]);
+
+  useEffect(() => {
+    if (!shouldGuardLeaving) return;
+
+    const guardState = {
+      examLeaveGuard: true,
+      sessionId,
+      at: Date.now(),
+    };
+    window.history.pushState(guardState, "", window.location.href);
+
+    const handlePopState = () => {
+      if (allowUnsafeNavigationRef.current) return;
+
+      window.history.pushState(guardState, "", window.location.href);
+      requestExitConfirmation(() => {
+        window.history.back();
+      });
+    };
+
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, [shouldGuardLeaving, requestExitConfirmation, sessionId]);
+
+  useEffect(() => {
+    if (!shouldGuardLeaving) return;
+
+    const handleAnchorNavigation = (event: MouseEvent) => {
+      if (allowUnsafeNavigationRef.current || event.defaultPrevented) return;
+      if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+
+      const target = event.target as HTMLElement | null;
+      const anchor = target?.closest("a[href]") as HTMLAnchorElement | null;
+      if (!anchor) return;
+      if (anchor.target === "_blank") return;
+
+      const href = anchor.getAttribute("href");
+      if (!href) return;
+      if (
+        href.startsWith("#") ||
+        href.startsWith("mailto:") ||
+        href.startsWith("tel:") ||
+        href.startsWith("javascript:")
+      ) {
+        return;
+      }
+
+      const currentUrl = `${window.location.pathname}${window.location.search}`;
+      if (href === currentUrl) return;
+
+      event.preventDefault();
+      requestExitConfirmation(() => {
+        router.push(href);
+      });
+    };
+
+    document.addEventListener("click", handleAnchorNavigation, true);
+    return () => document.removeEventListener("click", handleAnchorNavigation, true);
+  }, [shouldGuardLeaving, requestExitConfirmation, router]);
+
   const handleChoiceSelect = (choiceId: string) => {
     if (!currentItem?.question) return;
 
@@ -507,6 +612,32 @@ const QuizScreen = () => {
       {sessionId && session?.proctoringEnabled && (
         <ProctoringOverlay sessionId={sessionId} isActive={true} />
       )}
+      {showExitConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+          <div className="w-full max-w-lg rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl">
+            <h3 className="text-2xl font-bold text-slate-900">Rời khỏi bài thi?</h3>
+            <p className="mt-2 text-slate-600">
+              Bạn chưa nộp bài. Nếu rời trang bây giờ, bài thi vẫn được lưu và bạn có thể quay lại khi còn thời gian.
+            </p>
+            <div className="mt-6 flex gap-3">
+              <button
+                type="button"
+                onClick={handleCancelExit}
+                className="flex-1 rounded-lg border border-slate-300 px-4 py-2.5 font-semibold text-slate-700 hover:bg-slate-50"
+              >
+                Ở lại làm bài
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmExit}
+                className="flex-1 rounded-lg bg-rose-600 px-4 py-2.5 font-semibold text-white hover:bg-rose-700"
+              >
+                Rời khỏi bài thi
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       {showConfirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
           <div className="w-full max-w-lg rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl">
@@ -587,6 +718,13 @@ const QuizScreen = () => {
                 <div className="inline-flex w-fit items-center gap-2 rounded-full bg-amber-50 px-3 py-1 text-sm font-bold text-amber-700">
                   Còn lại: {formatTime(timeLeft)}
                 </div>
+                <button
+                  type="button"
+                  onClick={() => requestExitConfirmation(() => router.push("/exams"))}
+                  className="inline-flex w-fit items-center justify-center rounded-lg border border-rose-200 bg-rose-50 px-3 py-1.5 text-sm font-semibold text-rose-700 transition hover:bg-rose-100"
+                >
+                  Thoát bài thi
+                </button>
               </div>
             </div>
 

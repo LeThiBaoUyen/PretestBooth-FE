@@ -5,6 +5,7 @@ import "./globals.css";
 import QueryProvider from "@/components/providers/QueryProvider";
 import Header from "@/components/Header";
 import BackButton from "@/components/BackButton";
+import ResumeExamDialog from "@/components/exam/ResumeExamDialog";
 
 const inter = Inter({ subsets: ["latin", "vietnamese"] });
 
@@ -30,6 +31,7 @@ export default function RootLayout({
         <QueryProvider>
           <Header />
           <BackButton />
+          <ResumeExamDialog />
           {children}
         </QueryProvider>
       </body>

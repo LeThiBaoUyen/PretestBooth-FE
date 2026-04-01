@@ -70,9 +70,20 @@ export default function Header() {
   });
 
   const handleLogout = async () => {
+    if (pathname.startsWith("/quiz")) {
+      const shouldLogout = window.confirm(
+        "Bạn chưa nộp bài thi. Bạn có chắc muốn đăng xuất không?",
+      );
+      if (!shouldLogout) {
+        return;
+      }
+    }
+
+    const nextPath = `${window.location.pathname}${window.location.search}`;
+
     try {
       await logout();
-      router.push("/login");
+      router.push(`/login?next=${encodeURIComponent(nextPath)}`);
     } catch (error) {
       console.error("Logout failed:", error);
     }
