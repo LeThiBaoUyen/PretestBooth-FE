@@ -239,6 +239,16 @@ export default function PracticeExecutionPage() {
                     <h2 className="text-xl font-medium text-gray-900 leading-relaxed mb-8">
                       {currentItem.question.content}
                     </h2>
+                    {currentItem.question.imageUrl && (
+                      <div className="mb-8 overflow-hidden rounded-xl border border-slate-200 bg-slate-50 p-2">
+                        <img
+                          src={currentItem.question.imageUrl}
+                          alt={`Ảnh minh họa câu ${currentIndex + 1}`}
+                          className="max-h-80 w-full rounded-lg object-contain"
+                          loading="lazy"
+                        />
+                      </div>
+                    )}
                     
                     {currentItem.question.questionType === "SINGLE_CHOICE" || currentItem.question.questionType === "MULTIPLE_CHOICE" ? (
                       <div className="space-y-3">

@@ -173,6 +173,16 @@ export default function QuestionDetailPage() {
                 <h1 className="text-xl font-bold text-navy-600 leading-relaxed whitespace-pre-wrap">
                   {question.content}
                 </h1>
+                {question.imageUrl && (
+                  <div className="mt-4 overflow-hidden rounded-xl border border-slate-200 bg-slate-50 p-2">
+                    <img
+                      src={question.imageUrl}
+                      alt="Ảnh minh họa câu hỏi"
+                      className="max-h-96 w-full rounded-lg object-contain"
+                      loading="lazy"
+                    />
+                  </div>
+                )}
               </div>
 
               {/* Actions */}

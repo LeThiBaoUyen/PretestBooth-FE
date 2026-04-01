@@ -481,6 +481,7 @@ export interface QuestionChoice {
 export interface Question {
   id: string;
   content: string;
+  imageUrl: string | null;
   questionType: QuestionType;
   difficulty: Difficulty;
   correctAnswer: string | null;
@@ -499,6 +500,7 @@ export interface Question {
 export interface QuestionListItem {
   id: string;
   content: string;
+  imageUrl: string | null;
   questionType: QuestionType;
   difficulty: Difficulty;
   isPublished: boolean;
@@ -539,6 +541,7 @@ export interface CreateChoiceRequest {
 
 export interface CreateQuestionRequest {
   content: string;
+  imageUrl?: string | null;
   questionType: QuestionType;
   difficulty: Difficulty;
   subjectId: string;
@@ -551,6 +554,7 @@ export interface CreateQuestionRequest {
 
 export interface UpdateQuestionRequest {
   content?: string;
+  imageUrl?: string | null;
   questionType?: QuestionType;
   difficulty?: Difficulty;
   subjectId?: string;
@@ -738,6 +742,7 @@ export interface ExamItem {
 export interface ExamQuestion {
   id: string;
   content: string;
+  imageUrl: string | null;
   questionType: QuestionType;
   difficulty: Difficulty;
   choices?: ExamChoice[];

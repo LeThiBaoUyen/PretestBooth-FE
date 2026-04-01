@@ -233,6 +233,16 @@ export default function ExamDetailPage({
                                 <div className="text-gray-800 font-medium line-clamp-2">
                                   {item.question.content}
                                 </div>
+                                {item.question.imageUrl && (
+                                  <div className="mt-2 overflow-hidden rounded-lg border border-slate-200 bg-white p-1">
+                                    <img
+                                      src={item.question.imageUrl}
+                                      alt={`Ảnh minh họa câu ${idx + 1}`}
+                                      className="max-h-40 w-full rounded object-contain"
+                                      loading="lazy"
+                                    />
+                                  </div>
+                                )}
                                 <div className="flex gap-2 mt-2 text-xs">
                                   <span className="bg-navy-100 text-navy-700 px-2 py-1 rounded">
                                     {item.question.questionType ===

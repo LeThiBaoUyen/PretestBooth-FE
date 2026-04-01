@@ -346,10 +346,10 @@ export default function QuestionsLibrary() {
 
   const handleDownloadTemplate = () => {
     const csv = [
-      "content,subjectRef,topicRef,questionType,difficulty,correctAnswer,optionA,optionB,optionC,optionD,isPublished,explanation",
-      '"2 + 2 bằng mấy?",Cấu trúc dữ liệu,,SINGLE_CHOICE,EASY,A,A,B,C,,true,"Câu hỏi mẫu single"',
-      '"Chọn số nguyên tố",Cấu trúc dữ liệu,Đệ quy,MULTIPLE_CHOICE,MEDIUM,"A,C",2,3,4,5,false,"Câu hỏi mẫu multiple"',
-      '"Nêu định nghĩa biến",Cấu trúc dữ liệu,,SHORT_ANSWER,EASY,"Biến là vùng nhớ",,,,,true,"Câu hỏi mẫu short"',
+      "content,imageUrl,subjectRef,topicRef,questionType,difficulty,correctAnswer,optionA,optionB,optionC,optionD,isPublished,explanation",
+      '"2 + 2 bằng mấy?",https://example.com/math-q1.png,Cấu trúc dữ liệu,,SINGLE_CHOICE,EASY,A,A,B,C,,true,"Câu hỏi mẫu single"',
+      '"Chọn số nguyên tố",,Cấu trúc dữ liệu,Đệ quy,MULTIPLE_CHOICE,MEDIUM,"A,C",2,3,4,5,false,"Câu hỏi mẫu multiple"',
+      '"Nêu định nghĩa biến",,Cấu trúc dữ liệu,,SHORT_ANSWER,EASY,"Biến là vùng nhớ",,,,,true,"Câu hỏi mẫu short"',
     ].join("\r\n");
 
     const csvWithBom = `\uFEFF${csv}`;
@@ -482,7 +482,7 @@ export default function QuestionsLibrary() {
           {selectedFile && <p className="text-sm text-slate-600 mt-1">File: {selectedFile.name}</p>}
 
           <div className="mt-4 rounded-lg border border-slate-200 p-3 text-sm text-slate-700">
-            Cột mẫu: content, subjectRef, topicRef, questionType, difficulty, correctAnswer, optionA, optionB, optionC, optionD, isPublished, explanation
+            Cột mẫu: content, imageUrl (tùy chọn), subjectRef, topicRef, questionType, difficulty, correctAnswer, optionA, optionB, optionC, optionD, isPublished, explanation
           </div>
 
           {previewError && <p className="mt-3 text-sm text-red-600">{previewError}</p>}

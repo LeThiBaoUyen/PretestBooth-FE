@@ -62,6 +62,7 @@ export default function EditQuestionForm() {
 
   // Form state
   const [content, setContent] = useState("");
+  const [imageUrl, setImageUrl] = useState("");
   const [questionType, setQuestionType] =
     useState<QuestionType>("SINGLE_CHOICE");
   const [difficulty, setDifficulty] = useState<Difficulty>("MEDIUM");
@@ -106,6 +107,7 @@ export default function EditQuestionForm() {
   useEffect(() => {
     if (question && !initialized) {
       setContent(question.content);
+      setImageUrl(question.imageUrl || "");
       setQuestionType(question.questionType);
       setDifficulty(question.difficulty);
       setSubjectId(question.subjectId);
@@ -211,6 +213,7 @@ export default function EditQuestionForm() {
 
     const data: UpdateQuestionRequest = {
       content: content.trim(),
+      imageUrl: imageUrl.trim() || null,
       questionType,
       difficulty,
       subjectId,
@@ -385,6 +388,19 @@ export default function EditQuestionForm() {
                 placeholder="Nhập nội dung câu hỏi..."
                 className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-navy-500 focus:border-transparent text-gray-900 resize-none"
                 required
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Ảnh minh họa (URL)
+              </label>
+              <input
+                type="url"
+                value={imageUrl}
+                onChange={(e) => setImageUrl(e.target.value)}
+                placeholder="https://example.com/question-image.png"
+                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-navy-500 focus:border-transparent text-gray-900"
               />
             </div>
 

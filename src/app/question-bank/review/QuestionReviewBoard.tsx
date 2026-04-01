@@ -334,6 +334,16 @@ export default function QuestionReviewBoard() {
               <div className="mb-3 flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
                 <div>
                   <p className="text-lg font-semibold text-slate-900">{session.question.content}</p>
+                  {session.question.imageUrl && (
+                    <div className="mt-3 overflow-hidden rounded-xl border border-slate-200 bg-slate-50 p-2">
+                      <img
+                        src={session.question.imageUrl}
+                        alt="Ảnh minh họa câu hỏi"
+                        className="max-h-72 w-full rounded-lg object-contain"
+                        loading="lazy"
+                      />
+                    </div>
+                  )}
                   <p className="mt-1 text-sm text-slate-600">
                     {session.question.subject?.name || "Không rõ môn"}
                     {session.question.topic?.name ? ` • ${session.question.topic.name}` : ""}
