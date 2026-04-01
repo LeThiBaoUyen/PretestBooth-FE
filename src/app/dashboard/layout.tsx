@@ -8,6 +8,7 @@ import {
   LayoutDashboard,
   FileText,
   Monitor,
+  SlidersHorizontal,
   User,
   Users,
   BookOpen,
@@ -48,6 +49,12 @@ const dashboardNavItems: NavItem[] = [
     href: "/admin/booths/schedule",
     icon: CalendarDays,
     roles: ["LECTURER", "ADMIN"],
+  },
+  {
+    label: "Cài đặt hệ thống",
+    href: "/admin/settings",
+    icon: SlidersHorizontal,
+    roles: ["ADMIN"],
   },
   {
     label: "Quản lý Sinh viên",
@@ -99,6 +106,7 @@ function getSectionTitle(pathname: string) {
   if (pathname.startsWith("/exams")) return "Quản lý và làm đề thi";
   if (pathname.startsWith("/admin/booths/schedule")) return "Lịch trình Booth";
   if (pathname.startsWith("/admin/booths")) return "Quản lý Booth";
+  if (pathname.startsWith("/admin/settings")) return "Cài đặt hệ thống";
   if (pathname.startsWith("/admin/users")) return "Quản trị người dùng";
   if (pathname.startsWith("/problems")) return "Danh sách bài lập trình";
   if (pathname.startsWith("/question-bank")) return "Ngân hàng câu hỏi";

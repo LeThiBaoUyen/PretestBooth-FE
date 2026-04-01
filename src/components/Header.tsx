@@ -6,7 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { apiClient } from "@/lib/api/auth";
 import { boothSessionManager, type BoothSessionMeta } from "@/lib/auth/boothSession";
 import { useAuth } from "@/lib/hooks/useAuth";
-import { Menu, X, ChevronDown, LayoutDashboard, LogOut, User } from "lucide-react";
+import { Menu, X, ChevronDown, LayoutDashboard, LogOut, SlidersHorizontal, User } from "lucide-react";
 
 type NavItem = {
   label: string;
@@ -189,6 +189,16 @@ export default function Header() {
                       <LayoutDashboard className="h-4 w-4" />
                       Dashboard
                     </Link>
+                    {user?.role === "ADMIN" && (
+                      <Link
+                        href="/admin/settings"
+                        className="flex items-center gap-2 px-4 py-2.5 text-slate-700 hover:bg-slate-50 transition"
+                        onClick={() => setDropdownOpen(false)}
+                      >
+                        <SlidersHorizontal className="h-4 w-4" />
+                        Cài đặt hệ thống
+                      </Link>
+                    )}
                     {boothMeta && boothToken && canAdminLogoutBooth && (
                       <button
                         type="button"
@@ -295,6 +305,16 @@ export default function Header() {
                     <User className="h-4 w-4" />
                     Hồ sơ cá nhân
                   </Link>
+                  {user?.role === "ADMIN" && (
+                    <Link
+                      href="/admin/settings"
+                      onClick={() => setIsOpen(false)}
+                      className="flex items-center gap-2 text-slate-700 hover:text-navy-700 py-2 transition font-medium"
+                    >
+                      <SlidersHorizontal className="h-4 w-4" />
+                      Cài đặt hệ thống
+                    </Link>
+                  )}
                   {boothMeta && boothToken && canAdminLogoutBooth && (
                     <button
                       onClick={() => {
