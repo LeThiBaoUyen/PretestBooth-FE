@@ -18,6 +18,29 @@ export interface CreateStudentPayload {
   dateOfBirth?: string;
 }
 
+export interface CreateStudentResponse {
+  id: string;
+  email: string;
+  name?: string | null;
+  emailSent: boolean;
+  message: string;
+}
+
+export interface CreateLecturerPayload {
+  email: string;
+  name: string;
+  password: string;
+}
+
+export interface CreateLecturerResponse {
+  id: string;
+  email: string;
+  name?: string | null;
+  role: "LECTURER";
+  createdAt: string;
+  message: string;
+}
+
 export interface UpdateStudentPayload {
   email?: string;
   studentCode?: string;
@@ -93,7 +116,10 @@ export const usersApi = {
   getUser: (id: string) => httpClient.get<Partial<User>>(`/api/users/${id}`),
 
   createUser: (data: CreateStudentPayload) =>
-    httpClient.post<{ message: string; id: string }>("/api/users", data),
+    httpClient.post<CreateStudentResponse>("/api/users", data),
+
+  createLecturer: (data: CreateLecturerPayload) =>
+    httpClient.post<CreateLecturerResponse>("/api/users/lecturers", data),
 
   updateUser: (id: string, data: UpdateStudentPayload) =>
     httpClient.patch<Partial<User>>(`/api/users/${id}`, data),

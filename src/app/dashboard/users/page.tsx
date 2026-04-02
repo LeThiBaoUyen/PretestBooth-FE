@@ -309,8 +309,9 @@ export default function AdminUsersPage() {
           className: studentForm.className.trim() || undefined,
           dateOfBirth: studentForm.dateOfBirth || undefined,
         });
+        alert("Cập nhật sinh viên thành công");
       } else {
-        await usersApi.createUser({
+        const response = await usersApi.createUser({
           email: studentForm.email.trim().toLowerCase(),
           studentCode: studentForm.studentCode.trim(),
           name: studentForm.name.trim(),
@@ -318,6 +319,11 @@ export default function AdminUsersPage() {
           dateOfBirth: studentForm.dateOfBirth || undefined,
           role: "STUDENT",
         });
+
+        const successMessage =
+          response?.message ||
+          "Tài khoản sinh viên đã tạo thành công và thông tin đăng nhập đã được gửi qua email.";
+        alert(successMessage);
       }
 
       resetStudentForm();

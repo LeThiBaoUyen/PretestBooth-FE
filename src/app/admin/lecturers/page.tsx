@@ -33,6 +33,7 @@ export default function LecturerManagementPage() {
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [creatingLecturer, setCreatingLecturer] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const [lecturers, setLecturers] = useState<LecturerListItem[]>([]);
@@ -41,6 +42,11 @@ export default function LecturerManagementPage() {
 
   const [selectedLecturer, setSelectedLecturer] = useState<LecturerListItem | null>(null);
   const [draftPermissions, setDraftPermissions] = useState<LecturerPermission[]>([]);
+  const [createForm, setCreateForm] = useState({
+    email: "",
+    name: "",
+    password: "",
+  });
 
   const permissionSet = useMemo(() => new Set(draftPermissions), [draftPermissions]);
 
@@ -112,6 +118,43 @@ export default function LecturerManagementPage() {
     }
   };
 
+  const createLecturer = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    const email = createForm.email.trim().toLowerCase();
+    const name = createForm.name.trim();
+    const password = createForm.password.trim();
+
+    if (!email || !name || !password) {
+      setError("Vui lòng nhập đầy đủ email, tên giảng viên và mật khẩu.");
+      return;
+    }
+
+    if (password.length < 8) {
+      setError("Mật khẩu giảng viên phải có ít nhất 8 ký tự.");
+      return;
+    }
+
+    try {
+      setCreatingLecturer(true);
+      setError(null);
+
+      const response = await usersApi.createLecturer({
+        email,
+        name,
+        password,
+      });
+
+      alert(response?.message || "Tạo tài khoản giảng viên thành công.");
+      setCreateForm({ email: "", name: "", password: "" });
+      await loadLecturers();
+    } catch (err: any) {
+      setError(err?.message || "Không thể tạo tài khoản giảng viên");
+    } finally {
+      setCreatingLecturer(false);
+    }
+  };
+
   if (userLoading) {
     return (
       <main className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-100 px-4 py-8 sm:px-6 lg:px-8">
@@ -165,6 +208,59 @@ export default function LecturerManagementPage() {
             {error}
           </div>
         )}
+
+        <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+          <div className="mb-3">
+            <h2 className="text-base font-bold text-slate-900">Tạo tài khoản giảng viên</h2>
+            <p className="text-sm text-slate-600">
+              Tạo giảng viên mới với mật khẩu khởi tạo do bạn thiết lập. Sau khi tạo, có thể phân quyền ngay trong bảng bên dưới.
+            </p>
+          </div>
+
+          <form onSubmit={createLecturer} className="grid grid-cols-1 gap-3 md:grid-cols-3">
+            <input
+              type="email"
+              value={createForm.email}
+              onChange={(event) =>
+                setCreateForm((current) => ({ ...current, email: event.target.value }))
+              }
+              placeholder="Email giảng viên"
+              className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
+              required
+            />
+            <input
+              value={createForm.name}
+              onChange={(event) =>
+                setCreateForm((current) => ({ ...current, name: event.target.value }))
+              }
+              placeholder="Họ tên giảng viên"
+              className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
+              required
+            />
+            <input
+              type="password"
+              value={createForm.password}
+              onChange={(event) =>
+                setCreateForm((current) => ({ ...current, password: event.target.value }))
+              }
+              placeholder="Mật khẩu khởi tạo (>= 8 ký tự)"
+              className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
+              minLength={8}
+              required
+            />
+
+            <div className="md:col-span-3 flex justify-end">
+              <button
+                type="submit"
+                disabled={creatingLecturer}
+                className="inline-flex items-center rounded-lg bg-navy-600 px-4 py-2 text-sm font-semibold text-white hover:bg-navy-700 disabled:opacity-60"
+              >
+                {creatingLecturer ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                {creatingLecturer ? "Đang tạo tài khoản..." : "Tạo giảng viên"}
+              </button>
+            </div>
+          </form>
+        </div>
 
         <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
           <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
