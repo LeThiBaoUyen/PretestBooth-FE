@@ -163,6 +163,8 @@ class ExamsApiClient {
     if (params?.page) searchParams.append("page", params.page.toString());
     if (params?.limit) searchParams.append("limit", params.limit.toString());
     if (params?.status) searchParams.append("status", params.status);
+    if (params?.examId) searchParams.append("examId", params.examId);
+    if (params?.studentId) searchParams.append("studentId", params.studentId);
     if (params?.sortBy) searchParams.append("sortBy", params.sortBy);
     if (params?.sortOrder) searchParams.append("sortOrder", params.sortOrder);
 

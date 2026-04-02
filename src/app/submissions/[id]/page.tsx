@@ -30,7 +30,7 @@ export default function SubmissionDetailPage() {
   const params = useParams();
   const submissionId = params.id as string;
 
-  const { data: submission, isLoading } = useQuery({
+  const { data: submission, isLoading, isError, error } = useQuery({
     queryKey: ["submission", submissionId],
     queryFn: () => submissionsApi.getSubmission(submissionId),
   });
@@ -44,12 +44,16 @@ export default function SubmissionDetailPage() {
   }
 
   if (!submission) {
+    const errorMessage = isError
+      ? (error as Error)?.message || "Bạn chưa có quyền xem bài nộp này."
+      : "Không tìm thấy bài nộp";
     return (
       <div className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-100 flex items-center justify-center">
         <div className="text-center">
           <h2 className="text-2xl font-bold text-gray-900 mb-4">
-            Không tìm thấy bài nộp
+            {isError ? "Không thể xem bài nộp" : "Không tìm thấy bài nộp"}
           </h2>
+          <p className="text-sm text-gray-600">{errorMessage}</p>
         </div>
       </div>
     );

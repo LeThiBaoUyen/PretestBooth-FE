@@ -5,6 +5,7 @@ import Link from "next/link";
 import { examsApiClient } from "@/lib/api/exams";
 import { useAuth } from "@/lib/hooks";
 import type { Exam, UpdateExamRequest } from "@/lib/api/types";
+import { hasPermission } from "@/lib/auth/permissions";
 
 const DURATIONS = [30, 45, 60, 90, 120];
 
@@ -28,6 +29,7 @@ export default function EditExamPage({
   const [isPublished, setIsPublished] = useState(false);
   const [shuffleQuestions, setShuffleQuestions] = useState(true);
   const [shuffleChoices, setShuffleChoices] = useState(true);
+  const [allowStudentReviewResults, setAllowStudentReviewResults] = useState(false);
 
   useEffect(() => {
     async function fetchExam() {
@@ -41,6 +43,7 @@ export default function EditExamPage({
         setIsPublished(data.isPublished);
         setShuffleQuestions(data.shuffleQuestions);
         setShuffleChoices(data.shuffleChoices);
+        setAllowStudentReviewResults(data.allowStudentReviewResults);
       } catch (err: any) {
         setError(err.message || "Không thể tải đề thi");
       } finally {
@@ -51,9 +54,7 @@ export default function EditExamPage({
   }, [id, accessToken]);
 
   // Check permissions
-  const canManage =
-    user?.role === "ADMIN" ||
-    (user?.role === "LECTURER" && exam?.creatorId === user.id);
+  const canManage = hasPermission(user, "CREATE_EXAM");
 
   const handleSave = async () => {
     if (!title.trim()) {
@@ -72,6 +73,7 @@ export default function EditExamPage({
         isPublished,
         shuffleQuestions,
         shuffleChoices,
+        allowStudentReviewResults,
       };
       await examsApiClient.updateExam(exam.id, data, accessToken!);
       router.push(`/exams/${exam.id}`);
@@ -237,6 +239,26 @@ export default function EditExamPage({
                   >
                     <div
                       className={`absolute top-0.5 left-0.5 w-6 h-6 bg-white rounded-full shadow transition-transform ${shuffleChoices ? "translate-x-5" : ""}`}
+                    />
+                  </button>
+                </div>
+
+                <div className="flex items-center justify-between p-4 bg-emerald-50 rounded-lg border border-emerald-200">
+                  <div>
+                    <div className="font-semibold text-navy-700">
+                      Cho sinh viên xem lại kết quả
+                    </div>
+                    <div className="text-sm text-gray-600">
+                      Bật để sinh viên có thể mở lại trang chi tiết kết quả sau khi nộp bài.
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    className={`relative w-12 h-7 rounded-full transition-colors ${allowStudentReviewResults ? "bg-navy-600" : "bg-gray-300"}`}
+                    onClick={() => setAllowStudentReviewResults(!allowStudentReviewResults)}
+                  >
+                    <div
+                      className={`absolute top-0.5 left-0.5 w-6 h-6 bg-white rounded-full shadow transition-transform ${allowStudentReviewResults ? "translate-x-5" : ""}`}
                     />
                   </button>
                 </div>

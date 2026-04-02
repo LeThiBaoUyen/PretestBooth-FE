@@ -5,6 +5,7 @@ import Link from "next/link";
 import { examsApiClient } from "@/lib/api/exams";
 import { useAuth } from "@/lib/hooks";
 import type { Exam, ExamSessionListItem } from "@/lib/api/types";
+import { hasPermission } from "@/lib/auth/permissions";
 
 export default function ExamDetailPage({
   params,
@@ -22,7 +23,8 @@ export default function ExamDetailPage({
   const [deleting, setDeleting] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
-  const canManage =
+  const canEdit = hasPermission(user, "CREATE_EXAM");
+  const canDelete =
     user?.role === "ADMIN" ||
     (user?.role === "LECTURER" && exam?.creatorId === user.id);
 
@@ -51,7 +53,7 @@ export default function ExamDetailPage({
       setCheckingSession(true);
       try {
         const sessions = await examsApiClient.listSessions(
-          { status: "IN_PROGRESS", page: 1, limit: 100 },
+          { status: "IN_PROGRESS", examId: id, page: 1, limit: 100 },
           accessToken,
         );
         // Find session for this exam
@@ -208,6 +210,12 @@ export default function ExamDetailPage({
                       {exam.shuffleChoices ? "✓ Xáo trộn" : "✗ Theo thứ tự"}
                     </span>
                   </div>
+                  <div>
+                    👁️ Xem lại kết quả:{" "}
+                    <span className="font-semibold">
+                      {exam.allowStudentReviewResults ? "✓ Cho phép" : "✗ Không cho phép"}
+                    </span>
+                  </div>
                 </div>
               </div>
 
@@ -323,7 +331,7 @@ export default function ExamDetailPage({
                     ▶️ Bắt đầu thi ngay
                   </button>
                 )}
-                {canManage && (
+                {canEdit && (
                   <>
                     <Link
                       href={`/exams/${exam.id}/edit`}
@@ -331,6 +339,10 @@ export default function ExamDetailPage({
                     >
                       ✏️ Chỉnh sửa
                     </Link>
+                  </>
+                )}
+                {canDelete && (
+                  <>
                     <button
                       className="flex-1 px-6 py-3 rounded-lg font-bold text-red-600 border border-red-200 hover:bg-red-50 transition"
                       onClick={() => setShowDeleteConfirm(true)}

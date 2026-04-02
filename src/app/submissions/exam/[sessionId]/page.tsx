@@ -2,6 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { useParams } from "next/navigation";
+import Link from "next/link";
 import { examsApiClient } from "@/lib/api/exams";
 import { useAuth } from "@/lib/hooks";
 import type { SessionResultItem, ExamSessionStatus } from "@/lib/api/types";
@@ -23,7 +24,7 @@ export default function ExamSessionDetailPage() {
   const sessionId = params.sessionId as string;
   const { accessToken } = useAuth();
 
-  const { data: result, isLoading } = useQuery({
+  const { data: result, isLoading, isError, error } = useQuery({
     queryKey: ["exam-session-result", sessionId],
     queryFn: () => examsApiClient.getResults(sessionId, accessToken!),
     enabled: !!accessToken && !!sessionId,
@@ -38,12 +39,23 @@ export default function ExamSessionDetailPage() {
   }
 
   if (!result) {
+    const errorMessage = isError
+      ? (error as Error)?.message || "Bạn chưa có quyền xem chi tiết bài làm này."
+      : "Không tìm thấy kết quả bài thi";
+
     return (
       <div className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-100 flex items-center justify-center">
         <div className="text-center">
           <h2 className="text-2xl font-bold text-gray-900 mb-4">
-            Không tìm thấy kết quả bài thi
+            {isError ? "Không thể xem kết quả bài thi" : "Không tìm thấy kết quả bài thi"}
           </h2>
+          <p className="mb-4 text-sm text-gray-600">{errorMessage}</p>
+          <Link
+            href="/submissions"
+            className="inline-flex items-center rounded-lg bg-navy-600 px-4 py-2 text-sm font-semibold text-white hover:bg-navy-700"
+          >
+            Quay lại lịch sử nộp bài
+          </Link>
         </div>
       </div>
     );

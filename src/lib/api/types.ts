@@ -701,6 +701,7 @@ export interface Exam {
   visibility?: ExamVisibility;
   publishAt?: string | null;
   publishedAt?: string | null;
+  allowStudentReviewResults: boolean;
   subjectId: string | null;
   topicId: string | null;
   subject?: { id: string; name: string } | null;
@@ -724,6 +725,7 @@ export interface ExamListItem {
   visibility?: ExamVisibility;
   publishAt?: string | null;
   publishedAt?: string | null;
+  allowStudentReviewResults: boolean;
   subjectId: string | null;
   topicId: string | null;
   subject?: { id: string; name: string } | null;
@@ -833,6 +835,7 @@ export interface CreateExamRequest {
   shuffleQuestions?: boolean;
   shuffleChoices?: boolean;
   visibility?: ExamVisibility;
+  allowStudentReviewResults?: boolean;
   publishAt?: string | null;
   publishNow?: boolean;
   type?: "PRACTICE" | "EXAM";
@@ -844,6 +847,7 @@ export interface UpdateExamRequest {
   duration?: number;
   isPublished?: boolean;
   visibility?: ExamVisibility;
+  allowStudentReviewResults?: boolean;
   publishAt?: string | null;
   publishNow?: boolean;
   shuffleQuestions?: boolean;
@@ -966,6 +970,8 @@ export interface QueryExamSessionsParams {
   page?: number;
   limit?: number;
   status?: ExamSessionStatus;
+  examId?: string;
+  studentId?: string;
   sortBy?: "startedAt" | "score" | "finishedAt";
   sortOrder?: "asc" | "desc";
 }

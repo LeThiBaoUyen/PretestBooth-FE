@@ -26,6 +26,9 @@ export default function EditExamModal({
     exam.shuffleQuestions,
   );
   const [shuffleChoices, setShuffleChoices] = useState(exam.shuffleChoices);
+  const [allowStudentReviewResults, setAllowStudentReviewResults] = useState(
+    exam.allowStudentReviewResults,
+  );
   const [examType, setExamType] = useState<"PRACTICE" | "EXAM">(
     exam.type || "EXAM",
   );
@@ -47,6 +50,7 @@ export default function EditExamModal({
         isPublished,
         shuffleQuestions,
         shuffleChoices,
+        allowStudentReviewResults,
         type: examType,
       };
       await examsApiClient.updateExam(exam.id, data, accessToken);
@@ -166,6 +170,24 @@ export default function EditExamModal({
           >
             <div
               className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${shuffleChoices ? "translate-x-5" : ""}`}
+            />
+          </button>
+        </div>
+
+        {/* Allow student review results toggle */}
+        <div className="mb-6 flex items-center justify-between">
+          <span className="text-navy-700 font-semibold text-sm">
+            Cho sinh viên xem lại kết quả
+          </span>
+          <button
+            type="button"
+            className={`relative w-11 h-6 rounded-full transition-colors ${allowStudentReviewResults ? "bg-navy-600" : "bg-gray-300"}`}
+            onClick={() =>
+              setAllowStudentReviewResults(!allowStudentReviewResults)
+            }
+          >
+            <div
+              className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${allowStudentReviewResults ? "translate-x-5" : ""}`}
             />
           </button>
         </div>

@@ -4,6 +4,7 @@ import { examsApiClient } from "@/lib/api/exams";
 import { questionsApiClient } from "@/lib/api/questions";
 import { useAuth } from "@/lib/hooks";
 import type { ExamListItem, Subject } from "@/lib/api/types";
+import { hasPermission } from "@/lib/auth/permissions";
 import { BookOpen, Filter, RefreshCw, Sparkles } from "lucide-react";
 
 import ExamSelection from "./ExamSelection";
@@ -24,10 +25,8 @@ export default function ExamLibrary() {
   const [page, setPage] = useState(1);
 
   // Role check: can this user manage the given exam?
-  const canManage = (exam: ExamListItem) =>
-    user?.role === "ADMIN" ||
-    (user?.role === "LECTURER" && exam.creatorId === user.id);
-  const canCreateExam = user?.role === "ADMIN" || user?.role === "LECTURER";
+  const canManage = (_exam: ExamListItem) => hasPermission(user, "CREATE_EXAM");
+  const canCreateExam = hasPermission(user, "CREATE_EXAM");
 
   // Fetch subjects
   useEffect(() => {

@@ -197,6 +197,7 @@ export default function ExamSelection({
   const [publishMode, setPublishMode] = useState<PublishMode>("now");
   const [publishAtLocal, setPublishAtLocal] = useState("");
   const [examType, setExamType] = useState<"PRACTICE" | "EXAM">("EXAM");
+  const [allowStudentReviewResults, setAllowStudentReviewResults] = useState(false);
 
   // Random mode counts
   const [questionCount, setQuestionCount] = useState(10);
@@ -503,6 +504,7 @@ export default function ExamSelection({
         duration,
         shuffleQuestions,
         shuffleChoices,
+        allowStudentReviewResults,
         visibility,
         publishNow: visibility === "PUBLIC" && publishMode === "now",
         ...(visibility === "PUBLIC" && publishMode === "schedule"
@@ -1165,6 +1167,11 @@ export default function ExamSelection({
           checked={shuffleChoices}
           onChange={setShuffleChoices}
           label="Xáo trộn thứ tự đáp án (mỗi sinh viên nhận thứ tự đáp án khác nhau)"
+        />
+        <Toggle
+          checked={allowStudentReviewResults}
+          onChange={setAllowStudentReviewResults}
+          label="Cho phép sinh viên xem lại chi tiết kết quả sau khi nộp bài"
         />
       </div>
 
