@@ -9,15 +9,25 @@ import type { ProctoringEventType } from "@/lib/api/proctoring";
 interface ProctoringOverlayProps {
   sessionId: string;
   isActive?: boolean;
+  enforceFullscreen?: boolean;
 }
 
 const PROCTORING_NOTICE_KEY = "proctoring_violation_notice";
 
-export default function ProctoringOverlay({ sessionId, isActive = true }: ProctoringOverlayProps) {
+export default function ProctoringOverlay({
+  sessionId,
+  isActive = true,
+  enforceFullscreen = false,
+}: ProctoringOverlayProps) {
   const webcamRef = useRef<Webcam>(null);
+  const warningTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const reportCooldownRef = useRef<Record<ProctoringEventType, number>>({} as Record<ProctoringEventType, number>);
   const [hasPermission, setHasPermission] = useState<boolean | null>(null);
   const [warnings, setWarnings] = useState<string[]>([]);
   const [showWarning, setShowWarning] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  const fullscreenRequired = isActive && enforceFullscreen;
 
   const redirectWithViolationNotice = useCallback((path: string, title: string, description: string) => {
     if (typeof window !== "undefined") {
@@ -42,6 +52,12 @@ export default function ProctoringOverlay({ sessionId, isActive = true }: Procto
 
   const report = useCallback(async (eventType: ProctoringEventType, message: string) => {
     if (!isActive) return;
+
+    const now = Date.now();
+    const lastTs = reportCooldownRef.current[eventType] ?? 0;
+    if (now - lastTs < 1500) return;
+    reportCooldownRef.current[eventType] = now;
+
     try {
       // In a real app we might capture a screenshot here
       // const imageSrc = webcamRef.current?.getScreenshot();
@@ -54,7 +70,10 @@ export default function ProctoringOverlay({ sessionId, isActive = true }: Procto
       // Show temporary warning
       setWarnings(prev => [message, ...prev].slice(0, 3));
       setShowWarning(true);
-      setTimeout(() => setShowWarning(false), 5000);
+      if (warningTimeoutRef.current) {
+        clearTimeout(warningTimeoutRef.current);
+      }
+      warningTimeoutRef.current = setTimeout(() => setShowWarning(false), 5000);
 
       // Handle immediate termination for EXAM
       if (res.actionTaken === "EXAM_TERMINATED_TAB_SWITCH") {
@@ -89,6 +108,43 @@ export default function ProctoringOverlay({ sessionId, isActive = true }: Procto
     }
   }, [sessionId, isActive, redirectWithViolationNotice]);
 
+  const requestFullscreen = useCallback(async () => {
+    if (!fullscreenRequired) return;
+    if (typeof document === "undefined") return;
+    if (document.fullscreenElement) return;
+
+    try {
+      await document.documentElement.requestFullscreen();
+    } catch {
+      // Browser may block fullscreen until user gesture; handled by retry button/click.
+    }
+  }, [fullscreenRequired]);
+
+  useEffect(() => {
+    if (!fullscreenRequired) return;
+
+    const syncFullscreenState = () => {
+      setIsFullscreen(Boolean(document.fullscreenElement));
+    };
+
+    const handleFullscreenChange = () => {
+      const activeFullscreen = Boolean(document.fullscreenElement);
+      setIsFullscreen(activeFullscreen);
+
+      if (!activeFullscreen) {
+        report("FULLSCREEN_EXIT", "Cảnh báo: Bạn đã thoát khỏi chế độ toàn màn hình!");
+      }
+    };
+
+    syncFullscreenState();
+    void requestFullscreen();
+
+    document.addEventListener("fullscreenchange", handleFullscreenChange);
+    return () => {
+      document.removeEventListener("fullscreenchange", handleFullscreenChange);
+    };
+  }, [fullscreenRequired, requestFullscreen, report]);
+
   // Monitor visibility and focus
   useEffect(() => {
     if (!isActive) return;
@@ -121,10 +177,55 @@ export default function ProctoringOverlay({ sessionId, isActive = true }: Procto
     };
   }, [isActive, report]);
 
+  useEffect(() => {
+    if (!fullscreenRequired || isFullscreen) return;
+
+    const retryFullscreen = () => {
+      void requestFullscreen();
+    };
+
+    window.addEventListener("click", retryFullscreen);
+    window.addEventListener("keydown", retryFullscreen);
+
+    return () => {
+      window.removeEventListener("click", retryFullscreen);
+      window.removeEventListener("keydown", retryFullscreen);
+    };
+  }, [fullscreenRequired, isFullscreen, requestFullscreen]);
+
+  useEffect(() => {
+    return () => {
+      if (warningTimeoutRef.current) {
+        clearTimeout(warningTimeoutRef.current);
+      }
+    };
+  }, []);
+
   if (!isActive) return null;
 
   return (
     <>
+      {fullscreenRequired && !isFullscreen && (
+        <div className="fixed inset-0 z-[70] bg-slate-950/95 px-4">
+          <div className="mx-auto flex h-full w-full max-w-xl flex-col items-center justify-center text-center text-white">
+            <ShieldAlert className="h-12 w-12 text-amber-300" />
+            <h2 className="mt-4 text-2xl font-bold">Bắt buộc bật toàn màn hình để tiếp tục thi</h2>
+            <p className="mt-2 text-sm text-slate-200">
+              Phiên thi đang được giám sát. Bạn phải ở chế độ toàn màn hình trong suốt quá trình làm bài.
+            </p>
+            <button
+              type="button"
+              onClick={() => {
+                void requestFullscreen();
+              }}
+              className="mt-6 rounded-lg bg-red-600 px-5 py-3 font-semibold text-white hover:bg-red-700"
+            >
+              Bật toàn màn hình
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Floating Camera UI */}
       <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end pointer-events-none">
         {showWarning && (

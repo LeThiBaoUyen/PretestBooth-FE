@@ -73,6 +73,9 @@ const QuizScreen = () => {
 
   const currentItem = items[currentIndex];
   const currentAnswer = currentItem ? answerMap[currentItem.id] : undefined;
+  const strictExamProctoring = Boolean(
+    session?.examType === "EXAM" && session?.proctoringEnabled,
+  );
   const shouldGuardLeaving = Boolean(
     session &&
     session.status === "IN_PROGRESS" &&
@@ -609,8 +612,8 @@ const QuizScreen = () => {
 
   return (
     <div className="min-h-[calc(100vh-64px)] bg-gradient-to-br from-slate-50 via-white to-blue-50">
-      {sessionId && session?.proctoringEnabled && (
-        <ProctoringOverlay sessionId={sessionId} isActive={true} />
+      {sessionId && strictExamProctoring && (
+        <ProctoringOverlay sessionId={sessionId} isActive={true} enforceFullscreen={true} />
       )}
       {showExitConfirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
@@ -630,7 +633,7 @@ const QuizScreen = () => {
               <button
                 type="button"
                 onClick={handleConfirmExit}
-                className="flex-1 rounded-lg bg-rose-600 px-4 py-2.5 font-semibold text-white hover:bg-rose-700"
+                className="flex-1 rounded-lg bg-slate-900 px-4 py-2.5 font-semibold text-white hover:bg-navy-700"
               >
                 Rời khỏi bài thi
               </button>

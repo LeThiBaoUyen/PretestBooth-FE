@@ -94,6 +94,10 @@ export default function ExamLibrary() {
 
   const safeSubjects = Array.isArray(subjects) ? subjects : [];
   const safeExams = Array.isArray(exams) ? exams : [];
+  const visibleExams =
+    user?.role === "STUDENT"
+      ? safeExams.filter((exam) => exam.type === "EXAM")
+      : safeExams;
   const subjectNames = ["Tất cả", ...safeSubjects.map((s) => s.name)];
 
   if (userLoading) {
@@ -228,7 +232,7 @@ export default function ExamLibrary() {
       ) : (
         <>
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-            {safeExams.map((exam) => (
+            {visibleExams.map((exam) => (
               <div
                 key={exam.id}
                 className="bg-white rounded-xl shadow-sm p-5 flex flex-col justify-between border border-slate-200 relative hover:shadow-md transition"

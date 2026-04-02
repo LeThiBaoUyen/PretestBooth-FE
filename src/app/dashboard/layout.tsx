@@ -171,7 +171,7 @@ export default function DashboardLayout({
         <div className="mx-auto max-w-2xl rounded-2xl border border-slate-200 bg-white p-8 text-center">
           <p className="text-gray-700">Bạn cần đăng nhập để sử dụng dashboard.</p>
           <Link
-            href="/login"
+            href="/login?force=1"
             className="mt-4 inline-block rounded-lg bg-navy-600 px-5 py-2.5 font-semibold text-white hover:bg-navy-700"
           >
             Đi tới đăng nhập
