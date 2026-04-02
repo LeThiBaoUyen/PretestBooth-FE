@@ -23,6 +23,7 @@ import {
 import { useAuth } from "@/lib/hooks";
 import { usersApi } from "@/lib/api/users";
 import { getTokenManager } from "@/lib/auth/tokenManager";
+import { hasPermission } from "@/lib/auth/permissions";
 
 type PreviewRow = {
   rowNumber: number;
@@ -233,7 +234,7 @@ export default function AdminUsersPage() {
   };
 
   useEffect(() => {
-    if (user?.role === "ADMIN" || user?.role === "LECTURER") {
+    if (hasPermission(user, "MANAGE_STUDENTS")) {
       fetchUsers();
     }
   }, [user, page, search, classFilter, lockFilter]);
@@ -559,7 +560,7 @@ export default function AdminUsersPage() {
     }
   };
 
-  if (!user || (user.role !== "ADMIN" && user.role !== "LECTURER")) return null;
+  if (!hasPermission(user, "MANAGE_STUDENTS")) return null;
 
   const safeUsers = Array.isArray(users) ? users : [];
 

@@ -6,21 +6,25 @@ import { usePathname, useRouter } from "next/navigation";
 import { apiClient } from "@/lib/api/auth";
 import { boothSessionManager, type BoothSessionMeta } from "@/lib/auth/boothSession";
 import { useAuth } from "@/lib/hooks/useAuth";
+import type { LecturerPermission } from "@/lib/api/types";
+import { hasAnyPermission } from "@/lib/auth/permissions";
 import { Menu, X, ChevronDown, LayoutDashboard, LogOut, SlidersHorizontal, User } from "lucide-react";
 
 type NavItem = {
   label: string;
   href: string;
   roles?: Array<"STUDENT" | "LECTURER" | "ADMIN">;
+  permissions?: LecturerPermission[];
 };
 
 const navItems: NavItem[] = [
   { label: "Đề thi", href: "/exams" },
   { label: "Danh sách bài lập trình", href: "/problems", roles: ["STUDENT"] },
-  { label: "Ngân hàng câu hỏi", href: "/question-bank", roles: ["LECTURER", "ADMIN"] },
+  { label: "Ngân hàng câu hỏi", href: "/question-bank", permissions: ["MANAGE_QUESTION_BANK"] },
   { label: "Lịch sử nộp bài", href: "/submissions" },
-  { label: "Quản lý Booth", href: "/admin/booths", roles: ["LECTURER", "ADMIN"] },
-  { label: "Quản lý Sinh viên", href: "/admin/users", roles: ["ADMIN"] },
+  { label: "Quản lý Booth", href: "/admin/booths", permissions: ["MANAGE_BOOTHS"] },
+  { label: "Quản lý Sinh viên", href: "/admin/users", permissions: ["MANAGE_STUDENTS"] },
+  { label: "Quản lý Giảng viên", href: "/admin/lecturers", permissions: ["LECTURER_ADMIN"] },
   { label: "Đặt lịch Booth", href: "/booths/booking", roles: ["STUDENT"] },
 ];
 
@@ -66,6 +70,10 @@ export default function Header() {
     : { label: "Trang chủ", href: "/" };
 
   const visibleNavItems = [homeItem, ...navItems].filter((item) => {
+    if (item.permissions && item.permissions.length > 0) {
+      return hasAnyPermission(user, item.permissions);
+    }
+
     if (!item.roles) return true;
     if (!user) return false;
     return item.roles.includes(user.role);

@@ -1,5 +1,13 @@
 // API Types and Interfaces
 
+export type LecturerPermission =
+  | "CREATE_EXAM"
+  | "REVIEW_QUESTION"
+  | "MANAGE_QUESTION_BANK"
+  | "MANAGE_STUDENTS"
+  | "MANAGE_BOOTHS"
+  | "LECTURER_ADMIN";
+
 export interface User {
   id: string;
   email: string;
@@ -7,6 +15,7 @@ export interface User {
   studentCode?: string;
   className?: string;
   role: "STUDENT" | "LECTURER" | "ADMIN";
+  permissions?: LecturerPermission[];
   isEmailVerified: boolean;
   dateOfBirth?: string;
   isLocked?: boolean;
@@ -481,6 +490,7 @@ export interface QuestionChoice {
 export interface Question {
   id: string;
   content: string;
+  imageUrl?: string | null;
   questionType: QuestionType;
   difficulty: Difficulty;
   correctAnswer: string | null;
@@ -499,6 +509,7 @@ export interface Question {
 export interface QuestionListItem {
   id: string;
   content: string;
+  imageUrl?: string | null;
   questionType: QuestionType;
   difficulty: Difficulty;
   isPublished: boolean;
@@ -539,6 +550,7 @@ export interface CreateChoiceRequest {
 
 export interface CreateQuestionRequest {
   content: string;
+  imageUrl?: string | null;
   questionType: QuestionType;
   difficulty: Difficulty;
   subjectId: string;
@@ -551,6 +563,7 @@ export interface CreateQuestionRequest {
 
 export interface UpdateQuestionRequest {
   content?: string;
+  imageUrl?: string | null;
   questionType?: QuestionType;
   difficulty?: Difficulty;
   subjectId?: string;
@@ -738,6 +751,7 @@ export interface ExamItem {
 export interface ExamQuestion {
   id: string;
   content: string;
+  imageUrl?: string | null;
   questionType: QuestionType;
   difficulty: Difficulty;
   choices?: ExamChoice[];
@@ -1024,6 +1038,9 @@ export interface Booth {
   description: string | null;
   location: string | null;
   status: BoothStatus;
+  isSessionActive?: boolean;
+  sessionActivatedAt?: string | null;
+  sessionActivatedAtLocal?: string | null;
   statusLogs?: BoothStatusLog[];
   _count?: { bookings: number };
   createdAt: string;

@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { boothsApi } from "@/lib/api/booths";
 import { useAuth } from "@/lib/hooks";
+import { hasPermission } from "@/lib/auth/permissions";
 import type {
   Booth,
   BoothStatus,
@@ -132,8 +133,8 @@ export default function BoothsManagementPage() {
     [booths, selectedBoothId],
   );
 
-  const canViewPage = user?.role === "ADMIN" || user?.role === "LECTURER";
-  const canManageBooths = user?.role === "ADMIN";
+  const canViewPage = hasPermission(user, "MANAGE_BOOTHS");
+  const canManageBooths = canViewPage;
 
   const loadBooths = async () => {
     try {

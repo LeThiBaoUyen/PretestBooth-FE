@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { format } from "date-fns";
 import { bookingsApi } from "@/lib/api/bookings";
 import { useAuth } from "@/lib/hooks";
+import { hasPermission } from "@/lib/auth/permissions";
 import type { Booking, BookingStatus, BookingType } from "@/lib/api/types";
 import type { BookingRealtimeEvent, BoothStatusUpdatedEvent } from "@/lib/api/types";
 import { Calendar, Wrench, ArrowLeft, Search, RefreshCw, RotateCcw } from "lucide-react";
@@ -21,7 +22,7 @@ export default function BoothSchedulePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const canViewPage = user?.role === "ADMIN" || user?.role === "LECTURER";
+  const canViewPage = hasPermission(user, "MANAGE_BOOTHS");
 
   const fetchBookings = async () => {
     setLoading(true);

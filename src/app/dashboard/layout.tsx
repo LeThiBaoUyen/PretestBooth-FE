@@ -4,6 +4,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ComponentType, ReactNode } from "react";
 import { useAuth } from "@/lib/hooks";
+import type { LecturerPermission, User as ApiUser } from "@/lib/api/types";
+import { hasAnyPermission } from "@/lib/auth/permissions";
 import {
   LayoutDashboard,
   FileText,
@@ -22,7 +24,8 @@ type NavItem = {
   label: string;
   href: string;
   icon: ComponentType<{ className?: string }>;
-  roles: Role[];
+  roles?: Role[];
+  permissions?: LecturerPermission[];
 };
 
 const dashboardNavItems: NavItem[] = [
@@ -42,13 +45,13 @@ const dashboardNavItems: NavItem[] = [
     label: "Quản lý Booth",
     href: "/admin/booths",
     icon: Monitor,
-    roles: ["LECTURER", "ADMIN"],
+    permissions: ["MANAGE_BOOTHS"],
   },
   {
     label: "Lịch trình Booth",
     href: "/admin/booths/schedule",
     icon: CalendarDays,
-    roles: ["LECTURER", "ADMIN"],
+    permissions: ["MANAGE_BOOTHS"],
   },
   {
     label: "Cài đặt hệ thống",
@@ -60,7 +63,19 @@ const dashboardNavItems: NavItem[] = [
     label: "Quản lý Sinh viên",
     href: "/admin/users",
     icon: Users,
-    roles: ["LECTURER", "ADMIN"],
+    permissions: ["MANAGE_STUDENTS"],
+  },
+  {
+    label: "Quản lý Giảng viên",
+    href: "/admin/lecturers",
+    icon: Users,
+    permissions: ["LECTURER_ADMIN"],
+  },
+  {
+    label: "Phân quyền hệ thống",
+    href: "/admin/access-control",
+    icon: SlidersHorizontal,
+    permissions: ["LECTURER_ADMIN"],
   },
   {
     label: "Hồ sơ cá nhân",
@@ -81,7 +96,7 @@ const externalNavItems: NavItem[] = [
     label: "Ngân hàng câu hỏi",
     href: "/question-bank",
     icon: BookOpen,
-    roles: ["LECTURER", "ADMIN"],
+    permissions: ["MANAGE_QUESTION_BANK"],
   },
   {
     label: "Lịch sử nộp bài",
@@ -108,11 +123,25 @@ function getSectionTitle(pathname: string) {
   if (pathname.startsWith("/admin/booths")) return "Quản lý Booth";
   if (pathname.startsWith("/admin/settings")) return "Cài đặt hệ thống";
   if (pathname.startsWith("/admin/users")) return "Quản trị người dùng";
+  if (pathname.startsWith("/admin/lecturers")) return "Quản lý giảng viên";
+  if (pathname.startsWith("/admin/access-control")) return "Phân quyền hệ thống";
   if (pathname.startsWith("/problems")) return "Danh sách bài lập trình";
   if (pathname.startsWith("/question-bank")) return "Ngân hàng câu hỏi";
   if (pathname.startsWith("/submissions")) return "Lịch sử nộp bài";
   if (pathname.startsWith("/booths/booking")) return "Đặt lịch booth";
   return "Tổng quan hệ thống";
+}
+
+function canAccessNavItem(item: NavItem, role: Role, user: ApiUser) {
+  if (item.permissions && item.permissions.length > 0) {
+    return hasAnyPermission(user, item.permissions);
+  }
+
+  if (item.roles && item.roles.length > 0) {
+    return item.roles.includes(role);
+  }
+
+  return true;
 }
 
 function NavList({
@@ -182,8 +211,8 @@ export default function DashboardLayout({
   }
 
   const role = user.role as Role;
-  const primaryItems = dashboardNavItems.filter((item) => item.roles.includes(role));
-  const secondaryItems = externalNavItems.filter((item) => item.roles.includes(role));
+  const primaryItems = dashboardNavItems.filter((item) => canAccessNavItem(item, role, user));
+  const secondaryItems = externalNavItems.filter((item) => canAccessNavItem(item, role, user));
   const sectionTitle = getSectionTitle(pathname);
 
   return (

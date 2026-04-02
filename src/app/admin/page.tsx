@@ -21,6 +21,18 @@ export default function AdminHomePage() {
             >
               Quản lý Sinh viên
             </Link>
+            <Link
+              href="/admin/lecturers"
+              className="rounded-xl border border-slate-200 bg-slate-50 p-4 font-semibold text-slate-800 transition hover:border-navy-200 hover:bg-white"
+            >
+              Quản lý Giảng viên
+            </Link>
+            <Link
+              href="/admin/access-control"
+              className="rounded-xl border border-slate-200 bg-slate-50 p-4 font-semibold text-slate-800 transition hover:border-navy-200 hover:bg-white"
+            >
+              Phân quyền hệ thống
+            </Link>
           </div>
         </div>
       </div>

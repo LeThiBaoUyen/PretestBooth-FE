@@ -1,5 +1,5 @@
 import { httpClient } from "./httpClient";
-import type { User } from "./types";
+import type { LecturerPermission, User } from "./types";
 
 export interface PaginatedUsers {
   data: Partial<User>[];
@@ -28,6 +28,55 @@ export interface UpdateStudentPayload {
   lockedReason?: string;
 }
 
+export interface LecturerListItem {
+  id: string;
+  email: string;
+  name?: string | null;
+  role: "LECTURER";
+  isLocked: boolean;
+  createdAt: string;
+  permissions: LecturerPermission[];
+  isLecturerAdmin: boolean;
+}
+
+export interface PaginatedLecturers {
+  data: LecturerListItem[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+  requesterPermissions: LecturerPermission[];
+  assignablePermissions: LecturerPermission[];
+  canGrantAdminPackage: boolean;
+}
+
+export interface LecturerPermissionDetail {
+  id: string;
+  email: string;
+  name?: string | null;
+  role: "LECTURER";
+  isLocked: boolean;
+  createdAt: string;
+  permissions: LecturerPermission[];
+  isLecturerAdmin: boolean;
+  assignments: Array<{
+    permission: LecturerPermission;
+    grantedAt: string;
+    grantedByUser?: {
+      id: string;
+      email: string;
+      name?: string | null;
+    } | null;
+  }>;
+  requesterPermissions: LecturerPermission[];
+  assignablePermissions: LecturerPermission[];
+  canGrantAdminPackage: boolean;
+}
+
+export interface UpdateLecturerPermissionsPayload {
+  permissions: LecturerPermission[];
+}
+
 export const usersApi = {
   getUsers: (params: { page?: number; limit?: number; role?: string; search?: string; className?: string; isLocked?: boolean }) => {
     const query = new URLSearchParams();
@@ -50,6 +99,28 @@ export const usersApi = {
     httpClient.patch<Partial<User>>(`/api/users/${id}`, data),
 
   deleteUser: (id: string) => httpClient.delete<{ message: string }>(`/api/users/${id}`),
+
+  getLecturers: (params?: { page?: number; limit?: number; search?: string; sortOrder?: "asc" | "desc" }) => {
+    const query = new URLSearchParams();
+    if (params?.page) query.append("page", params.page.toString());
+    if (params?.limit) query.append("limit", params.limit.toString());
+    if (params?.search) query.append("search", params.search);
+    if (params?.sortOrder) query.append("sortOrder", params.sortOrder);
+
+    return httpClient.get<PaginatedLecturers>(`/api/users/lecturers?${query.toString()}`);
+  },
+
+  getLecturerPermissions: (id: string) =>
+    httpClient.get<LecturerPermissionDetail>(`/api/users/lecturers/${id}/permissions`),
+
+  updateLecturerPermissions: (id: string, data: UpdateLecturerPermissionsPayload) =>
+    httpClient.put<{
+      lecturerId: string;
+      permissions: LecturerPermission[];
+      isLecturerAdmin: boolean;
+      updatedBy: string;
+      canGrantAdminPackage: boolean;
+    }>(`/api/users/lecturers/${id}/permissions`, data),
 
   // File should be mapped toFormData in the UI layer and passed via fetch directly because httpClient forces JSON
   // We'll export a generic URL that the UI can hit using native fetch + tokens
