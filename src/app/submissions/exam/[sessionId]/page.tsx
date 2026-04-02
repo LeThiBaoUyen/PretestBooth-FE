@@ -5,7 +5,12 @@ import { useParams } from "next/navigation";
 import Link from "next/link";
 import { examsApiClient } from "@/lib/api/exams";
 import { useAuth } from "@/lib/hooks";
-import type { SessionResultItem, ExamSessionStatus } from "@/lib/api/types";
+import type {
+  SessionResultItem,
+  ExamSessionStatus,
+  QuestionType,
+  SessionResultTestCase,
+} from "@/lib/api/types";
 
 const STATUS_COLORS: Record<ExamSessionStatus, string> = {
   IN_PROGRESS: "bg-blue-100 text-blue-800",
@@ -18,6 +23,36 @@ const STATUS_LABELS: Record<ExamSessionStatus, string> = {
   SUBMITTED: "Đã nộp",
   GRADED: "Đã chấm",
 };
+
+const SUBMISSION_STATUS_LABELS: Record<string, string> = {
+  PENDING: "Đang chấm",
+  RUNNING: "Đang chạy",
+  ACCEPTED: "Đạt",
+  WRONG_ANSWER: "Sai kết quả",
+  COMPILE_ERROR: "Lỗi biên dịch",
+  COMPILATION_ERROR: "Lỗi biên dịch",
+  RUNTIME_ERROR: "Lỗi runtime",
+  TIME_LIMIT_EXCEEDED: "Quá thời gian",
+  MEMORY_LIMIT_EXCEEDED: "Quá bộ nhớ",
+  INTERNAL_ERROR: "Lỗi hệ thống",
+};
+
+function questionTypeLabel(questionType?: QuestionType) {
+  if (!questionType) return null;
+  if (questionType === "SINGLE_CHOICE") return "Một đáp án";
+  if (questionType === "MULTIPLE_CHOICE") return "Nhiều đáp án";
+  return "Trả lời ngắn";
+}
+
+function submissionStatusLabel(status: string) {
+  return SUBMISSION_STATUS_LABELS[status] || status;
+}
+
+function testCaseBadgeClass(testCase: SessionResultTestCase) {
+  return testCase.passed
+    ? "border-green-200 bg-green-50 text-green-700"
+    : "border-red-200 bg-red-50 text-red-700";
+}
 
 export default function ExamSessionDetailPage() {
   const params = useParams();
@@ -66,6 +101,7 @@ export default function ExamSessionDetailPage() {
       ? Math.round(((result.score || 0) / result.maxScore) * 100)
       : 0;
 
+  const canViewItemDetails = result.canViewItemDetails;
   const questionItems = result.items.filter((i) => i.section === "QUESTION");
   const problemItems = result.items.filter((i) => i.section === "PROBLEM");
 
@@ -74,7 +110,14 @@ export default function ExamSessionDetailPage() {
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="mb-6">
-          <h1 className="text-3xl font-bold text-gray-900">Kết quả bài thi</h1>
+          <div className="flex flex-wrap items-center gap-2">
+            <h1 className="text-3xl font-bold text-gray-900">Kết quả bài thi</h1>
+            {!canViewItemDetails && (
+              <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-800">
+                Chỉ xem tổng quan
+              </span>
+            )}
+          </div>
         </div>
 
         {/* Session Overview */}
@@ -152,8 +195,18 @@ export default function ExamSessionDetailPage() {
           </div>
         </div>
 
+        {!canViewItemDetails && (
+          <div className="mb-6 rounded-lg border border-amber-200 bg-amber-50 p-4 text-amber-900">
+            <p className="font-semibold">Không có quyền xem chi tiết từng câu</p>
+            <p className="mt-1 text-sm">
+              {result.detailMessage ||
+                "Đề thi này chỉ cho phép xem điểm tổng quan, không hiển thị nội dung từng câu."}
+            </p>
+          </div>
+        )}
+
         {/* Question Items */}
-        {questionItems.length > 0 && (
+        {canViewItemDetails && questionItems.length > 0 && (
           <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
             <h2 className="text-xl font-bold text-gray-900 mb-4">
               Phần câu hỏi ({questionItems.length} câu)
@@ -167,7 +220,7 @@ export default function ExamSessionDetailPage() {
         )}
 
         {/* Problem Items */}
-        {problemItems.length > 0 && (
+        {canViewItemDetails && problemItems.length > 0 && (
           <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
             <h2 className="text-xl font-bold text-gray-900 mb-4">
               Phần bài code ({problemItems.length} bài)
@@ -188,6 +241,8 @@ function ItemCard({ item, index }: { item: SessionResultItem; index: number }) {
   const isCorrect = item.isCorrect === true;
   const isPending = item.isCorrect === null;
   const isWrong = item.isCorrect === false;
+  const submission = item.submission;
+  const questionType = questionTypeLabel(item.questionType);
 
   return (
     <div
@@ -211,6 +266,11 @@ function ItemCard({ item, index }: { item: SessionResultItem; index: number }) {
           >
             {item.section === "QUESTION" ? "Câu hỏi" : "Bài code"}
           </span>
+          {questionType && (
+            <span className="rounded bg-slate-200 px-2 py-0.5 text-xs font-medium text-slate-700">
+              {questionType}
+            </span>
+          )}
           <span className="text-gray-900 font-medium">
             {item.questionContent || item.problemTitle || "—"}
           </span>
@@ -237,13 +297,158 @@ function ItemCard({ item, index }: { item: SessionResultItem; index: number }) {
         </div>
       </div>
 
-      {/* Show answers */}
-      <div className="mt-3 text-sm text-gray-600">
-        {item.selectedChoiceIds && item.selectedChoiceIds.length > 0 && (
-          <p>Đáp án đã chọn: {item.selectedChoiceIds.length} lựa chọn</p>
-        )}
-        {item.textAnswer && <p>Câu trả lời: {item.textAnswer}</p>}
-      </div>
+      {item.section === "QUESTION" && (
+        <div className="mt-3 space-y-3 text-sm text-gray-700">
+          {item.questionType === "SHORT_ANSWER" && (
+            <div className="rounded-md border border-slate-200 bg-white p-3">
+              <p>
+                <span className="font-semibold">Trả lời của bạn:</span>{" "}
+                {item.textAnswer?.trim() || "(không trả lời)"}
+              </p>
+              {item.correctAnswer && (
+                <p className="mt-1">
+                  <span className="font-semibold text-green-700">Đáp án đúng:</span>{" "}
+                  {item.correctAnswer}
+                </p>
+              )}
+            </div>
+          )}
+
+          {item.choices && item.choices.length > 0 && (
+            <div className="space-y-2">
+              {item.choices.map((choice) => {
+                const selected = choice.isSelected;
+                const correct = choice.isCorrect;
+
+                let className =
+                  "rounded-md border border-slate-200 bg-white p-3 text-slate-700";
+                if (correct && selected) {
+                  className =
+                    "rounded-md border border-green-300 bg-green-50 p-3 text-green-800";
+                } else if (correct) {
+                  className =
+                    "rounded-md border border-emerald-300 bg-emerald-50 p-3 text-emerald-800";
+                } else if (selected) {
+                  className =
+                    "rounded-md border border-rose-300 bg-rose-50 p-3 text-rose-700";
+                }
+
+                return (
+                  <div key={choice.id} className={className}>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="font-medium">{choice.content}</span>
+                      {selected && (
+                        <span className="rounded bg-slate-200 px-2 py-0.5 text-xs font-semibold text-slate-700">
+                          Đã chọn
+                        </span>
+                      )}
+                      {correct && (
+                        <span className="rounded bg-green-200 px-2 py-0.5 text-xs font-semibold text-green-800">
+                          Đáp án đúng
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {!item.choices?.length && item.selectedChoiceIds?.length > 0 && (
+            <p>Đáp án đã chọn: {item.selectedChoiceIds.length} lựa chọn</p>
+          )}
+
+          {item.questionExplanation && (
+            <div className="rounded-md border border-blue-200 bg-blue-50 p-3">
+              <p className="font-semibold text-blue-900">Giải thích</p>
+              <p className="mt-1 text-blue-900/90">{item.questionExplanation}</p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {item.section === "PROBLEM" && (
+        <div className="mt-3 space-y-3 text-sm text-gray-700">
+          {submission ? (
+            <>
+              <div
+                className={`grid grid-cols-1 gap-3 rounded-md border border-slate-200 bg-white p-3 ${
+                  submission.executionTime !== null ? "sm:grid-cols-3" : "sm:grid-cols-2"
+                }`}
+              >
+                <div>
+                  <p className="text-xs uppercase tracking-wide text-slate-500">Trạng thái</p>
+                  <p className="mt-1 font-semibold text-slate-900">
+                    {submissionStatusLabel(submission.status)}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs uppercase tracking-wide text-slate-500">Test case</p>
+                  <p className="mt-1 font-semibold text-slate-900">
+                    {submission.passedTestCases}/{submission.totalTestCases} passed
+                  </p>
+                </div>
+                {submission.executionTime !== null && (
+                  <div>
+                    <p className="text-xs uppercase tracking-wide text-slate-500">Thời gian chạy</p>
+                    <p className="mt-1 font-semibold text-slate-900">
+                      {`${submission.executionTime} ms`}
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {submission.compileOutput && (
+                <div className="rounded-md border border-red-200 bg-red-50 p-3">
+                  <p className="font-semibold text-red-800">Lỗi biên dịch</p>
+                  <pre className="mt-1 overflow-x-auto whitespace-pre-wrap text-xs text-red-700">
+                    {submission.compileOutput}
+                  </pre>
+                </div>
+              )}
+
+              {submission.errorMessage && (
+                <div className="rounded-md border border-red-200 bg-red-50 p-3">
+                  <p className="font-semibold text-red-800">Lỗi runtime</p>
+                  <pre className="mt-1 overflow-x-auto whitespace-pre-wrap text-xs text-red-700">
+                    {submission.errorMessage}
+                  </pre>
+                </div>
+              )}
+
+              {submission.testCaseResults && submission.testCaseResults.length > 0 && (
+                <details className="rounded-md border border-slate-200 bg-white p-3">
+                  <summary className="cursor-pointer font-semibold text-slate-800">
+                    Chi tiết test case ({submission.testCaseResults.length})
+                  </summary>
+                  <div className="mt-3 space-y-2">
+                    {submission.testCaseResults.map((testCase, testCaseIndex) => (
+                      <div
+                        key={`${testCase.testCaseId}-${testCaseIndex}`}
+                        className={`rounded-md border p-3 ${testCaseBadgeClass(testCase)}`}
+                      >
+                        <p className="font-semibold">
+                          Case #{testCase.order + 1} • {testCase.passed ? "Passed" : "Failed"}
+                        </p>
+                        <p className="mt-1 text-xs">Input: {testCase.input}</p>
+                        <p className="text-xs">Expected: {testCase.expectedOutput}</p>
+                        <p className="text-xs">Actual: {testCase.actualOutput}</p>
+                        {testCase.message && (
+                          <p className="mt-1 text-xs font-medium">{testCase.message}</p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </details>
+              )}
+            </>
+          ) : (
+            <p className="rounded-md border border-slate-200 bg-white p-3 text-slate-600">
+              Chưa có dữ liệu chấm code cho mục này.
+            </p>
+          )}
+        </div>
+      )}
     </div>
   );
 }

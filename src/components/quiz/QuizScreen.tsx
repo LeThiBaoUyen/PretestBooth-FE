@@ -692,6 +692,11 @@ const QuizScreen = () => {
                 Đúng {result.correctItems}/{result.totalItems}
                 {result.pendingItems > 0 && ` • Chờ chấm: ${result.pendingItems}`}
               </p>
+              {!result.canViewItemDetails && (
+                <p className="mt-2 text-xs text-slate-600">
+                  Đề thi này chỉ cho phép xem điểm tổng quan, không hiển thị chi tiết từng câu.
+                </p>
+              )}
               {result.pendingItems > 0 && (
                 <p className="mt-2 text-xs text-amber-700">
                   Hệ thống đang tự động cập nhật kết quả mỗi 5 giây.

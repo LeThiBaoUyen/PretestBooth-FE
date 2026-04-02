@@ -905,6 +905,42 @@ export interface SaveAnswerRequest {
   languageVersion?: string | null;
 }
 
+export interface SessionResultChoice {
+  id: string;
+  content: string;
+  order: number;
+  isSelected: boolean;
+  isCorrect: boolean;
+}
+
+export interface SessionResultTestCase {
+  testCaseId: string;
+  input: string;
+  expectedOutput: string;
+  actualOutput: string;
+  stdout: string;
+  stderr: string;
+  isCorrect: boolean;
+  isHidden: boolean;
+  isSample: boolean;
+  order: number;
+  executionTime: number;
+  passed: boolean;
+  message: string;
+}
+
+export interface SessionResultSubmission {
+  submissionId: string;
+  status: string;
+  passedTestCases: number;
+  failedTestCases: number;
+  totalTestCases: number;
+  executionTime: number | null;
+  compileOutput: string | null;
+  errorMessage: string | null;
+  testCaseResults: SessionResultTestCase[] | null;
+}
+
 export interface SessionResult {
   id: string;
   examId: string;
@@ -917,6 +953,8 @@ export interface SessionResult {
   totalItems: number;
   correctItems: number;
   pendingItems: number;
+  canViewItemDetails: boolean;
+  detailMessage: string | null;
   items: SessionResultItem[];
 }
 
@@ -928,6 +966,11 @@ export interface SessionResultItem {
   score: number | null;
   questionContent?: string;
   problemTitle?: string;
+  questionType?: QuestionType;
+  questionExplanation?: string | null;
+  correctAnswer?: string | null;
+  choices?: SessionResultChoice[];
+  submission?: SessionResultSubmission | null;
   selectedChoiceIds: string[];
   textAnswer: string | null;
 }
