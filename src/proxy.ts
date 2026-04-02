@@ -27,6 +27,7 @@ function pathStartsWith(pathname: string, prefix: string) {
 export function proxy(request: NextRequest) {
   const { pathname, search } = request.nextUrl;
   const hasSession = Boolean(request.cookies.get(AUTH_COOKIE)?.value);
+  const forceGuestAccess = request.nextUrl.searchParams.get("force") === "1";
 
   const requiresAuth = protectedPrefixes.some((prefix) =>
     pathStartsWith(pathname, prefix),
@@ -40,7 +41,7 @@ export function proxy(request: NextRequest) {
   }
 
   const isGuestOnly = guestOnlyRoutes.some((route) => pathStartsWith(pathname, route));
-  if (isGuestOnly && hasSession) {
+  if (isGuestOnly && hasSession && !forceGuestAccess) {
     const dashboardUrl = request.nextUrl.clone();
     dashboardUrl.pathname = "/dashboard";
     dashboardUrl.search = "";
