@@ -736,6 +736,27 @@ const QuizScreen = () => {
               <p className="text-4xl font-extrabold text-emerald-600">
                 {result.score ?? 0}/{result.maxScore ?? 0}
               </p>
+              {result.isPretestSession && result.pretestAttemptNumber !== null && (
+                <p className="mt-2 text-xs font-semibold text-slate-600">
+                  Lần thi pretest: {result.pretestAttemptNumber}
+                </p>
+              )}
+              {result.appliedPassingScoreAbsolute !== null && (
+                <p className="mt-1 text-xs font-semibold text-slate-600">
+                  Ngưỡng đạt áp dụng: {result.appliedPassingScoreAbsolute}
+                  {result.pretestThresholdSource === "EXAM" && " (theo đề được gán)"}
+                  {result.pretestThresholdSource === "PRETEST_CONFIG" && " (theo cấu hình pretest)"}
+                </p>
+              )}
+              {result.passed !== null && (
+                <p
+                  className={`mt-1 text-sm font-bold ${
+                    result.passed ? "text-emerald-700" : "text-rose-700"
+                  }`}
+                >
+                  {result.passed ? "Kết luận: ĐẠT" : "Kết luận: CHƯA ĐẠT"}
+                </p>
+              )}
               <p className="mt-2 text-sm text-slate-600">
                 Đúng {result.correctItems}/{result.totalItems}
                 {result.pendingItems > 0 && ` • Chờ chấm: ${result.pendingItems}`}

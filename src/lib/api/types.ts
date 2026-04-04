@@ -697,6 +697,7 @@ export interface Exam {
   id: string;
   title: string;
   description: string | null;
+  type?: "PRACTICE" | "EXAM";
   questionCount: number;
   problemCount: number;
   duration: number;
@@ -709,6 +710,7 @@ export interface Exam {
   publishAt?: string | null;
   publishedAt?: string | null;
   allowStudentReviewResults: boolean;
+  passingScoreAbsolute?: number | null;
   subjectId: string | null;
   topicId: string | null;
   subject?: { id: string; name: string } | null;
@@ -733,6 +735,7 @@ export interface ExamListItem {
   publishAt?: string | null;
   publishedAt?: string | null;
   allowStudentReviewResults: boolean;
+  passingScoreAbsolute?: number | null;
   subjectId: string | null;
   topicId: string | null;
   subject?: { id: string; name: string } | null;
@@ -847,6 +850,7 @@ export interface CreateExamRequest {
   shuffleChoices?: boolean;
   visibility?: ExamVisibility;
   allowStudentReviewResults?: boolean;
+  passingScoreAbsolute?: number | null;
   publishAt?: string | null;
   publishNow?: boolean;
   type?: "PRACTICE" | "EXAM";
@@ -859,6 +863,7 @@ export interface UpdateExamRequest {
   isPublished?: boolean;
   visibility?: ExamVisibility;
   allowStudentReviewResults?: boolean;
+  passingScoreAbsolute?: number | null;
   publishAt?: string | null;
   publishNow?: boolean;
   shuffleQuestions?: boolean;
@@ -872,6 +877,13 @@ export interface ShuffledExamSession {
   examId: string;
   examType: "PRACTICE" | "EXAM";
   proctoringEnabled: boolean;
+  isPretestSession: boolean;
+  pretestAttemptNumber: number | null;
+  pretestAssignmentMode: "QUESTION_BANK_RANDOM" | "OFFICIAL_EXAM_POOL" | null;
+  pretestThresholdSource: "PRETEST_CONFIG" | "EXAM" | null;
+  pretestSourceExamId: string | null;
+  appliedPassingScoreAbsolute: number | null;
+  passed: boolean | null;
   examTitle: string;
   duration: number;
   status: ExamSessionStatus;
@@ -956,6 +968,13 @@ export interface SessionResult {
   id: string;
   examId: string;
   examTitle: string;
+  isPretestSession: boolean;
+  pretestAttemptNumber: number | null;
+  pretestAssignmentMode: "QUESTION_BANK_RANDOM" | "OFFICIAL_EXAM_POOL" | null;
+  pretestThresholdSource: "PRETEST_CONFIG" | "EXAM" | null;
+  pretestSourceExamId: string | null;
+  appliedPassingScoreAbsolute: number | null;
+  passed: boolean | null;
   status: ExamSessionStatus;
   startedAt: string;
   finishedAt: string | null;
@@ -1000,6 +1019,10 @@ export interface ExamSessionListItem {
   id: string;
   examId: string;
   examTitle: string;
+  isPretestSession: boolean;
+  pretestAttemptNumber: number | null;
+  appliedPassingScoreAbsolute: number | null;
+  passed: boolean | null;
   status: ExamSessionStatus;
   startedAt: string;
   finishedAt: string | null;
@@ -1028,6 +1051,57 @@ export interface QueryExamSessionsParams {
   studentId?: string;
   sortBy?: "startedAt" | "score" | "finishedAt";
   sortOrder?: "asc" | "desc";
+}
+
+export type PretestAssignmentMode =
+  | "QUESTION_BANK_RANDOM"
+  | "OFFICIAL_EXAM_POOL";
+
+export interface PretestQuestionBankRandomConfig {
+  titlePrefix?: string | null;
+  questionCount: number;
+  problemCount: number;
+  duration: number;
+  difficulty?: Difficulty | null;
+  subjectIds: string[];
+  topicId?: string | null;
+  passThresholdAbsolute: number;
+  shuffleQuestions: boolean;
+  shuffleChoices: boolean;
+}
+
+export interface PretestOfficialExamPoolConfig {
+  examIds: string[];
+}
+
+export interface PretestConfig {
+  isEnabled: boolean;
+  assignmentMode: PretestAssignmentMode;
+  maxAttempts: number;
+  lockAfterPass: boolean;
+  questionBankRandom: PretestQuestionBankRandomConfig | null;
+  officialExamPool: PretestOfficialExamPoolConfig | null;
+  updatedAt: string | null;
+  updatedByUserId: string | null;
+}
+
+export interface UpsertPretestConfigRequest {
+  isEnabled: boolean;
+  assignmentMode: PretestAssignmentMode;
+  maxAttempts: number;
+  lockAfterPass: boolean;
+  questionBankRandom?: PretestQuestionBankRandomConfig | null;
+  officialExamPool?: PretestOfficialExamPoolConfig | null;
+}
+
+export interface PretestStatus {
+  isEnabled: boolean;
+  assignmentMode: PretestAssignmentMode;
+  maxAttempts: number;
+  attemptsUsed: number;
+  remainingAttempts: number;
+  passed: boolean;
+  lockAfterPass: boolean;
 }
 
 // ==================== UNIFIED SUBMISSIONS ====================

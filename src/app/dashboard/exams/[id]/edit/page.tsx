@@ -30,6 +30,7 @@ export default function EditExamPage({
   const [shuffleQuestions, setShuffleQuestions] = useState(true);
   const [shuffleChoices, setShuffleChoices] = useState(true);
   const [allowStudentReviewResults, setAllowStudentReviewResults] = useState(false);
+  const [passingScoreAbsolute, setPassingScoreAbsolute] = useState("");
 
   useEffect(() => {
     async function fetchExam() {
@@ -44,6 +45,11 @@ export default function EditExamPage({
         setShuffleQuestions(data.shuffleQuestions);
         setShuffleChoices(data.shuffleChoices);
         setAllowStudentReviewResults(data.allowStudentReviewResults);
+        setPassingScoreAbsolute(
+          data.passingScoreAbsolute !== null && data.passingScoreAbsolute !== undefined
+            ? String(data.passingScoreAbsolute)
+            : "",
+        );
       } catch (err: any) {
         setError(err.message || "Không thể tải đề thi");
       } finally {
@@ -63,6 +69,31 @@ export default function EditExamPage({
     }
     if (!exam) return;
 
+    const currentExamType = exam.type || "EXAM";
+    let normalizedPassingScoreAbsolute: number | null = null;
+
+    if (currentExamType === "EXAM") {
+      const trimmedPassingScore = passingScoreAbsolute.trim();
+      if (!trimmedPassingScore) {
+        setError("Vui lòng nhập ngưỡng điểm đạt cho đề thi chính thức.");
+        return;
+      }
+
+      const parsedPassingScore = Number(trimmedPassingScore);
+      if (!Number.isFinite(parsedPassingScore) || parsedPassingScore <= 0) {
+        setError("Ngưỡng điểm đạt phải là số lớn hơn 0.");
+        return;
+      }
+
+      const maxPossibleScore = exam.questionCount + exam.problemCount;
+      if (parsedPassingScore > maxPossibleScore) {
+        setError(`Ngưỡng điểm đạt không được vượt quá tổng điểm tối đa (${maxPossibleScore}).`);
+        return;
+      }
+
+      normalizedPassingScoreAbsolute = parsedPassingScore;
+    }
+
     setSaving(true);
     setError("");
     try {
@@ -74,6 +105,8 @@ export default function EditExamPage({
         shuffleQuestions,
         shuffleChoices,
         allowStudentReviewResults,
+        passingScoreAbsolute:
+          currentExamType === "EXAM" ? normalizedPassingScoreAbsolute : null,
       };
       await examsApiClient.updateExam(exam.id, data, accessToken!);
       router.push(`/exams/${exam.id}`);
@@ -130,6 +163,25 @@ export default function EditExamPage({
               {error && (
                 <div className="mb-6 p-4 bg-red-50 text-red-600 rounded-lg text-sm border border-red-200">
                   {error}
+                </div>
+              )}
+
+              {exam && exam.type !== "PRACTICE" && (
+                <div className="mb-6">
+                  <label className="block text-navy-700 font-semibold mb-2">
+                    Ngưỡng điểm đạt (điểm tuyệt đối)
+                  </label>
+                  <input
+                    type="number"
+                    min={0.1}
+                    step={0.1}
+                    className="w-full px-4 py-3 border border-navy-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-navy-400 bg-white text-navy-700"
+                    value={passingScoreAbsolute}
+                    onChange={(e) => setPassingScoreAbsolute(e.target.value)}
+                  />
+                  <p className="mt-1 text-xs text-navy-500">
+                    Tổng điểm tối đa: {exam.questionCount + exam.problemCount}.
+                  </p>
                 </div>
               )}
 

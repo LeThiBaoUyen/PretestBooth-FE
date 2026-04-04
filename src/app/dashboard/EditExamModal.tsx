@@ -29,6 +29,11 @@ export default function EditExamModal({
   const [allowStudentReviewResults, setAllowStudentReviewResults] = useState(
     exam.allowStudentReviewResults,
   );
+  const [passingScoreAbsolute, setPassingScoreAbsolute] = useState(
+    exam.passingScoreAbsolute !== null && exam.passingScoreAbsolute !== undefined
+      ? String(exam.passingScoreAbsolute)
+      : "",
+  );
   const [examType, setExamType] = useState<"PRACTICE" | "EXAM">(
     exam.type || "EXAM",
   );
@@ -43,6 +48,31 @@ export default function EditExamModal({
     setLoading(true);
     setError("");
     try {
+      let normalizedPassingScoreAbsolute: number | null = null;
+      if (examType === "EXAM") {
+        const trimmedPassingScore = passingScoreAbsolute.trim();
+        if (!trimmedPassingScore) {
+          setError("Vui lòng nhập ngưỡng điểm đạt cho đề thi chính thức.");
+          setLoading(false);
+          return;
+        }
+
+        const parsedPassingScore = Number(trimmedPassingScore);
+        if (!Number.isFinite(parsedPassingScore) || parsedPassingScore <= 0) {
+          setError("Ngưỡng điểm đạt phải là số lớn hơn 0.");
+          setLoading(false);
+          return;
+        }
+
+        if (parsedPassingScore > exam.totalItems) {
+          setError(`Ngưỡng điểm đạt không được vượt quá tổng điểm tối đa (${exam.totalItems}).`);
+          setLoading(false);
+          return;
+        }
+
+        normalizedPassingScoreAbsolute = parsedPassingScore;
+      }
+
       const data: UpdateExamRequest = {
         title: title.trim(),
         description: description.trim() || null,
@@ -51,6 +81,8 @@ export default function EditExamModal({
         shuffleQuestions,
         shuffleChoices,
         allowStudentReviewResults,
+        passingScoreAbsolute:
+          examType === "EXAM" ? normalizedPassingScoreAbsolute : null,
         type: examType,
       };
       await examsApiClient.updateExam(exam.id, data, accessToken);
@@ -93,6 +125,25 @@ export default function EditExamModal({
             onChange={(e) => setTitle(e.target.value)}
           />
         </div>
+
+        {examType === "EXAM" && (
+          <div className="mb-4">
+            <label className="block text-navy-700 font-semibold mb-1 text-sm">
+              Ngưỡng điểm đạt (điểm tuyệt đối)
+            </label>
+            <input
+              type="number"
+              min={0.1}
+              step={0.1}
+              className="w-full px-4 py-2.5 border border-navy-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-navy-400 bg-white text-navy-700"
+              value={passingScoreAbsolute}
+              onChange={(e) => setPassingScoreAbsolute(e.target.value)}
+            />
+            <p className="mt-1 text-xs text-navy-500">
+              Tổng điểm tối đa hiện tại: {exam.totalItems}.
+            </p>
+          </div>
+        )}
 
         {/* Description */}
         <div className="mb-4">

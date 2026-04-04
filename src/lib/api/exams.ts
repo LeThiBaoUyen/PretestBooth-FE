@@ -15,6 +15,9 @@ import type {
   QueryExamSessionsParams,
   ExtendSessionRequest,
   MonitorReasonRequest,
+  PretestConfig,
+  PretestStatus,
+  UpsertPretestConfigRequest,
 } from "./types";
 import { httpClient } from "./httpClient";
 import { normalizePaginated } from "./response";
@@ -114,6 +117,25 @@ class ExamsApiClient {
     _accessToken: string,
   ): Promise<ShuffledExamSession> {
     return httpClient.post<ShuffledExamSession>(`/api/exams/${examId}/start`);
+  }
+
+  async startPretestSession(_accessToken?: string): Promise<ShuffledExamSession> {
+    return httpClient.post<ShuffledExamSession>("/api/exams/pretest/session/start");
+  }
+
+  async getPretestConfig(_accessToken?: string): Promise<PretestConfig> {
+    return httpClient.get<PretestConfig>("/api/exams/pretest/config");
+  }
+
+  async updatePretestConfig(
+    data: UpsertPretestConfigRequest,
+    _accessToken?: string,
+  ): Promise<PretestConfig> {
+    return httpClient.put<PretestConfig>("/api/exams/pretest/config", data);
+  }
+
+  async getPretestStatus(_accessToken?: string): Promise<PretestStatus> {
+    return httpClient.get<PretestStatus>("/api/exams/pretest/status");
   }
 
   async getSession(

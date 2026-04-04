@@ -6,13 +6,14 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { CheckCircle2, XCircle } from "lucide-react";
 import FaceCameraCapture from "@/components/FaceCameraCapture";
 import { checkinApi } from "@/lib/api/checkin";
+import { examsApiClient } from "@/lib/api/exams";
 import { boothSessionManager } from "@/lib/auth/boothSession";
 import { useAuth } from "@/lib/hooks/useAuth";
 
 export default function BoothCheckInPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { user, userLoading } = useAuth();
+  const { user, userLoading, accessToken } = useAuth();
 
   const bookingId = searchParams.get("bookingId");
   const bookingType = (searchParams.get("type") || "") as "PRACTICE" | "EXAM";
@@ -53,8 +54,21 @@ export default function BoothCheckInPage() {
       });
 
       if (response.matched) {
-        setResultMessage("Xác thực thành công. Đang chuyển vào phiên làm bài...");
-        setTimeout(() => router.push(nextPath), 900);
+        if (bookingType === "EXAM" && accessToken) {
+          const pretestStatus = await examsApiClient.getPretestStatus(accessToken);
+
+          if (pretestStatus.isEnabled) {
+            setResultMessage("Xác thực thành công. Đang gán pretest...");
+            const pretestSession = await examsApiClient.startPretestSession(accessToken);
+            router.push(`/quiz?sessionId=${pretestSession.id}`);
+          } else {
+            setResultMessage("Xác thực thành công. Đang chuyển vào phiên làm bài...");
+            setTimeout(() => router.push(nextPath), 900);
+          }
+        } else {
+          setResultMessage("Xác thực thành công. Đang chuyển vào phiên làm bài...");
+          setTimeout(() => router.push(nextPath), 900);
+        }
       } else {
         setError(
           `Xác thực thất bại (similarity=${response.similarityScore.toFixed(4)}). Vui lòng thử lại.`,

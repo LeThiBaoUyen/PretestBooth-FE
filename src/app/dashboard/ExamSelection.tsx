@@ -199,6 +199,7 @@ export default function ExamSelection({
   const [publishAtLocal, setPublishAtLocal] = useState("");
   const [examType, setExamType] = useState<"PRACTICE" | "EXAM">("EXAM");
   const [allowStudentReviewResults, setAllowStudentReviewResults] = useState(false);
+  const [passingScoreAbsolute, setPassingScoreAbsolute] = useState("");
 
   // Random mode counts
   const [questionCount, setQuestionCount] = useState(10);
@@ -373,6 +374,12 @@ export default function ExamSelection({
   }, [examType]);
 
   useEffect(() => {
+    if (examType === "PRACTICE") {
+      setPassingScoreAbsolute("");
+    }
+  }, [examType]);
+
+  useEffect(() => {
     setQPage(1);
   }, [qDifficultyFilter, qTypeFilter]);
 
@@ -464,6 +471,30 @@ export default function ExamSelection({
         setError("Tổng phân bổ độ khó bài code phải bằng số bài code.");
         return;
       }
+    }
+
+    const maxPossibleScore = effectiveQuestionCount + effectiveProblemCount;
+    let normalizedPassingScoreAbsolute: number | null = null;
+
+    if (examType === "EXAM") {
+      const trimmedPassingScore = passingScoreAbsolute.trim();
+      if (!trimmedPassingScore) {
+        setError("Vui lòng nhập ngưỡng điểm đạt cho đề thi chính thức.");
+        return;
+      }
+
+      const parsedPassingScore = Number(trimmedPassingScore);
+      if (!Number.isFinite(parsedPassingScore) || parsedPassingScore <= 0) {
+        setError("Ngưỡng điểm đạt phải là số lớn hơn 0.");
+        return;
+      }
+
+      if (parsedPassingScore > maxPossibleScore) {
+        setError(`Ngưỡng điểm đạt không được vượt quá tổng điểm tối đa (${maxPossibleScore}).`);
+        return;
+      }
+
+      normalizedPassingScoreAbsolute = parsedPassingScore;
     }
 
     if (mode === "random" && useQuestionAllocationRules) {
@@ -568,6 +599,8 @@ export default function ExamSelection({
         shuffleQuestions,
         shuffleChoices,
         allowStudentReviewResults,
+        passingScoreAbsolute:
+          examType === "EXAM" ? normalizedPassingScoreAbsolute : null,
         visibility,
         publishNow: visibility === "PUBLIC" && publishMode === "now",
         ...(visibility === "PUBLIC" && publishMode === "schedule"
@@ -708,6 +741,26 @@ export default function ExamSelection({
           </select>
         </div>
       </div>
+
+      {examType === "EXAM" && (
+        <div className="mb-4">
+          <label className="block text-navy-700 font-semibold mb-2">
+            Ngưỡng điểm đạt (điểm tuyệt đối)
+          </label>
+          <input
+            type="number"
+            min={0.1}
+            step={0.1}
+            className="w-full px-4 py-3 border border-navy-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-navy-400 bg-white text-navy-700"
+            placeholder="VD: 8"
+            value={passingScoreAbsolute}
+            onChange={(e) => setPassingScoreAbsolute(e.target.value)}
+          />
+          <p className="mt-1 text-xs text-navy-500">
+            Tổng điểm tối đa hiện tại: {effectiveQuestionCount + effectiveProblemCount} (mỗi câu mặc định 1 điểm).
+          </p>
+        </div>
+      )}
 
       {/* Exam Type */}
       <div className="mb-4">

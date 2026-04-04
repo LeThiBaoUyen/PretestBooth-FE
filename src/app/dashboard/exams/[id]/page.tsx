@@ -161,6 +161,11 @@ export default function ExamDetailPage({
                       📊 Mức độ: {difficultyLabel}
                     </span>
                   )}
+                  {exam.type !== "PRACTICE" && exam.passingScoreAbsolute !== undefined && (
+                    <span className="bg-emerald-50 text-emerald-700 px-4 py-2 rounded-full text-sm font-semibold">
+                      ✅ Ngưỡng đạt: {exam.passingScoreAbsolute ?? "-"}
+                    </span>
+                  )}
                 </div>
               </div>
 
@@ -216,6 +221,12 @@ export default function ExamDetailPage({
                       {exam.allowStudentReviewResults ? "✓ Cho phép" : "✗ Không cho phép"}
                     </span>
                   </div>
+                  {exam.type !== "PRACTICE" && exam.passingScoreAbsolute !== undefined && (
+                    <div>
+                      ✅ Ngưỡng điểm đạt:{" "}
+                      <span className="font-semibold">{exam.passingScoreAbsolute ?? "-"}</span>
+                    </div>
+                  )}
                 </div>
               </div>
 

@@ -5,12 +5,18 @@ import { useEffect, useMemo, useState } from "react";
 import { Loader2, Pencil, RefreshCw, Trash2 } from "lucide-react";
 import { bookingDurationsApi } from "@/lib/api/bookingDurations";
 import { checkinApi } from "@/lib/api/checkin";
+import { examsApiClient } from "@/lib/api/exams";
 import type {
+  ExamListItem,
   BookingDurationOption,
   BookingType,
   CheckinThresholdConfig,
+  PretestAssignmentMode,
+  PretestConfig,
+  UpsertPretestConfigRequest,
 } from "@/lib/api/types";
 import { useAuth } from "@/lib/hooks";
+import { hasPermission } from "@/lib/auth/permissions";
 
 const BOOKING_TYPE_OPTIONS: BookingType[] = ["PRACTICE", "EXAM"];
 
@@ -57,7 +63,24 @@ export default function AdminSettingsPage() {
   const [thresholdLoading, setThresholdLoading] = useState(true);
   const [thresholdSubmitting, setThresholdSubmitting] = useState(false);
 
-  const canManageSettings = user?.role === "ADMIN";
+  const [pretestConfig, setPretestConfig] = useState<PretestConfig | null>(null);
+  const [pretestLoading, setPretestLoading] = useState(true);
+  const [pretestSubmitting, setPretestSubmitting] = useState(false);
+  const [pretestExamPoolCandidates, setPretestExamPoolCandidates] = useState<ExamListItem[]>([]);
+  const [pretestEnabled, setPretestEnabled] = useState(false);
+  const [pretestMode, setPretestMode] = useState<PretestAssignmentMode>("OFFICIAL_EXAM_POOL");
+  const [pretestMaxAttempts, setPretestMaxAttempts] = useState("3");
+  const [pretestLockAfterPass, setPretestLockAfterPass] = useState(true);
+  const [pretestQuestionCount, setPretestQuestionCount] = useState("20");
+  const [pretestProblemCount, setPretestProblemCount] = useState("0");
+  const [pretestDuration, setPretestDuration] = useState("60");
+  const [pretestPassThreshold, setPretestPassThreshold] = useState("12");
+  const [pretestTitlePrefix, setPretestTitlePrefix] = useState("Pretest Auto");
+  const [pretestPoolExamIds, setPretestPoolExamIds] = useState<string[]>([]);
+
+  const canManageGeneralSettings = user?.role === "ADMIN";
+  const canManagePretestSettings =
+    user?.role === "ADMIN" || hasPermission(user, "CREATE_EXAM");
 
   const filteredDurationOptions = useMemo(
     () =>
@@ -86,6 +109,67 @@ export default function AdminSettingsPage() {
     }
   };
 
+  const hydratePretestForm = (config: PretestConfig) => {
+    setPretestEnabled(config.isEnabled);
+    setPretestMode(config.assignmentMode);
+    setPretestMaxAttempts(String(config.maxAttempts));
+    setPretestLockAfterPass(config.lockAfterPass);
+
+    const randomConfig = config.questionBankRandom;
+    setPretestQuestionCount(String(randomConfig?.questionCount ?? 20));
+    setPretestProblemCount(String(randomConfig?.problemCount ?? 0));
+    setPretestDuration(String(randomConfig?.duration ?? 60));
+    setPretestPassThreshold(String(randomConfig?.passThresholdAbsolute ?? 12));
+    setPretestTitlePrefix(randomConfig?.titlePrefix || "Pretest Auto");
+
+    setPretestPoolExamIds(config.officialExamPool?.examIds || []);
+  };
+
+  const loadPretestConfig = async () => {
+    try {
+      setPretestLoading(true);
+      const config = await examsApiClient.getPretestConfig();
+      setPretestConfig(config);
+      hydratePretestForm(config);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Không thể tải cấu hình pretest");
+      setPretestConfig(null);
+    } finally {
+      setPretestLoading(false);
+    }
+  };
+
+  const loadPretestPoolCandidates = async () => {
+    try {
+      const result = await examsApiClient.listExams({
+        page: 1,
+        limit: 200,
+        isPublished: true,
+        sortBy: "createdAt",
+        sortOrder: "desc",
+      });
+
+      const source = Array.isArray((result as any)?.data)
+        ? ((result as any).data as ExamListItem[])
+        : Array.isArray(result)
+          ? (result as ExamListItem[])
+          : [];
+
+      const candidates = source.filter(
+        (exam) =>
+          exam.type === "EXAM" &&
+          exam.visibility === "PUBLIC" &&
+          exam.passingScoreAbsolute !== null &&
+          exam.passingScoreAbsolute !== undefined,
+      );
+
+      setPretestExamPoolCandidates(candidates);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Không thể tải danh sách đề cho pool pretest");
+      setPretestExamPoolCandidates([]);
+    }
+  };
+
   const loadDurationOptions = async () => {
     try {
       setDurationLoading(true);
@@ -100,18 +184,25 @@ export default function AdminSettingsPage() {
   };
 
   useEffect(() => {
-    if (!canManageSettings) {
+    if (!canManageGeneralSettings && !canManagePretestSettings) {
       return;
     }
 
-    void loadDurationOptions();
-    void loadCheckinThreshold();
-  }, [canManageSettings]);
+    if (canManageGeneralSettings) {
+      void loadDurationOptions();
+      void loadCheckinThreshold();
+    }
+
+    if (canManagePretestSettings) {
+      void loadPretestConfig();
+      void loadPretestPoolCandidates();
+    }
+  }, [canManageGeneralSettings, canManagePretestSettings]);
 
   const handleDurationSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
-    if (!canManageSettings) {
+    if (!canManageGeneralSettings) {
       setError("Bạn không có quyền thực hiện thao tác này");
       return;
     }
@@ -170,7 +261,7 @@ export default function AdminSettingsPage() {
   };
 
   const deleteDurationOption = async (item: BookingDurationOption) => {
-    if (!canManageSettings) {
+    if (!canManageGeneralSettings) {
       setError("Bạn không có quyền thực hiện thao tác này");
       return;
     }
@@ -195,7 +286,7 @@ export default function AdminSettingsPage() {
   const saveCheckinThreshold = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
-    if (!canManageSettings) {
+    if (!canManageGeneralSettings) {
       setError("Bạn không có quyền thực hiện thao tác này");
       return;
     }
@@ -219,6 +310,109 @@ export default function AdminSettingsPage() {
     }
   };
 
+  const togglePretestPoolExam = (examId: string) => {
+    setPretestPoolExamIds((prev) =>
+      prev.includes(examId) ? prev.filter((id) => id !== examId) : [...prev, examId],
+    );
+  };
+
+  const savePretestConfig = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+
+    if (!canManagePretestSettings) {
+      setError("Bạn không có quyền thực hiện thao tác này");
+      return;
+    }
+
+    const maxAttempts = Number(pretestMaxAttempts);
+    if (!Number.isInteger(maxAttempts) || maxAttempts < 1 || maxAttempts > 20) {
+      setError("Số lần thi tối đa phải nằm trong khoảng 1 - 20");
+      return;
+    }
+
+    const payload: UpsertPretestConfigRequest = {
+      isEnabled: pretestEnabled,
+      assignmentMode: pretestMode,
+      maxAttempts,
+      lockAfterPass: pretestLockAfterPass,
+    };
+
+    if (pretestMode === "QUESTION_BANK_RANDOM") {
+      const questionCount = Number(pretestQuestionCount);
+      const problemCount = Number(pretestProblemCount);
+      const duration = Number(pretestDuration);
+      const passThresholdAbsolute = Number(pretestPassThreshold);
+
+      if (!Number.isInteger(questionCount) || questionCount < 0) {
+        setError("Số câu trắc nghiệm phải là số nguyên >= 0");
+        return;
+      }
+
+      if (!Number.isInteger(problemCount) || problemCount < 0) {
+        setError("Số bài code phải là số nguyên >= 0");
+        return;
+      }
+
+      if (questionCount + problemCount <= 0) {
+        setError("Cần ít nhất 1 câu hỏi hoặc 1 bài code");
+        return;
+      }
+
+      if (!Number.isInteger(duration) || duration < 5 || duration > 240) {
+        setError("Thời lượng pretest phải nằm trong khoảng 5 - 240 phút");
+        return;
+      }
+
+      if (!Number.isFinite(passThresholdAbsolute) || passThresholdAbsolute <= 0) {
+        setError("Ngưỡng đạt pretest phải lớn hơn 0");
+        return;
+      }
+
+      if (passThresholdAbsolute > questionCount + problemCount) {
+        setError(
+          `Ngưỡng đạt không được vượt quá tổng điểm tối đa (${questionCount + problemCount})`,
+        );
+        return;
+      }
+
+      payload.questionBankRandom = {
+        titlePrefix: pretestTitlePrefix.trim() || null,
+        questionCount,
+        problemCount,
+        duration,
+        passThresholdAbsolute,
+        subjectIds: [],
+        topicId: null,
+        shuffleQuestions: true,
+        shuffleChoices: true,
+      };
+      payload.officialExamPool = null;
+    } else {
+      if (pretestEnabled && pretestPoolExamIds.length === 0) {
+        setError("Vui lòng chọn ít nhất 1 đề cho pool pretest chính thức");
+        return;
+      }
+
+      payload.questionBankRandom = null;
+      payload.officialExamPool = {
+        examIds: pretestPoolExamIds,
+      };
+    }
+
+    try {
+      setPretestSubmitting(true);
+      setError(null);
+      const savedConfig = await examsApiClient.updatePretestConfig(payload);
+      setPretestConfig(savedConfig);
+      hydratePretestForm(savedConfig);
+      await loadPretestPoolCandidates();
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Không thể cập nhật cấu hình pretest");
+    } finally {
+      setPretestSubmitting(false);
+    }
+  };
+
   if (userLoading) {
     return (
       <main className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-100 pb-20 pt-6 px-4 sm:px-6 lg:px-8">
@@ -230,7 +424,7 @@ export default function AdminSettingsPage() {
     );
   }
 
-  if (!canManageSettings) {
+  if (!canManageGeneralSettings && !canManagePretestSettings) {
     return (
       <main className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-100 pb-20 pt-6 px-4 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-4xl rounded-xl border border-gray-200 bg-white p-6 text-center text-gray-600">
@@ -279,7 +473,8 @@ export default function AdminSettingsPage() {
           </div>
         )}
 
-        <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+        {canManageGeneralSettings && (
+          <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
             <div>
               <h2 className="text-lg font-semibold text-gray-900">Ngưỡng xác thực khuôn mặt</h2>
@@ -337,9 +532,180 @@ export default function AdminSettingsPage() {
               </div>
             </form>
           )}
-        </div>
+          </div>
+        )}
 
-        <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+        {canManagePretestSettings && (
+          <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900">Cấu hình Pretest</h2>
+              <p className="text-sm text-gray-600">
+                Thiết lập mode gán đề pretest, số lần thi tối đa và quy tắc khóa sau khi đạt.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                void loadPretestConfig();
+                void loadPretestPoolCandidates();
+              }}
+              className="inline-flex items-center rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
+            >
+              <RefreshCw className="mr-2 h-4 w-4" />
+              Làm mới pretest
+            </button>
+          </div>
+
+          {pretestLoading ? (
+            <div className="flex items-center gap-2 text-sm text-gray-600">
+              <Loader2 className="h-4 w-4 animate-spin" /> Đang tải cấu hình pretest...
+            </div>
+          ) : (
+            <form onSubmit={savePretestConfig} className="space-y-4">
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
+                <label className="inline-flex items-center gap-2 rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-700">
+                  <input
+                    type="checkbox"
+                    checked={pretestEnabled}
+                    onChange={(e) => setPretestEnabled(e.target.checked)}
+                  />
+                  Bật pretest
+                </label>
+
+                <select
+                  value={pretestMode}
+                  onChange={(e) => setPretestMode(e.target.value as PretestAssignmentMode)}
+                  className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none"
+                >
+                  <option value="OFFICIAL_EXAM_POOL">Pool đề thi chính thức</option>
+                  <option value="QUESTION_BANK_RANDOM">Random từ question bank</option>
+                </select>
+
+                <input
+                  type="number"
+                  min={1}
+                  max={20}
+                  step={1}
+                  value={pretestMaxAttempts}
+                  onChange={(e) => setPretestMaxAttempts(e.target.value)}
+                  className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none"
+                  placeholder="Số lần thi tối đa"
+                />
+
+                <label className="inline-flex items-center gap-2 rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-700">
+                  <input
+                    type="checkbox"
+                    checked={pretestLockAfterPass}
+                    onChange={(e) => setPretestLockAfterPass(e.target.checked)}
+                  />
+                  Khóa sau khi đạt
+                </label>
+              </div>
+
+              {pretestMode === "QUESTION_BANK_RANDOM" && (
+                <div className="grid grid-cols-1 gap-3 rounded-lg border border-gray-200 bg-gray-50 p-3 md:grid-cols-5">
+                  <input
+                    type="text"
+                    value={pretestTitlePrefix}
+                    onChange={(e) => setPretestTitlePrefix(e.target.value)}
+                    className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none"
+                    placeholder="Tiền tố tên đề random"
+                  />
+                  <input
+                    type="number"
+                    min={0}
+                    step={1}
+                    value={pretestQuestionCount}
+                    onChange={(e) => setPretestQuestionCount(e.target.value)}
+                    className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none"
+                    placeholder="Số câu trắc nghiệm"
+                  />
+                  <input
+                    type="number"
+                    min={0}
+                    step={1}
+                    value={pretestProblemCount}
+                    onChange={(e) => setPretestProblemCount(e.target.value)}
+                    className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none"
+                    placeholder="Số bài code"
+                  />
+                  <input
+                    type="number"
+                    min={5}
+                    max={240}
+                    step={1}
+                    value={pretestDuration}
+                    onChange={(e) => setPretestDuration(e.target.value)}
+                    className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none"
+                    placeholder="Thời lượng (phút)"
+                  />
+                  <input
+                    type="number"
+                    min={0.1}
+                    step={0.1}
+                    value={pretestPassThreshold}
+                    onChange={(e) => setPretestPassThreshold(e.target.value)}
+                    className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none"
+                    placeholder="Ngưỡng đạt tuyệt đối"
+                  />
+                </div>
+              )}
+
+              {pretestMode === "OFFICIAL_EXAM_POOL" && (
+                <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                  <p className="mb-2 text-sm font-semibold text-gray-800">
+                    Chọn đề EXAM PUBLIC có ngưỡng đạt để đưa vào pool
+                  </p>
+                  {pretestExamPoolCandidates.length === 0 ? (
+                    <p className="text-sm text-gray-500">
+                      Chưa có đề nào đủ điều kiện (EXAM PUBLIC + có ngưỡng đạt).
+                    </p>
+                  ) : (
+                    <div className="max-h-56 space-y-2 overflow-y-auto pr-1">
+                      {pretestExamPoolCandidates.map((exam) => (
+                        <label
+                          key={exam.id}
+                          className="flex items-center justify-between gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700"
+                        >
+                          <span className="inline-flex items-center gap-2">
+                            <input
+                              type="checkbox"
+                              checked={pretestPoolExamIds.includes(exam.id)}
+                              onChange={() => togglePretestPoolExam(exam.id)}
+                            />
+                            {exam.title}
+                          </span>
+                          <span className="text-xs font-semibold text-emerald-700">
+                            Ngưỡng: {exam.passingScoreAbsolute}
+                          </span>
+                        </label>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="text-xs text-gray-500">
+                  Cập nhật gần nhất: {pretestConfig?.updatedAt ? formatDateTime(pretestConfig.updatedAt) : "-"}
+                </p>
+                <button
+                  type="submit"
+                  disabled={pretestSubmitting}
+                  className="inline-flex items-center rounded-lg bg-navy-600 px-3 py-2 text-sm font-medium text-white hover:bg-navy-700 disabled:cursor-not-allowed disabled:bg-navy-300"
+                >
+                  {pretestSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  Lưu cấu hình pretest
+                </button>
+              </div>
+            </form>
+          )}
+          </div>
+        )}
+
+        {canManageGeneralSettings && (
+          <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
             <div>
               <h2 className="text-lg font-semibold text-gray-900">Cấu hình thời lượng đặt booth</h2>
@@ -490,7 +856,8 @@ export default function AdminSettingsPage() {
               ))}
             </div>
           )}
-        </div>
+          </div>
+        )}
       </div>
     </main>
   );

@@ -62,6 +62,12 @@ export default function ExamDetailModal({
               <span className="font-semibold">{difficultyLabel}</span>
             </div>
           )}
+          {exam.type !== "PRACTICE" && exam.passingScoreAbsolute !== undefined && (
+            <div>
+              ✅ Ngưỡng đạt:{" "}
+              <span className="font-semibold">{exam.passingScoreAbsolute ?? "-"}</span>
+            </div>
+          )}
         </div>
         <div className="mb-6">
           <div className="font-semibold mb-2">Phân loại câu hỏi:</div>
