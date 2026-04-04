@@ -306,7 +306,7 @@ export default function ExamSelection({
           limit: 10,
           search: qSearch || undefined,
           isPublished: true,
-          classification: examType,
+          classification: examType === "PRACTICE" ? "PRACTICE" : undefined,
           subjectId: subjectIds.length === 1 ? subjectIds[0] : undefined,
           topicId: topicId || undefined,
         },
@@ -690,8 +690,8 @@ export default function ExamSelection({
           </label>
         </div>
         <p className="mt-2 text-xs text-navy-500">
-          • Đề Luyện Tập: Dành cho sinh viên đăng ký luyện tập<br/>
-          • Đề Thi Chính Thức: Dành cho sinh viên đăng ký thi
+          • Đề Luyện Tập: Chỉ lấy câu hỏi luyện tập trong ngân hàng câu hỏi<br/>
+          • Đề Thi Chính Thức: Lấy tất cả câu hỏi đã xuất bản trong ngân hàng câu hỏi
         </p>
       </div>
 
