@@ -306,6 +306,7 @@ export default function ExamSelection({
           limit: 10,
           search: qSearch || undefined,
           isPublished: true,
+          classification: examType,
           subjectId: subjectIds.length === 1 ? subjectIds[0] : undefined,
           topicId: topicId || undefined,
         },
@@ -318,11 +319,16 @@ export default function ExamSelection({
     } finally {
       setQLoading(false);
     }
-  }, [mode, qPage, qSearch, subjectIds, topicId, accessToken]);
+  }, [mode, qPage, qSearch, examType, subjectIds, topicId, accessToken]);
 
   useEffect(() => {
     fetchQuestions();
   }, [fetchQuestions]);
+
+  useEffect(() => {
+    setSelectedQuestionIds(new Set());
+    setQPage(1);
+  }, [examType]);
 
   // Fetch problems for picker
   const fetchProblems = useCallback(async () => {

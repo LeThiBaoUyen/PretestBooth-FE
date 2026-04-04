@@ -460,6 +460,7 @@ export interface SubmissionStats {
 // ==================== QUESTION BANK ====================
 
 export type QuestionType = "SINGLE_CHOICE" | "MULTIPLE_CHOICE" | "SHORT_ANSWER";
+export type QuestionClassification = "PRACTICE" | "EXAM";
 
 export interface Subject {
   id: string;
@@ -492,6 +493,7 @@ export interface Question {
   content: string;
   imageUrl?: string | null;
   questionType: QuestionType;
+  classification: QuestionClassification;
   difficulty: Difficulty;
   correctAnswer: string | null;
   explanation: string | null;
@@ -511,6 +513,7 @@ export interface QuestionListItem {
   content: string;
   imageUrl?: string | null;
   questionType: QuestionType;
+  classification: QuestionClassification;
   difficulty: Difficulty;
   isPublished: boolean;
   subjectId: string;
@@ -533,6 +536,7 @@ export interface QueryQuestionsParams {
   page?: number;
   limit?: number;
   questionType?: QuestionType;
+  classification?: QuestionClassification;
   difficulty?: Difficulty;
   subjectId?: string;
   topicId?: string;
@@ -552,6 +556,7 @@ export interface CreateQuestionRequest {
   content: string;
   imageUrl?: string | null;
   questionType: QuestionType;
+  classification: QuestionClassification;
   difficulty: Difficulty;
   subjectId: string;
   topicId?: string | null;
@@ -565,6 +570,7 @@ export interface UpdateQuestionRequest {
   content?: string;
   imageUrl?: string | null;
   questionType?: QuestionType;
+  classification?: QuestionClassification;
   difficulty?: Difficulty;
   subjectId?: string;
   topicId?: string | null;

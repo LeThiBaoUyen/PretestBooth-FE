@@ -9,6 +9,7 @@ import { useAuth } from "@/lib/hooks";
 import type {
   Difficulty,
   QuestionType,
+  QuestionClassification,
   UpdateQuestionRequest,
   CreateChoiceRequest,
 } from "@/lib/api/types";
@@ -41,6 +42,23 @@ const TYPE_OPTIONS: { value: QuestionType; label: string; icon: string }[] = [
   { value: "SHORT_ANSWER", label: "Tự luận ngắn", icon: "✏️" },
 ];
 
+const CLASSIFICATION_OPTIONS: {
+  value: QuestionClassification;
+  label: string;
+  hint: string;
+}[] = [
+  {
+    value: "PRACTICE",
+    label: "Luyện tập",
+    hint: "Chỉ dùng cho đề/phiên luyện tập",
+  },
+  {
+    value: "EXAM",
+    label: "Thi",
+    hint: "Chỉ dùng cho đề thi",
+  },
+];
+
 export default function EditQuestionForm() {
   const params = useParams();
   const router = useRouter();
@@ -64,6 +82,8 @@ export default function EditQuestionForm() {
   const [content, setContent] = useState("");
   const [questionType, setQuestionType] =
     useState<QuestionType>("SINGLE_CHOICE");
+  const [classification, setClassification] =
+    useState<QuestionClassification>("EXAM");
   const [difficulty, setDifficulty] = useState<Difficulty>("MEDIUM");
   const [subjectId, setSubjectId] = useState("");
   const [topicId, setTopicId] = useState("");
@@ -107,6 +127,7 @@ export default function EditQuestionForm() {
     if (question && !initialized) {
       setContent(question.content);
       setQuestionType(question.questionType);
+      setClassification(question.classification || "EXAM");
       setDifficulty(question.difficulty);
       setSubjectId(question.subjectId);
       setTopicId(question.topicId || "");
@@ -212,6 +233,7 @@ export default function EditQuestionForm() {
     const data: UpdateQuestionRequest = {
       content: content.trim(),
       questionType,
+      classification,
       difficulty,
       subjectId,
       topicId: topicId || null,
@@ -364,6 +386,37 @@ export default function EditQuestionForm() {
                 </span>
               </button>
             ))}
+          </div>
+
+          <div className="mt-6">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Phân loại sử dụng
+            </label>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {CLASSIFICATION_OPTIONS.map((opt) => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => setClassification(opt.value)}
+                  className={`text-left p-4 rounded-xl border-2 transition ${
+                    classification === opt.value
+                      ? "border-navy-600 bg-navy-50"
+                      : "border-gray-200 hover:border-gray-300"
+                  }`}
+                >
+                  <p
+                    className={`font-semibold ${
+                      classification === opt.value
+                        ? "text-navy-700"
+                        : "text-gray-800"
+                    }`}
+                  >
+                    {opt.label}
+                  </p>
+                  <p className="text-xs text-gray-500 mt-1">{opt.hint}</p>
+                </button>
+              ))}
+            </div>
           </div>
         </div>
 
