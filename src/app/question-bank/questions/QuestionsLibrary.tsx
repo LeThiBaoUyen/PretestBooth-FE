@@ -185,6 +185,7 @@ export default function QuestionsLibrary() {
   const [page, setPage] = useState(1);
   const [difficulty, setDifficulty] = useState<Difficulty | "ALL">("ALL");
   const [questionType, setQuestionType] = useState<QuestionType | "ALL">("ALL");
+  const [classificationFilter, setClassificationFilter] = useState<QuestionClassification | "ALL">("ALL");
   const [subjectId, setSubjectId] = useState<string>("ALL");
   const [search, setSearch] = useState("");
 
@@ -211,7 +212,7 @@ export default function QuestionsLibrary() {
     error,
     refetch,
   } = useQuery({
-    queryKey: ["questions", page, difficulty, questionType, subjectId, search],
+    queryKey: ["questions", page, difficulty, questionType, classificationFilter, subjectId, search],
     queryFn: () =>
       questionsApiClient.getQuestions(
         {
@@ -219,6 +220,7 @@ export default function QuestionsLibrary() {
           limit,
           difficulty: difficulty === "ALL" ? undefined : difficulty,
           questionType: questionType === "ALL" ? undefined : questionType,
+          classification: classificationFilter === "ALL" ? undefined : classificationFilter,
           subjectId: subjectId === "ALL" ? undefined : subjectId,
           search: search || undefined,
           sortBy: "createdAt",
@@ -489,6 +491,24 @@ export default function QuestionsLibrary() {
     }
   };
 
+  const getClassificationText = (classification: QuestionClassification) => {
+    switch (classification) {
+      case "PRACTICE":
+        return "Luyện tập";
+      case "EXAM":
+        return "Thi";
+    }
+  };
+
+  const getClassificationColor = (classification: QuestionClassification) => {
+    switch (classification) {
+      case "PRACTICE":
+        return "text-emerald-700 bg-emerald-50 border-emerald-200";
+      case "EXAM":
+        return "text-rose-700 bg-rose-50 border-rose-200";
+    }
+  };
+
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-2 pb-8">
       <div className="mb-8 flex items-center justify-between">
@@ -655,7 +675,7 @@ export default function QuestionsLibrary() {
       )}
 
       <div className="bg-white rounded-xl shadow-md p-6 mb-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Tìm kiếm</label>
             <input
@@ -684,6 +704,22 @@ export default function QuestionsLibrary() {
               <option value="SINGLE_CHOICE">Một đáp án</option>
               <option value="MULTIPLE_CHOICE">Nhiều đáp án</option>
               <option value="SHORT_ANSWER">Tự luận ngắn</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Phân loại</label>
+            <select
+              value={classificationFilter}
+              onChange={(e) => {
+                setClassificationFilter(e.target.value as QuestionClassification | "ALL");
+                setPage(1);
+              }}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-navy-500 focus:border-transparent"
+            >
+              <option value="ALL">Tất cả</option>
+              <option value="PRACTICE">Luyện tập</option>
+              <option value="EXAM">Thi</option>
             </select>
           </div>
 
@@ -748,6 +784,7 @@ export default function QuestionsLibrary() {
                     <th className="px-6 py-4 text-left font-semibold">#</th>
                     <th className="px-6 py-4 text-left font-semibold">Nội dung</th>
                     <th className="px-6 py-4 text-center font-semibold">Loại</th>
+                    <th className="px-6 py-4 text-center font-semibold">Phân loại</th>
                     <th className="px-6 py-4 text-center font-semibold">Độ khó</th>
                     <th className="px-6 py-4 text-center font-semibold">Môn học</th>
                     {isAuthorized && <th className="px-6 py-4 text-center font-semibold">Trạng thái</th>}
@@ -769,6 +806,11 @@ export default function QuestionsLibrary() {
                       <td className="px-6 py-4 text-center">
                         <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium border ${getTypeColor(question.questionType)}`}>
                           {getTypeIcon(question.questionType)} {getTypeText(question.questionType)}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 text-center">
+                        <span className={`inline-block px-3 py-1 rounded-full text-xs font-medium border ${getClassificationColor(question.classification)}`}>
+                          {getClassificationText(question.classification)}
                         </span>
                       </td>
                       <td className="px-6 py-4 text-center">
