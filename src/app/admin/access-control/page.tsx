@@ -34,6 +34,12 @@ const PERMISSION_DESCRIPTIONS: Array<{ key: LecturerPermission; label: string; d
     description: "Cho phép CRUD booth, lịch vận hành và tạo OTP kích hoạt booth.",
   },
   {
+    key: "MONITOR_SESSIONS",
+    label: "Giám sát phiên thi/booth",
+    description:
+      "Cho phép theo dõi realtime sinh viên đang CHECKED_IN, phiên thi/luyện tập đang chạy và thao tác điều phối.",
+  },
+  {
     key: "LECTURER_ADMIN",
     label: "Admin giảng viên",
     description:

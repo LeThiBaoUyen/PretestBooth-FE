@@ -160,6 +160,12 @@ export default function BoothSchedulePage() {
         >
           Lịch trình Booth
         </Link>
+        <Link
+          href="/admin/monitoring"
+          className="inline-flex items-center rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-50"
+        >
+          Giám sát realtime
+        </Link>
       </nav>
 
       <div className="flex flex-col lg:flex-row lg:items-center justify-between mb-8 gap-4">

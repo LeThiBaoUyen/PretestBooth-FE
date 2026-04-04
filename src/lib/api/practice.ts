@@ -1,5 +1,11 @@
 import { httpClient } from "./httpClient";
-import type { PracticeSession, PracticeSessionAnswer, Difficulty } from "./types";
+import type {
+  Difficulty,
+  ExtendSessionRequest,
+  MonitorReasonRequest,
+  PracticeSession,
+  PracticeSessionAnswer,
+} from "./types";
 
 export interface CreatePracticeSessionRequest {
   duration?: number;
@@ -31,4 +37,25 @@ export const practiceApi = {
     httpClient.post<PracticeSessionAnswer>(`/api/practice/${sessionId}/answers`, data),
 
   completeSession: (id: string) => httpClient.post<PracticeSession>(`/api/practice/${id}/complete`),
+
+  extendSessionByMonitor: (
+    id: string,
+    data: ExtendSessionRequest,
+  ) =>
+    httpClient.post<{
+      sessionId: string;
+      sessionType: "PRACTICE";
+      previousDuration: number;
+      duration: number;
+      expiresAt: string;
+      extendedMinutes: number;
+      reason: string;
+      updatedBy: string;
+    }>(`/api/practice/${id}/monitor/extend`, data),
+
+  abortSessionByMonitor: (id: string, data: MonitorReasonRequest) =>
+    httpClient.post<{ message: string; sessionId: string; reason: string; updatedBy: string }>(
+      `/api/practice/${id}/monitor/abort`,
+      data,
+    ),
 };

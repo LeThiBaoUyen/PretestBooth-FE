@@ -5,8 +5,13 @@ import { useParams, useRouter } from "next/navigation";
 import { Clock, Send, CheckCircle2, ArrowLeft, ArrowRight, BookOpen } from "lucide-react";
 import { useAuth } from "@/lib/hooks";
 import { practiceApi } from "@/lib/api/practice";
-import type { PracticeSession } from "@/lib/api/types";
+import type {
+  PracticeSession,
+  SessionTerminatedEvent,
+  SessionTimerAdjustedEvent,
+} from "@/lib/api/types";
 import Editor from "@monaco-editor/react";
+import { realtimeClient } from "@/lib/realtime/socketClient";
 
 export default function PracticeExecutionPage() {
   const { id } = useParams() as { id: string };
@@ -82,6 +87,36 @@ export default function PracticeExecutionPage() {
 
     return () => clearInterval(timerId);
   }, [timeLeft, sessionCompleted]);
+
+  useEffect(() => {
+    const offAdjusted = realtimeClient.subscribe<SessionTimerAdjustedEvent>(
+      "session.timer.adjusted",
+      (payload) => {
+        if (payload.sessionType !== "PRACTICE" || payload.sessionId !== id) return;
+
+        const remain = Math.max(
+          0,
+          Math.floor((new Date(payload.expiresAt).getTime() - Date.now()) / 1000),
+        );
+        setTimeLeft(remain);
+      },
+    );
+
+    const offTerminated = realtimeClient.subscribe<SessionTerminatedEvent>(
+      "session.terminated",
+      async (payload) => {
+        if (payload.sessionType !== "PRACTICE" || payload.sessionId !== id) return;
+
+        setSessionCompleted(true);
+        await fetchSession();
+      },
+    );
+
+    return () => {
+      offAdjusted();
+      offTerminated();
+    };
+  }, [fetchSession, id]);
 
   const handleAnswerChange = async (itemId: string, value: any, type: string) => {
     // Update locally immediately

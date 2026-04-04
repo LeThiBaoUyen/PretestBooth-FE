@@ -11,10 +11,13 @@ import ProctoringOverlay from "@/components/ProctoringOverlay";
 import type {
   ExecuteCodeResponse,
   LanguageInfo,
+  SessionTerminatedEvent,
+  SessionTimerAdjustedEvent,
   SessionResult,
   ShuffledExamSession,
   ShuffledItem,
 } from "@/lib/api/types";
+import { realtimeClient } from "@/lib/realtime/socketClient";
 
 type AnswerValue = {
   selectedChoiceIds: string[];
@@ -318,6 +321,51 @@ const QuizScreen = () => {
 
     return () => clearInterval(pollId);
   }, [showResult, result?.pendingItems, sessionId, accessToken]);
+
+  useEffect(() => {
+    if (!sessionId) return;
+
+    const offAdjusted = realtimeClient.subscribe<SessionTimerAdjustedEvent>(
+      "session.timer.adjusted",
+      (payload) => {
+        if (payload.sessionType !== "EXAM" || payload.sessionId !== sessionId) return;
+
+        const remain = Math.max(
+          0,
+          Math.floor((new Date(payload.expiresAt).getTime() - Date.now()) / 1000),
+        );
+        setTimeLeft(remain);
+      },
+    );
+
+    const offTerminated = realtimeClient.subscribe<SessionTerminatedEvent>(
+      "session.terminated",
+      async (payload) => {
+        if (payload.sessionType !== "EXAM" || payload.sessionId !== sessionId) return;
+
+        setSubmitting(false);
+        submittingRef.current = false;
+
+        if (accessToken) {
+          try {
+            const latest = await examsApiClient.getResults(sessionId, accessToken);
+            setResult(latest);
+            setShowResult(true);
+            return;
+          } catch {
+            // If result is not available yet, keep a user-facing notice below.
+          }
+        }
+
+        setError(payload.reason || "Phiên thi đã được kết thúc bởi quản trị viên/giảng viên.");
+      },
+    );
+
+    return () => {
+      offAdjusted();
+      offTerminated();
+    };
+  }, [accessToken, sessionId]);
 
   useEffect(() => {
     return () => {

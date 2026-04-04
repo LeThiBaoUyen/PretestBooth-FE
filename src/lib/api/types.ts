@@ -6,6 +6,7 @@ export type LecturerPermission =
   | "MANAGE_QUESTION_BANK"
   | "MANAGE_STUDENTS"
   | "MANAGE_BOOTHS"
+  | "MONITOR_SESSIONS"
   | "LECTURER_ADMIN";
 
 export interface User {
@@ -1179,6 +1180,46 @@ export interface BookingRealtimeEvent {
   emittedAt: string;
 }
 
+export interface MonitoringUpdatedEvent {
+  scope: "BOOKING" | "BOOTH" | "EXAM" | "PRACTICE";
+  action:
+    | "CHECKIN"
+    | "CHECKOUT"
+    | "FORCE_CHECKOUT"
+    | "FORCE_LOGOUT_BOOTH"
+    | "START"
+    | "SUBMIT"
+    | "ABORT"
+    | "EXTEND"
+    | "NOTIFY";
+  bookingId?: string;
+  boothId?: string;
+  userId?: string;
+  sessionType?: "EXAM" | "PRACTICE";
+  sessionId?: string;
+  emittedAt: string;
+}
+
+export interface SessionTimerAdjustedEvent {
+  sessionType: "EXAM" | "PRACTICE";
+  sessionId: string;
+  userId: string;
+  boothId?: string;
+  expiresAt: string;
+  reason: string;
+  emittedAt: string;
+}
+
+export interface SessionTerminatedEvent {
+  sessionType: "EXAM" | "PRACTICE";
+  sessionId: string;
+  userId: string;
+  boothId?: string;
+  status: string;
+  reason?: string;
+  emittedAt: string;
+}
+
 export interface BoothNotificationEvent {
   userId?: string;
   boothId?: string;
@@ -1308,4 +1349,95 @@ export interface AdminStats {
   totalExams: number;
   boothUtilizationPercent: number;
   recentProctoringEvents: any[];
+}
+
+export type MonitoringActivityType = "EXAM" | "PRACTICE" | "IDLE";
+
+export interface ActiveMonitoringExamSession {
+  sessionId: string;
+  examId: string;
+  examTitle: string;
+  startedAt: string;
+  expiresAt: string;
+  duration: number;
+  remainingSeconds: number | null;
+}
+
+export interface ActiveMonitoringPracticeSession {
+  sessionId: string;
+  startedAt: string;
+  duration: number;
+  expiresAt: string | null;
+  remainingSeconds: number | null;
+}
+
+export interface ActiveMonitoringSessionItem {
+  bookingId: string;
+  boothId: string;
+  boothName: string;
+  boothCode: string | null;
+  userId: string;
+  studentName: string | null;
+  studentEmail: string;
+  studentCode: string | null;
+  bookingType: BookingType;
+  status: BookingStatus;
+  checkedInAt: string | null;
+  bookingStartTime: string;
+  bookingEndTime: string;
+  bookingRemainingSeconds: number;
+  currentActivityType: MonitoringActivityType;
+  currentRemainingSeconds: number;
+  isWarning: boolean;
+  activeExam: ActiveMonitoringExamSession | null;
+  activePractice: ActiveMonitoringPracticeSession | null;
+}
+
+export interface PaginatedActiveMonitoringSessions {
+  data: ActiveMonitoringSessionItem[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}
+
+export interface QueryActiveMonitoringParams {
+  page?: number;
+  limit?: number;
+  boothId?: string;
+  activityType?: MonitoringActivityType;
+  search?: string;
+  sortOrder?: "asc" | "desc";
+}
+
+export interface MonitorReasonRequest {
+  reason: string;
+}
+
+export interface MonitorNotifyRequest {
+  message: string;
+  level?: "info" | "success" | "warning" | "error";
+}
+
+export interface ForceCheckoutResponse {
+  message: string;
+  bookingId: string;
+  affectedExamSessions: number;
+  affectedPracticeSessions: number;
+}
+
+export interface ForceBoothLogoutResponse {
+  message: string;
+  boothId: string;
+  boothCode: string;
+}
+
+export interface MonitorNotifyResponse {
+  message: string;
+  bookingId: string;
+}
+
+export interface ExtendSessionRequest {
+  minutes: number;
+  reason: string;
 }

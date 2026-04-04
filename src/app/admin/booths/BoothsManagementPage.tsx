@@ -492,6 +492,12 @@ export default function BoothsManagementPage() {
           Lịch trình Booth
         </Link>
         <Link
+          href="/admin/monitoring"
+          className="inline-flex items-center rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-50"
+        >
+          Giám sát realtime
+        </Link>
+        <Link
           href="/admin/settings"
           className="inline-flex items-center rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-50"
         >

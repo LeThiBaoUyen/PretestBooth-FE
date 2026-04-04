@@ -13,6 +13,8 @@ import type {
   ExamSessionListItem,
   PaginatedExamSessions,
   QueryExamSessionsParams,
+  ExtendSessionRequest,
+  MonitorReasonRequest,
 } from "./types";
 import { httpClient } from "./httpClient";
 import { normalizePaginated } from "./response";
@@ -159,6 +161,38 @@ class ExamsApiClient {
     _accessToken: string,
   ): Promise<SessionResult> {
     return httpClient.patch<SessionResult>(`/api/exams/sessions/${sessionId}/grade`, data);
+  }
+
+  async forceSubmitSessionByMonitor(
+    sessionId: string,
+    data: MonitorReasonRequest,
+    _accessToken?: string,
+  ): Promise<SessionResult> {
+    return httpClient.post<SessionResult>(`/api/exams/sessions/${sessionId}/force-submit`, data);
+  }
+
+  async abortSessionByMonitor(
+    sessionId: string,
+    data: MonitorReasonRequest,
+    _accessToken?: string,
+  ): Promise<SessionResult> {
+    return httpClient.post<SessionResult>(`/api/exams/sessions/${sessionId}/abort`, data);
+  }
+
+  async extendSessionByMonitor(
+    sessionId: string,
+    data: ExtendSessionRequest,
+    _accessToken?: string,
+  ): Promise<{
+    sessionId: string;
+    sessionType: "EXAM";
+    extendedMinutes: number;
+    previousExpiresAt: string;
+    expiresAt: string;
+    reason: string;
+    updatedBy: string;
+  }> {
+    return httpClient.post(`/api/exams/sessions/${sessionId}/extend`, data);
   }
 
   // ==================== EXAM SESSIONS LIST ====================

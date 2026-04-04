@@ -3,6 +3,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import type { ComponentType } from "react";
 import { useAuth } from "@/lib/hooks";
+import { hasPermission } from "@/lib/auth/permissions";
 import StudentStatsDashboard from "./StudentStats";
 import AdminStatsDashboard from "./AdminStats";
 import { ArrowRight, FileText, Monitor, Users, ClipboardList, BookOpen, CalendarDays, Sparkles } from "lucide-react";
@@ -94,6 +95,12 @@ export default function DashboardPage() {
             href: "/admin/users",
             icon: Users,
           },
+          {
+            label: "Giám sát phiên thi/booth",
+            description: "Theo dõi realtime sinh viên đang CHECKED_IN và điều phối phiên đang chạy.",
+            href: "/admin/monitoring",
+            icon: Monitor,
+          },
         ]
       : user?.role === "LECTURER"
         ? [
@@ -109,6 +116,17 @@ export default function DashboardPage() {
               href: "/admin/booths/schedule",
               icon: CalendarDays,
             },
+            ...(hasPermission(user, "MONITOR_SESSIONS")
+              ? [
+                  {
+                    label: "Giám sát phiên thi/booth",
+                    description:
+                      "Theo dõi realtime phiên thi/luyện tập đang chạy và can thiệp khi cần.",
+                    href: "/admin/monitoring",
+                    icon: Monitor,
+                  } satisfies DashboardLink,
+                ]
+              : []),
           ]
         : [
             {
