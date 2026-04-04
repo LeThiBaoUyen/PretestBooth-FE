@@ -85,6 +85,8 @@ const QuizScreen = () => {
     !showResult &&
     !submitting,
   );
+  const postSessionRoute =
+    result?.isPretestSession || session?.isPretestSession ? "/dashboard" : "/exams";
 
   const requestExitConfirmation = useCallback((action: () => void) => {
     pendingExitActionRef.current = action;
@@ -774,7 +776,7 @@ const QuizScreen = () => {
             </div>
 
             <button
-              onClick={() => router.push("/exams")}
+              onClick={() => router.push(postSessionRoute)}
               className="mt-6 w-full rounded-lg bg-navy-600 px-4 py-3 font-semibold text-white hover:bg-navy-700"
             >
               Hoàn tất
@@ -797,7 +799,7 @@ const QuizScreen = () => {
                 </div>
                 <button
                   type="button"
-                  onClick={() => requestExitConfirmation(() => router.push("/exams"))}
+                  onClick={() => requestExitConfirmation(() => router.push(postSessionRoute))}
                   className="inline-flex w-fit items-center justify-center rounded-lg border border-rose-200 bg-rose-50 px-3 py-1.5 text-sm font-semibold text-rose-700 transition hover:bg-rose-100"
                 >
                   Thoát bài thi

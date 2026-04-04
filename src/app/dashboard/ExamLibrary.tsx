@@ -2,6 +2,7 @@
 import { useState, useEffect, useCallback, useRef, type ReactNode } from "react";
 import { examsApiClient } from "@/lib/api/exams";
 import { questionsApiClient } from "@/lib/api/questions";
+import { bookingsApi } from "@/lib/api/bookings";
 import { useAuth } from "@/lib/hooks";
 import type { ExamListItem, Subject } from "@/lib/api/types";
 import { hasPermission } from "@/lib/auth/permissions";
@@ -19,6 +20,7 @@ import {
 
 import ExamSelection from "./ExamSelection";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 const DURATION_RANGE_CONFIG = {
   min: 15,
@@ -131,6 +133,7 @@ function RangeFilterSlider({
 }
 
 export default function ExamLibrary() {
+  const router = useRouter();
   const { accessToken, user, userLoading } = useAuth();
   const [selectedSubject, setSelectedSubject] = useState("Tất cả");
   const [search, setSearch] = useState("");
@@ -145,6 +148,9 @@ export default function ExamLibrary() {
   ]);
   const [activeTab, setActiveTab] = useState<"all" | "published" | "custom">("all");
   const [error, setError] = useState<string | null>(null);
+  const [checkingExamAutoAssign, setCheckingExamAutoAssign] = useState(false);
+  const [hasCheckedInExamBooking, setHasCheckedInExamBooking] = useState(false);
+  const [autoAssignError, setAutoAssignError] = useState<string | null>(null);
 
   // Data
   const [exams, setExams] = useState<ExamListItem[]>([]);
@@ -153,10 +159,60 @@ export default function ExamLibrary() {
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const latestFetchRef = useRef(0);
+  const autoAssignCheckedRef = useRef(false);
 
   // Role check: can this user manage the given exam?
   const canManage = (_exam: ExamListItem) => hasPermission(user, "CREATE_EXAM");
   const canCreateExam = hasPermission(user, "CREATE_EXAM");
+
+  const attemptAutoAssignExam = useCallback(async () => {
+    if (!accessToken || user?.role !== "STUDENT") {
+      return;
+    }
+
+    setCheckingExamAutoAssign(true);
+    setAutoAssignError(null);
+
+    try {
+      const bookingResult = await bookingsApi.getBookings({
+        page: 1,
+        limit: 20,
+        status: "CHECKED_IN",
+        type: "EXAM",
+        sortOrder: "desc",
+      });
+
+      const activeExamBookings = Array.isArray(bookingResult.data)
+        ? bookingResult.data
+        : [];
+      const hasActiveCheckedInExamBooking = activeExamBookings.length > 0;
+
+      setHasCheckedInExamBooking(hasActiveCheckedInExamBooking);
+
+      if (!hasActiveCheckedInExamBooking) {
+        return;
+      }
+
+      router.replace("/exams/prepare");
+    } catch (err: any) {
+      setAutoAssignError(err?.message || "Không thể kiểm tra trạng thái lịch EXAM. Vui lòng thử lại.");
+    } finally {
+      setCheckingExamAutoAssign(false);
+    }
+  }, [accessToken, user?.role, router]);
+
+  useEffect(() => {
+    if (userLoading || !accessToken || user?.role !== "STUDENT") {
+      return;
+    }
+
+    if (autoAssignCheckedRef.current) {
+      return;
+    }
+
+    autoAssignCheckedRef.current = true;
+    void attemptAutoAssignExam();
+  }, [accessToken, user?.role, userLoading, attemptAutoAssignExam]);
 
   // Fetch subjects
   useEffect(() => {
@@ -291,6 +347,35 @@ export default function ExamLibrary() {
           >
             Đi tới đăng nhập
           </Link>
+        </div>
+      </div>
+    );
+  }
+
+  if (user.role === "STUDENT" && (checkingExamAutoAssign || hasCheckedInExamBooking)) {
+    return (
+      <div className="py-10">
+        <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-sm">
+          <h2 className="text-2xl font-bold text-slate-900">Đang mở phần khởi động EXAM</h2>
+          <p className="mt-2 text-slate-600">
+            Hệ thống sẽ chuyển bạn sang bước chuẩn bị trước khi vào bài thi.
+          </p>
+
+          {autoAssignError ? (
+            <div className="mt-5 rounded-lg border border-rose-200 bg-rose-50 p-4 text-left text-sm text-rose-700">
+              <p className="font-semibold">Không thể mở bước khởi động</p>
+              <p className="mt-1">{autoAssignError}</p>
+              <button
+                type="button"
+                onClick={() => void attemptAutoAssignExam()}
+                className="mt-3 inline-flex items-center rounded-lg bg-navy-600 px-4 py-2 font-semibold text-white hover:bg-navy-700"
+              >
+                Thử gán lại
+              </button>
+            </div>
+          ) : (
+            <p className="mt-4 text-sm text-slate-500">Đang chuyển hướng...</p>
+          )}
         </div>
       </div>
     );

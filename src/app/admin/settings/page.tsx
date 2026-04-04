@@ -19,6 +19,7 @@ import { useAuth } from "@/lib/hooks";
 import { hasPermission } from "@/lib/auth/permissions";
 
 const BOOKING_TYPE_OPTIONS: BookingType[] = ["PRACTICE", "EXAM"];
+const PRETEST_POOL_PAGE_SIZE = 100;
 
 interface DurationFormData {
   type: BookingType;
@@ -81,6 +82,11 @@ export default function AdminSettingsPage() {
   const canManageGeneralSettings = user?.role === "ADMIN";
   const canManagePretestSettings =
     user?.role === "ADMIN" || hasPermission(user, "CREATE_EXAM");
+  const randomQuestionCountNumber = Number(pretestQuestionCount);
+  const randomProblemCountNumber = Number(pretestProblemCount);
+  const randomPretestMaxScore =
+    (Number.isFinite(randomQuestionCountNumber) ? randomQuestionCountNumber : 0) +
+    (Number.isFinite(randomProblemCountNumber) ? randomProblemCountNumber : 0);
 
   const filteredDurationOptions = useMemo(
     () =>
@@ -141,21 +147,41 @@ export default function AdminSettingsPage() {
 
   const loadPretestPoolCandidates = async () => {
     try {
-      const result = await examsApiClient.listExams({
+      const firstPage = await examsApiClient.listExams({
         page: 1,
-        limit: 200,
+        limit: PRETEST_POOL_PAGE_SIZE,
         isPublished: true,
         sortBy: "createdAt",
         sortOrder: "desc",
       });
 
-      const source = Array.isArray((result as any)?.data)
-        ? ((result as any).data as ExamListItem[])
-        : Array.isArray(result)
-          ? (result as ExamListItem[])
-          : [];
+      const totalPages =
+        firstPage.totalPages && firstPage.totalPages > 0
+          ? firstPage.totalPages
+          : Math.max(
+              1,
+              Math.ceil((firstPage.total || firstPage.data?.length || 0) / PRETEST_POOL_PAGE_SIZE),
+            );
 
-      const candidates = source.filter(
+      let source: ExamListItem[] = Array.isArray(firstPage.data) ? [...firstPage.data] : [];
+
+      for (let page = 2; page <= totalPages; page++) {
+        const nextPage = await examsApiClient.listExams({
+          page,
+          limit: PRETEST_POOL_PAGE_SIZE,
+          isPublished: true,
+          sortBy: "createdAt",
+          sortOrder: "desc",
+        });
+
+        if (Array.isArray(nextPage.data) && nextPage.data.length > 0) {
+          source = source.concat(nextPage.data);
+        }
+      }
+
+      const uniqueSource = Array.from(new Map(source.map((exam) => [exam.id, exam])).values());
+
+      const candidates = uniqueSource.filter(
         (exam) =>
           exam.type === "EXAM" &&
           exam.visibility === "PUBLIC" &&
@@ -326,7 +352,7 @@ export default function AdminSettingsPage() {
 
     const maxAttempts = Number(pretestMaxAttempts);
     if (!Number.isInteger(maxAttempts) || maxAttempts < 1 || maxAttempts > 20) {
-      setError("Số lần thi tối đa phải nằm trong khoảng 1 - 20");
+      setError("Số lần thi tối đa mỗi ngày phải nằm trong khoảng 1 - 20");
       return;
     }
 
@@ -541,7 +567,7 @@ export default function AdminSettingsPage() {
             <div>
               <h2 className="text-lg font-semibold text-gray-900">Cấu hình Pretest</h2>
               <p className="text-sm text-gray-600">
-                Thiết lập mode gán đề pretest, số lần thi tối đa và quy tắc khóa sau khi đạt.
+                Thiết lập mode gán đề, ngưỡng đạt và số lần thi cho luồng EXAM sau check-in.
               </p>
             </div>
             <button
@@ -555,6 +581,27 @@ export default function AdminSettingsPage() {
               <RefreshCw className="mr-2 h-4 w-4" />
               Làm mới pretest
             </button>
+          </div>
+
+          <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+            <p className="font-semibold">Luồng áp dụng cho Student EXAM</p>
+            <p className="mt-1">
+              Sau khi student check-in EXAM, hệ thống gán đề tự động và vào bài ngay, không cho chọn đề thủ công.
+            </p>
+            <p className="mt-1">
+              Nếu tắt pretest, luồng EXAM sẽ không thể bắt đầu. Hãy bật pretest trước khi vận hành ca thi.
+            </p>
+          </div>
+
+          <div className="mb-4 grid grid-cols-1 gap-2 rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700 md:grid-cols-2">
+            <p>
+              <span className="font-semibold">Mode OFFICIAL_EXAM_POOL:</span> gán ngẫu nhiên 1 đề từ pool.
+              Ngưỡng đạt lấy theo chính đề được gán.
+            </p>
+            <p>
+              <span className="font-semibold">Mode QUESTION_BANK_RANDOM:</span> tạo đề ngẫu nhiên từ question bank.
+              Ngưỡng đạt lấy từ cấu hình pretest.
+            </p>
           </div>
 
           {pretestLoading ? (
@@ -590,7 +637,7 @@ export default function AdminSettingsPage() {
                   value={pretestMaxAttempts}
                   onChange={(e) => setPretestMaxAttempts(e.target.value)}
                   className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none"
-                  placeholder="Số lần thi tối đa"
+                  placeholder="Số lần tối đa / ngày (1-20)"
                 />
 
                 <label className="inline-flex items-center gap-2 rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-700">
@@ -603,52 +650,79 @@ export default function AdminSettingsPage() {
                 </label>
               </div>
 
+              <p className="-mt-1 text-xs text-gray-500">
+                Số lần thi tối đa được tính theo từng ngày (múi giờ Việt Nam). Khi bật "Khóa sau khi đạt", student đạt
+                ngưỡng sẽ không được thi lại.
+              </p>
+
               {pretestMode === "QUESTION_BANK_RANDOM" && (
-                <div className="grid grid-cols-1 gap-3 rounded-lg border border-gray-200 bg-gray-50 p-3 md:grid-cols-5">
-                  <input
-                    type="text"
-                    value={pretestTitlePrefix}
-                    onChange={(e) => setPretestTitlePrefix(e.target.value)}
-                    className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none"
-                    placeholder="Tiền tố tên đề random"
-                  />
-                  <input
-                    type="number"
-                    min={0}
-                    step={1}
-                    value={pretestQuestionCount}
-                    onChange={(e) => setPretestQuestionCount(e.target.value)}
-                    className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none"
-                    placeholder="Số câu trắc nghiệm"
-                  />
-                  <input
-                    type="number"
-                    min={0}
-                    step={1}
-                    value={pretestProblemCount}
-                    onChange={(e) => setPretestProblemCount(e.target.value)}
-                    className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none"
-                    placeholder="Số bài code"
-                  />
-                  <input
-                    type="number"
-                    min={5}
-                    max={240}
-                    step={1}
-                    value={pretestDuration}
-                    onChange={(e) => setPretestDuration(e.target.value)}
-                    className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none"
-                    placeholder="Thời lượng (phút)"
-                  />
-                  <input
-                    type="number"
-                    min={0.1}
-                    step={0.1}
-                    value={pretestPassThreshold}
-                    onChange={(e) => setPretestPassThreshold(e.target.value)}
-                    className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none"
-                    placeholder="Ngưỡng đạt tuyệt đối"
-                  />
+                <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                  <p className="mb-3 text-sm font-semibold text-gray-800">Cấu hình QUESTION_BANK_RANDOM</p>
+                  <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-5">
+                    <label className="space-y-1">
+                      <span className="text-xs font-semibold text-gray-600">Tiền tố tên đề</span>
+                      <input
+                        type="text"
+                        value={pretestTitlePrefix}
+                        onChange={(e) => setPretestTitlePrefix(e.target.value)}
+                        className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none"
+                        placeholder="Pretest Auto"
+                      />
+                    </label>
+                    <label className="space-y-1">
+                      <span className="text-xs font-semibold text-gray-600">Số câu trắc nghiệm</span>
+                      <input
+                        type="number"
+                        min={0}
+                        step={1}
+                        value={pretestQuestionCount}
+                        onChange={(e) => setPretestQuestionCount(e.target.value)}
+                        className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none"
+                        placeholder="0"
+                      />
+                    </label>
+                    <label className="space-y-1">
+                      <span className="text-xs font-semibold text-gray-600">Số bài code</span>
+                      <input
+                        type="number"
+                        min={0}
+                        step={1}
+                        value={pretestProblemCount}
+                        onChange={(e) => setPretestProblemCount(e.target.value)}
+                        className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none"
+                        placeholder="0"
+                      />
+                    </label>
+                    <label className="space-y-1">
+                      <span className="text-xs font-semibold text-gray-600">Thời lượng (phút)</span>
+                      <input
+                        type="number"
+                        min={5}
+                        max={240}
+                        step={1}
+                        value={pretestDuration}
+                        onChange={(e) => setPretestDuration(e.target.value)}
+                        className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none"
+                        placeholder="60"
+                      />
+                    </label>
+                    <label className="space-y-1">
+                      <span className="text-xs font-semibold text-gray-600">Ngưỡng đạt tuyệt đối</span>
+                      <input
+                        type="number"
+                        min={0.1}
+                        step={0.1}
+                        value={pretestPassThreshold}
+                        onChange={(e) => setPretestPassThreshold(e.target.value)}
+                        className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none"
+                        placeholder="12"
+                      />
+                    </label>
+                  </div>
+                  <p className="mt-2 text-xs text-gray-500">
+                    Tổng điểm tối đa hiện tại: <span className="font-semibold">{randomPretestMaxScore}</span>. Ngưỡng đạt
+                    không được vượt quá giá trị này. Random hiện đang lấy từ toàn bộ ngân hàng câu hỏi EXAM đã publish.
+                  </p>
                 </div>
               )}
 
@@ -656,6 +730,10 @@ export default function AdminSettingsPage() {
                 <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
                   <p className="mb-2 text-sm font-semibold text-gray-800">
                     Chọn đề EXAM PUBLIC có ngưỡng đạt để đưa vào pool
+                  </p>
+                  <p className="mb-2 text-xs text-gray-500">
+                    Đã chọn <span className="font-semibold">{pretestPoolExamIds.length}</span> đề • Khả dụng{" "}
+                    <span className="font-semibold">{pretestExamPoolCandidates.length}</span> đề đạt điều kiện.
                   </p>
                   {pretestExamPoolCandidates.length === 0 ? (
                     <p className="text-sm text-gray-500">

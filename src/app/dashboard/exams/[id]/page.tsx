@@ -79,6 +79,12 @@ export default function ExamDetailPage({
       return;
     }
     try {
+      const isStudentExam = user?.role === "STUDENT" && exam.type === "EXAM";
+      if (isStudentExam) {
+        router.push("/exams/prepare");
+        return;
+      }
+
       const session = await examsApiClient.startSession(exam.id, accessToken);
       router.push(`/quiz?sessionId=${session.id}`);
     } catch (err: any) {
