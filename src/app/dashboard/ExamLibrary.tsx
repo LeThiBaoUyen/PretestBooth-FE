@@ -1,19 +1,148 @@
 "use client";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef, type ReactNode } from "react";
 import { examsApiClient } from "@/lib/api/exams";
 import { questionsApiClient } from "@/lib/api/questions";
 import { useAuth } from "@/lib/hooks";
 import type { ExamListItem, Subject } from "@/lib/api/types";
 import { hasPermission } from "@/lib/auth/permissions";
-import { BookOpen, Filter, RefreshCw, Sparkles } from "lucide-react";
+import {
+  BookOpen,
+  Clock3,
+  Filter,
+  Hash,
+  RefreshCw,
+  RotateCcw,
+  Search,
+  SlidersHorizontal,
+  Sparkles,
+} from "lucide-react";
 
 import ExamSelection from "./ExamSelection";
 import Link from "next/link";
+
+const DURATION_RANGE_CONFIG = {
+  min: 15,
+  max: 240,
+  step: 5,
+};
+
+const QUESTION_RANGE_CONFIG = {
+  min: 0,
+  max: 150,
+  step: 1,
+};
+
+function RangeFilterSlider({
+  label,
+  icon,
+  unit,
+  min,
+  max,
+  step,
+  value,
+  onChange,
+}: {
+  label: string;
+  icon: ReactNode;
+  unit: string;
+  min: number;
+  max: number;
+  step: number;
+  value: [number, number];
+  onChange: (next: [number, number]) => void;
+}) {
+  const [from, to] = value;
+  const range = max - min;
+  const leftPercent = ((from - min) / range) * 100;
+  const rightPercent = ((to - min) / range) * 100;
+  const selectedWidth = Math.max(rightPercent - leftPercent, 0);
+
+  const handleMin = (nextValue: number) => {
+    const next = Math.min(nextValue, to - step);
+    onChange([next, to]);
+  };
+
+  const handleMax = (nextValue: number) => {
+    const next = Math.max(nextValue, from + step);
+    onChange([from, next]);
+  };
+
+  return (
+    <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-3">
+      <div className="flex items-center justify-between gap-2">
+        <div className="inline-flex items-center gap-1.5 text-sm font-semibold text-navy-700">
+          {icon}
+          {label}
+        </div>
+        <div className="rounded-full bg-white px-2 py-0.5 text-xs font-semibold text-navy-700 border border-slate-200">
+          {from}{unit} - {to}{unit}
+        </div>
+      </div>
+
+      <div className="mt-3">
+        <div className="relative h-10">
+          <div className="absolute left-0 right-0 top-1/2 h-1.5 -translate-y-1/2 rounded-full bg-slate-200" />
+          <div
+            className="absolute top-1/2 h-1.5 -translate-y-1/2 rounded-full bg-navy-500"
+            style={{
+              left: `${leftPercent}%`,
+              width: `${selectedWidth}%`,
+            }}
+          />
+
+          <input
+            type="range"
+            min={min}
+            max={max}
+            step={step}
+            value={from}
+            onChange={(e) => handleMin(Number(e.target.value))}
+            className="dual-range-input z-20"
+            aria-label={`${label} từ`}
+          />
+          <input
+            type="range"
+            min={min}
+            max={max}
+            step={step}
+            value={to}
+            onChange={(e) => handleMax(Number(e.target.value))}
+            className="dual-range-input z-30"
+            aria-label={`${label} đến`}
+          />
+        </div>
+
+        <div className="mt-2 grid grid-cols-2 gap-2 text-xs">
+          <div className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-center text-navy-700">
+            Từ: <span className="font-semibold">{from}{unit}</span>
+          </div>
+          <div className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-center text-navy-700">
+            Đến: <span className="font-semibold">{to}{unit}</span>
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-1 flex items-center justify-between text-[11px] text-slate-500">
+        <span>{min}{unit}</span>
+        <span>{max}{unit}</span>
+      </div>
+    </div>
+  );
+}
 
 export default function ExamLibrary() {
   const { accessToken, user, userLoading } = useAuth();
   const [selectedSubject, setSelectedSubject] = useState("Tất cả");
   const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [durationRange, setDurationRange] = useState<[number, number]>([
+    DURATION_RANGE_CONFIG.min,
+    DURATION_RANGE_CONFIG.max,
+  ]);
+  const [questionRange, setQuestionRange] = useState<[number, number]>([
+    QUESTION_RANGE_CONFIG.min,
+    QUESTION_RANGE_CONFIG.max,
+  ]);
   const [activeTab, setActiveTab] = useState<"all" | "published" | "custom">("all");
   const [error, setError] = useState<string | null>(null);
 
@@ -23,6 +152,7 @@ export default function ExamLibrary() {
   const [loading, setLoading] = useState(true);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
+  const latestFetchRef = useRef(0);
 
   // Role check: can this user manage the given exam?
   const canManage = (_exam: ExamListItem) => hasPermission(user, "CREATE_EXAM");
@@ -53,6 +183,7 @@ export default function ExamLibrary() {
       return;
     }
 
+    const requestId = ++latestFetchRef.current;
     setLoading(true);
     setError(null);
     try {
@@ -66,11 +197,30 @@ export default function ExamLibrary() {
           page,
           limit: 12,
           subjectId: subjectMatch?.id,
-          search: search || undefined,
+          search: debouncedSearch || undefined,
+          minDuration:
+            durationRange[0] > DURATION_RANGE_CONFIG.min
+              ? durationRange[0]
+              : undefined,
+          maxDuration:
+            durationRange[1] < DURATION_RANGE_CONFIG.max
+              ? durationRange[1]
+              : undefined,
+          minQuestionCount:
+            questionRange[0] > QUESTION_RANGE_CONFIG.min
+              ? questionRange[0]
+              : undefined,
+          maxQuestionCount:
+            questionRange[1] < QUESTION_RANGE_CONFIG.max
+              ? questionRange[1]
+              : undefined,
           isPublished: activeTab === "published" ? true : undefined,
         },
         accessToken,
       );
+
+      if (requestId !== latestFetchRef.current) return;
+
       if (Array.isArray(result)) {
         setExams(result as ExamListItem[]);
         setTotal((result as ExamListItem[]).length);
@@ -79,13 +229,32 @@ export default function ExamLibrary() {
         setTotal(Number((result as any)?.total ?? 0));
       }
     } catch (err: any) {
+      if (requestId !== latestFetchRef.current) return;
       setExams([]);
       setTotal(0);
       setError(err?.message || "Không thể tải danh sách đề thi.");
     } finally {
+      if (requestId !== latestFetchRef.current) return;
       setLoading(false);
     }
-  }, [page, selectedSubject, search, subjects, accessToken, activeTab]);
+  }, [
+    page,
+    selectedSubject,
+    debouncedSearch,
+    durationRange,
+    questionRange,
+    subjects,
+    accessToken,
+    activeTab,
+  ]);
+
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      setDebouncedSearch(search.trim());
+    }, 250);
+
+    return () => clearTimeout(timeoutId);
+  }, [search]);
 
   useEffect(() => {
     fetchExams();
@@ -142,68 +311,150 @@ export default function ExamLibrary() {
         </div>
       </div>
 
-      <div className="flex flex-wrap gap-2 mb-6">
-        {subjectNames.map((subject) => (
-          <button
-            key={subject}
-            className={`px-4 py-2 rounded-full font-medium border transition text-sm ${
-              selectedSubject === subject
-                ? "bg-navy-600 text-white border-navy-600"
-                : "bg-white text-navy-600 border-navy-200 hover:bg-navy-50"
-            }`}
-            onClick={() => {
-              setSelectedSubject(subject);
-              setPage(1);
-            }}
-          >
-            {subject}
-          </button>
-        ))}
-      </div>
+      {activeTab !== "custom" && (
+        <div className="mb-8 rounded-2xl border border-slate-200 bg-white p-4 lg:p-5">
+          <div className="inline-flex items-center gap-2 rounded-full bg-navy-50 px-3 py-1 text-xs font-bold text-navy-700">
+            <SlidersHorizontal className="h-3.5 w-3.5" />
+            Bộ lọc đề thi
+          </div>
 
-      <div className="flex items-center gap-2 mb-8">
-        <input
-          type="text"
-          placeholder="Nhập từ khóa bạn muốn tìm kiếm: tên đề, dạng câu hỏi ..."
-          className="flex-1 px-4 py-2 border border-navy-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-navy-400 bg-white text-navy-700"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-        />
-        <button
-          className="px-6 py-2 bg-navy-600 text-white rounded-lg font-bold hover:bg-navy-700 transition"
-          onClick={() => {
-            setPage(1);
-            fetchExams();
-          }}
-        >
-          Tìm kiếm
-        </button>
-        <button
-          className="p-2 border border-slate-300 rounded-lg text-slate-600 hover:bg-slate-50"
-          onClick={() => fetchExams()}
-          title="Tải lại"
-        >
-          <RefreshCw className="h-4 w-4" />
-        </button>
-      </div>
+          <div className="mt-3 grid grid-cols-1 gap-3 lg:grid-cols-12">
+            <div className="lg:col-span-5">
+              <label className="mb-1 block text-xs font-semibold text-slate-600">Từ khóa</label>
+              <div className="relative">
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder="Tìm theo tên đề, mô tả..."
+                  className="h-10 w-full rounded-lg border border-navy-200 bg-white py-2 pl-9 pr-3 text-sm text-navy-700 focus:outline-none focus:ring-2 focus:ring-navy-400"
+                  value={search}
+                  onChange={(e) => {
+                    setSearch(e.target.value);
+                    setPage(1);
+                  }}
+                />
+              </div>
+            </div>
+
+            <div className="lg:col-span-3">
+              <label className="mb-1 block text-xs font-semibold text-slate-600">Môn học</label>
+              <select
+                className="h-10 w-full rounded-lg border border-navy-200 px-3 py-2 text-sm text-navy-700"
+                value={selectedSubject}
+                onChange={(e) => {
+                  setSelectedSubject(e.target.value);
+                  setPage(1);
+                }}
+              >
+                {subjectNames.map((subject) => (
+                  <option key={subject} value={subject}>
+                    {subject}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="lg:col-span-2">
+              <label className="mb-1 block text-xs font-semibold text-transparent select-none">Hành động</label>
+              <button
+                className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+                onClick={() => fetchExams()}
+              >
+                <RefreshCw className="h-4 w-4" />
+                Tải lại
+              </button>
+            </div>
+
+            <div className="lg:col-span-2">
+              <label className="mb-1 block text-xs font-semibold text-transparent select-none">Hành động</label>
+              <button
+                className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+                onClick={() => {
+                  setSearch("");
+                  setDebouncedSearch("");
+                  setSelectedSubject("Tất cả");
+                  setDurationRange([
+                    DURATION_RANGE_CONFIG.min,
+                    DURATION_RANGE_CONFIG.max,
+                  ]);
+                  setQuestionRange([
+                    QUESTION_RANGE_CONFIG.min,
+                    QUESTION_RANGE_CONFIG.max,
+                  ]);
+                  setPage(1);
+                }}
+              >
+                <RotateCcw className="h-4 w-4" />
+                Đặt lại
+              </button>
+            </div>
+          </div>
+
+          <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
+            <RangeFilterSlider
+              label="Thời gian làm bài"
+              icon={<Clock3 className="h-3.5 w-3.5" />}
+              unit="p"
+              min={DURATION_RANGE_CONFIG.min}
+              max={DURATION_RANGE_CONFIG.max}
+              step={DURATION_RANGE_CONFIG.step}
+              value={durationRange}
+              onChange={(next) => {
+                setDurationRange(next);
+                setPage(1);
+              }}
+            />
+
+            <RangeFilterSlider
+              label="Số câu trắc nghiệm"
+              icon={<Hash className="h-3.5 w-3.5" />}
+              unit="c"
+              min={QUESTION_RANGE_CONFIG.min}
+              max={QUESTION_RANGE_CONFIG.max}
+              step={QUESTION_RANGE_CONFIG.step}
+              value={questionRange}
+              onChange={(next) => {
+                setQuestionRange(next);
+                setPage(1);
+              }}
+            />
+          </div>
+
+          <p className="mt-3 text-xs text-slate-500">
+            Kéo slider để lọc nhanh theo thời gian và số lượng câu hỏi.
+          </p>
+        </div>
+      )}
 
       {/* Tabs */}
-      <div className="flex gap-6 border-b border-navy-100 mb-8">
+      <div className="mb-8 inline-flex flex-wrap gap-2 rounded-xl border border-slate-200 bg-white p-1">
         <button
-          className={`pb-2 font-semibold text-lg border-b-2 transition ${activeTab === "all" ? "border-navy-600 text-navy-600" : "border-transparent text-gray-500"}`}
+          className={`rounded-lg px-4 py-2 text-sm font-semibold transition ${
+            activeTab === "all"
+              ? "bg-navy-600 text-white"
+              : "text-slate-600 hover:bg-slate-50"
+          }`}
           onClick={() => setActiveTab("all")}
         >
           Tất cả đề
         </button>
         <button
-          className={`pb-2 font-semibold text-lg border-b-2 transition ${activeTab === "published" ? "border-navy-600 text-navy-600" : "border-transparent text-gray-500"}`}
+          className={`rounded-lg px-4 py-2 text-sm font-semibold transition ${
+            activeTab === "published"
+              ? "bg-navy-600 text-white"
+              : "text-slate-600 hover:bg-slate-50"
+          }`}
           onClick={() => setActiveTab("published")}
         >
           Chỉ đề công bố
         </button>
         {canCreateExam && (
           <button
-            className={`pb-2 font-semibold text-lg border-b-2 transition ${activeTab === "custom" ? "border-navy-600 text-navy-600" : "border-transparent text-gray-500"}`}
+            className={`rounded-lg px-4 py-2 text-sm font-semibold transition ${
+              activeTab === "custom"
+                ? "bg-navy-600 text-white"
+                : "text-slate-600 hover:bg-slate-50"
+            }`}
             onClick={() => setActiveTab("custom")}
           >
             Tạo đề mới
@@ -295,7 +546,7 @@ export default function ExamLibrary() {
                 )}
               </div>
             ))}
-            {safeExams.length === 0 && (
+            {visibleExams.length === 0 && (
               <div className="col-span-full text-center text-gray-500 py-10">
                 Không tìm thấy bộ đề phù hợp.
               </div>

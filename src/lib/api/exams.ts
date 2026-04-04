@@ -68,6 +68,14 @@ class ExamsApiClient {
     if (params?.difficulty)
       searchParams.append("difficulty", params.difficulty);
     if (params?.search) searchParams.append("search", params.search);
+    if (params?.minDuration !== undefined)
+      searchParams.append("minDuration", params.minDuration.toString());
+    if (params?.maxDuration !== undefined)
+      searchParams.append("maxDuration", params.maxDuration.toString());
+    if (params?.minQuestionCount !== undefined)
+      searchParams.append("minQuestionCount", params.minQuestionCount.toString());
+    if (params?.maxQuestionCount !== undefined)
+      searchParams.append("maxQuestionCount", params.maxQuestionCount.toString());
     if (params?.isPublished !== undefined)
       searchParams.append("isPublished", params.isPublished.toString());
     if (params?.sortBy) searchParams.append("sortBy", params.sortBy);

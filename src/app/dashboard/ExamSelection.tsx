@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { examsApiClient } from "@/lib/api/exams";
 import { questionsApiClient } from "@/lib/api/questions";
 import { problemsApiClient } from "@/lib/api/problems";
@@ -8,6 +8,7 @@ import type {
   Subject,
   Topic,
   Difficulty,
+  QuestionType,
   QuestionListItem,
   ProblemListItem,
 } from "@/lib/api/types";
@@ -225,7 +226,10 @@ export default function ExamSelection({
   const [selectedQuestionIds, setSelectedQuestionIds] = useState<Set<string>>(
     new Set(),
   );
+  const [qDifficultyFilter, setQDifficultyFilter] = useState<Difficulty | "ALL">("ALL");
+  const [qTypeFilter, setQTypeFilter] = useState<QuestionType | "ALL">("ALL");
   const [qSearch, setQSearch] = useState("");
+  const [qSearchDebounced, setQSearchDebounced] = useState("");
   const [qPage, setQPage] = useState(1);
   const [qItems, setQItems] = useState<QuestionListItem[]>([]);
   const [qTotalPages, setQTotalPages] = useState(1);
@@ -235,7 +239,9 @@ export default function ExamSelection({
   const [selectedProblemIds, setSelectedProblemIds] = useState<Set<string>>(
     new Set(),
   );
+  const [pDifficultyFilter, setPDifficultyFilter] = useState<Difficulty | "ALL">("ALL");
   const [pSearch, setPSearch] = useState("");
+  const [pSearchDebounced, setPSearchDebounced] = useState("");
   const [pPage, setPPage] = useState(1);
   const [pItems, setPItems] = useState<ProblemListItem[]>([]);
   const [pTotalPages, setPTotalPages] = useState(1);
@@ -243,6 +249,8 @@ export default function ExamSelection({
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const latestQuestionFetchRef = useRef(0);
+  const latestProblemFetchRef = useRef(0);
 
   // Fetch subjects
   useEffect(() => {
@@ -295,31 +303,65 @@ export default function ExamSelection({
     });
   }, [subjectIds]);
 
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      setQSearchDebounced(qSearch.trim());
+    }, 250);
+
+    return () => clearTimeout(timeoutId);
+  }, [qSearch]);
+
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      setPSearchDebounced(pSearch.trim());
+    }, 250);
+
+    return () => clearTimeout(timeoutId);
+  }, [pSearch]);
+
   // Fetch questions for picker
   const fetchQuestions = useCallback(async () => {
     if (mode !== "manual") return;
+    const requestId = ++latestQuestionFetchRef.current;
     setQLoading(true);
     try {
       const res = await questionsApiClient.getQuestions(
         {
           page: qPage,
           limit: 10,
-          search: qSearch || undefined,
+          search: qSearchDebounced || undefined,
           isPublished: true,
           classification: examType === "PRACTICE" ? "PRACTICE" : undefined,
+          difficulty: qDifficultyFilter === "ALL" ? undefined : qDifficultyFilter,
+          questionType: qTypeFilter === "ALL" ? undefined : qTypeFilter,
           subjectId: subjectIds.length === 1 ? subjectIds[0] : undefined,
           topicId: topicId || undefined,
         },
         accessToken || undefined,
       );
+
+      if (requestId !== latestQuestionFetchRef.current) return;
+
       setQItems(res.data);
       setQTotalPages(res.totalPages);
     } catch {
+      if (requestId !== latestQuestionFetchRef.current) return;
       setQItems([]);
     } finally {
+      if (requestId !== latestQuestionFetchRef.current) return;
       setQLoading(false);
     }
-  }, [mode, qPage, qSearch, examType, subjectIds, topicId, accessToken]);
+  }, [
+    mode,
+    qPage,
+    qSearchDebounced,
+    examType,
+    qDifficultyFilter,
+    qTypeFilter,
+    subjectIds,
+    topicId,
+    accessToken,
+  ]);
 
   useEffect(() => {
     fetchQuestions();
@@ -330,31 +372,46 @@ export default function ExamSelection({
     setQPage(1);
   }, [examType]);
 
+  useEffect(() => {
+    setQPage(1);
+  }, [qDifficultyFilter, qTypeFilter]);
+
   // Fetch problems for picker
   const fetchProblems = useCallback(async () => {
     if (mode !== "manual") return;
+    const requestId = ++latestProblemFetchRef.current;
     setPLoading(true);
     try {
       const res = await problemsApiClient.getProblems({
         page: pPage,
         limit: 10,
-        search: pSearch || undefined,
+        search: pSearchDebounced || undefined,
         isPublished: true,
+        difficulty: pDifficultyFilter === "ALL" ? undefined : pDifficultyFilter,
         subjectId: subjectIds.length === 1 ? subjectIds[0] : undefined,
         topicId: topicId || undefined,
       });
+
+      if (requestId !== latestProblemFetchRef.current) return;
+
       setPItems(res.data);
       setPTotalPages(res.totalPages);
     } catch {
+      if (requestId !== latestProblemFetchRef.current) return;
       setPItems([]);
     } finally {
+      if (requestId !== latestProblemFetchRef.current) return;
       setPLoading(false);
     }
-  }, [mode, pPage, pSearch, subjectIds, topicId]);
+  }, [mode, pPage, pSearchDebounced, pDifficultyFilter, subjectIds, topicId]);
 
   useEffect(() => {
     fetchProblems();
   }, [fetchProblems]);
+
+  useEffect(() => {
+    setPPage(1);
+  }, [pDifficultyFilter]);
 
   // Toggle helpers
   const toggleQuestion = (id: string) => {
@@ -540,7 +597,7 @@ export default function ExamSelection({
   };
 
   return (
-    <div className="bg-white rounded-xl shadow-lg p-8 mb-10 max-w-2xl mx-auto">
+    <div className="bg-white rounded-xl shadow-lg p-6 lg:p-8 mb-10 max-w-6xl mx-auto">
       <h2 className="text-2xl font-bold text-navy-600 mb-6 text-center">
         Tạo bộ đề thi mới
       </h2>
@@ -569,8 +626,8 @@ export default function ExamSelection({
         <label className="block text-navy-700 font-semibold mb-2">
           Môn học (có thể chọn nhiều)
         </label>
-        <div className="max-h-44 overflow-y-auto rounded-lg border border-navy-200 p-3">
-          <div className="space-y-1">
+        <div className="max-h-36 overflow-y-auto rounded-lg border border-navy-200 p-3">
+          <div className="grid grid-cols-1 gap-1 sm:grid-cols-2 xl:grid-cols-3">
             {subjects.map((s) => (
               <label key={s.id} className="flex items-center gap-2 text-sm text-navy-700">
                 <input
@@ -613,41 +670,43 @@ export default function ExamSelection({
         </div>
       )}
 
-      {/* Duration */}
-      <div className="mb-4">
-        <label className="block text-navy-700 font-semibold mb-2">
-          Thời gian làm bài (phút)
-        </label>
-        <select
-          className="w-full px-4 py-3 border border-navy-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-navy-400 bg-white text-navy-700"
-          value={duration}
-          onChange={(e) => setDuration(Number(e.target.value))}
-        >
-          {DURATIONS.map((d) => (
-            <option key={d} value={d}>
-              {d} phút
-            </option>
-          ))}
-        </select>
-      </div>
+      <div className="mb-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+        {/* Duration */}
+        <div>
+          <label className="block text-navy-700 font-semibold mb-2">
+            Thời gian làm bài (phút)
+          </label>
+          <select
+            className="w-full px-4 py-3 border border-navy-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-navy-400 bg-white text-navy-700"
+            value={duration}
+            onChange={(e) => setDuration(Number(e.target.value))}
+          >
+            {DURATIONS.map((d) => (
+              <option key={d} value={d}>
+                {d} phút
+              </option>
+            ))}
+          </select>
+        </div>
 
-      {/* Difficulty */}
-      <div className="mb-4">
-        <label className="block text-navy-700 font-semibold mb-2">
-          Mức độ đề thi
-        </label>
-        <select
-          className="w-full px-4 py-3 border border-navy-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-navy-400 bg-white text-navy-700"
-          value={difficulty}
-          onChange={(e) => setDifficulty(e.target.value as Difficulty | "")}
-        >
-          <option value="">-- Không chọn --</option>
-          {DIFFICULTY_OPTIONS.map((opt) => (
-            <option key={opt.value} value={opt.value}>
-              {opt.label}
-            </option>
-          ))}
-        </select>
+        {/* Difficulty */}
+        <div>
+          <label className="block text-navy-700 font-semibold mb-2">
+            Mức độ đề thi
+          </label>
+          <select
+            className="w-full px-4 py-3 border border-navy-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-navy-400 bg-white text-navy-700"
+            value={difficulty}
+            onChange={(e) => setDifficulty(e.target.value as Difficulty | "")}
+          >
+            <option value="">-- Không chọn --</option>
+            {DIFFICULTY_OPTIONS.map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
 
       {/* Exam Type */}
@@ -694,6 +753,25 @@ export default function ExamSelection({
           • Đề Thi Chính Thức: Lấy tất cả câu hỏi đã xuất bản trong ngân hàng câu hỏi
         </p>
       </div>
+
+      {canManualPick && (
+        <div className="mb-4">
+          <label className="block text-navy-700 font-semibold mb-2">
+            Phương thức tạo đề
+          </label>
+          <select
+            className="w-full px-4 py-3 border border-navy-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-navy-400 bg-white text-navy-700"
+            value={mode}
+            onChange={(e) => setMode(e.target.value as SelectionMode)}
+          >
+            <option value="random">Ngẫu nhiên theo cấu hình</option>
+            <option value="manual">Chọn thủ công từ ngân hàng</option>
+          </select>
+          <p className="mt-2 text-xs text-navy-500">
+            Bỏ tab chuyển chế độ để giao diện gọn hơn và dễ thao tác trên màn hình nhỏ.
+          </p>
+        </div>
+      )}
 
       {/* Visibility & publish time */}
       <div className="mb-4 rounded-lg border border-navy-200 p-4">
@@ -791,39 +869,6 @@ export default function ExamSelection({
           </div>
         )}
       </div>
-
-      {/* ====== Selection Mode Toggle ====== */}
-      {canManualPick && (
-        <div className="mb-5">
-          <label className="block text-navy-700 font-semibold mb-2">
-            Chế độ chọn câu hỏi
-          </label>
-          <div className="flex rounded-lg overflow-hidden border border-navy-200">
-            <button
-              type="button"
-              className={`flex-1 px-4 py-2 text-sm font-medium transition ${
-                mode === "random"
-                  ? "bg-navy-600 text-white"
-                  : "bg-white text-navy-600 hover:bg-navy-50"
-              }`}
-              onClick={() => setMode("random")}
-            >
-              Ngẫu nhiên
-            </button>
-            <button
-              type="button"
-              className={`flex-1 px-4 py-2 text-sm font-medium transition ${
-                mode === "manual"
-                  ? "bg-navy-600 text-white"
-                  : "bg-white text-navy-600 hover:bg-navy-50"
-              }`}
-              onClick={() => setMode("manual")}
-            >
-              Chọn thủ công
-            </button>
-          </div>
-        </div>
-      )}
 
       {/* ====== Random Mode ====== */}
       {mode === "random" && (
@@ -1094,68 +1139,131 @@ export default function ExamSelection({
       {/* ====== Manual Pick Mode ====== */}
       {mode === "manual" && (
         <>
-          {/* Question picker */}
-          <ItemPicker<QuestionListItem>
-            title="Câu trắc nghiệm"
-            items={qItems}
-            selectedIds={selectedQuestionIds}
-            onToggle={toggleQuestion}
-            search={qSearch}
-            onSearchChange={setQSearch}
-            page={qPage}
-            totalPages={qTotalPages}
-            onPageChange={setQPage}
-            loading={qLoading}
-            renderItem={(q) => (
+          <div className="mb-4 rounded-lg border border-navy-200 p-4">
+            <p className="mb-3 text-sm font-semibold text-navy-700">
+              Bộ lọc danh sách chọn thủ công
+            </p>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
               <div>
-                <p className="text-sm text-navy-800 line-clamp-2">
-                  {q.content}
-                </p>
-                <div className="flex items-center gap-2 mt-1">
-                  <DiffBadge d={q.difficulty} />
-                  <span className="text-xs text-navy-400">
-                    {q.questionType === "SINGLE_CHOICE"
-                      ? "Một đáp án"
-                      : q.questionType === "MULTIPLE_CHOICE"
-                        ? "Nhiều đáp án"
-                        : "Tự luận"}
-                  </span>
-                  {q.subject && (
-                    <span className="text-xs text-navy-400">
-                      {q.subject.name}
-                    </span>
-                  )}
-                </div>
+                <label className="mb-1 block text-xs font-semibold text-navy-600">
+                  Độ khó câu trắc nghiệm
+                </label>
+                <select
+                  className="w-full rounded-lg border border-navy-200 px-3 py-2 text-sm"
+                  value={qDifficultyFilter}
+                  onChange={(e) =>
+                    setQDifficultyFilter(e.target.value as Difficulty | "ALL")
+                  }
+                >
+                  <option value="ALL">Tất cả</option>
+                  <option value="EASY">Dễ</option>
+                  <option value="MEDIUM">Trung bình</option>
+                  <option value="HARD">Khó</option>
+                </select>
               </div>
-            )}
-          />
 
-          {/* Problem picker */}
-          <ItemPicker<ProblemListItem>
-            title="Bài code"
-            items={pItems}
-            selectedIds={selectedProblemIds}
-            onToggle={toggleProblem}
-            search={pSearch}
-            onSearchChange={setPSearch}
-            page={pPage}
-            totalPages={pTotalPages}
-            onPageChange={setPPage}
-            loading={pLoading}
-            renderItem={(p) => (
               <div>
-                <p className="text-sm text-navy-800 font-medium">{p.title}</p>
-                <div className="flex items-center gap-2 mt-1">
-                  <DiffBadge d={p.difficulty} />
-                  {p.subject && (
-                    <span className="text-xs text-navy-400">
-                      {p.subject.name}
-                    </span>
-                  )}
-                </div>
+                <label className="mb-1 block text-xs font-semibold text-navy-600">
+                  Loại câu trắc nghiệm
+                </label>
+                <select
+                  className="w-full rounded-lg border border-navy-200 px-3 py-2 text-sm"
+                  value={qTypeFilter}
+                  onChange={(e) =>
+                    setQTypeFilter(e.target.value as QuestionType | "ALL")
+                  }
+                >
+                  <option value="ALL">Tất cả</option>
+                  <option value="SINGLE_CHOICE">Một đáp án</option>
+                  <option value="MULTIPLE_CHOICE">Nhiều đáp án</option>
+                  <option value="SHORT_ANSWER">Tự luận ngắn</option>
+                </select>
               </div>
-            )}
-          />
+
+              <div>
+                <label className="mb-1 block text-xs font-semibold text-navy-600">
+                  Độ khó bài code
+                </label>
+                <select
+                  className="w-full rounded-lg border border-navy-200 px-3 py-2 text-sm"
+                  value={pDifficultyFilter}
+                  onChange={(e) =>
+                    setPDifficultyFilter(e.target.value as Difficulty | "ALL")
+                  }
+                >
+                  <option value="ALL">Tất cả</option>
+                  <option value="EASY">Dễ</option>
+                  <option value="MEDIUM">Trung bình</option>
+                  <option value="HARD">Khó</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+            {/* Question picker */}
+            <ItemPicker<QuestionListItem>
+              title="Câu trắc nghiệm"
+              items={qItems}
+              selectedIds={selectedQuestionIds}
+              onToggle={toggleQuestion}
+              search={qSearch}
+              onSearchChange={setQSearch}
+              page={qPage}
+              totalPages={qTotalPages}
+              onPageChange={setQPage}
+              loading={qLoading}
+              renderItem={(q) => (
+                <div>
+                  <p className="text-sm text-navy-800 line-clamp-2">
+                    {q.content}
+                  </p>
+                  <div className="flex items-center gap-2 mt-1">
+                    <DiffBadge d={q.difficulty} />
+                    <span className="text-xs text-navy-400">
+                      {q.questionType === "SINGLE_CHOICE"
+                        ? "Một đáp án"
+                        : q.questionType === "MULTIPLE_CHOICE"
+                          ? "Nhiều đáp án"
+                          : "Tự luận"}
+                    </span>
+                    {q.subject && (
+                      <span className="text-xs text-navy-400">
+                        {q.subject.name}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              )}
+            />
+
+            {/* Problem picker */}
+            <ItemPicker<ProblemListItem>
+              title="Bài code"
+              items={pItems}
+              selectedIds={selectedProblemIds}
+              onToggle={toggleProblem}
+              search={pSearch}
+              onSearchChange={setPSearch}
+              page={pPage}
+              totalPages={pTotalPages}
+              onPageChange={setPPage}
+              loading={pLoading}
+              renderItem={(p) => (
+                <div>
+                  <p className="text-sm text-navy-800 font-medium">{p.title}</p>
+                  <div className="flex items-center gap-2 mt-1">
+                    <DiffBadge d={p.difficulty} />
+                    {p.subject && (
+                      <span className="text-xs text-navy-400">
+                        {p.subject.name}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              )}
+            />
+          </div>
         </>
       )}
 

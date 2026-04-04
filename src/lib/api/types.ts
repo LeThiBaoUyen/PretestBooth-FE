@@ -803,6 +803,10 @@ export interface QueryExamsParams {
   topicId?: string;
   difficulty?: Difficulty;
   search?: string;
+  minDuration?: number;
+  maxDuration?: number;
+  minQuestionCount?: number;
+  maxQuestionCount?: number;
   isPublished?: boolean;
   sortBy?: "createdAt" | "title" | "duration";
   sortOrder?: "asc" | "desc";
