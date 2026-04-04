@@ -156,6 +156,8 @@ class QuestionsApiClient {
     if (params?.limit) searchParams.append("limit", params.limit.toString());
     if (params?.questionType)
       searchParams.append("questionType", params.questionType);
+    if (params?.classification)
+      searchParams.append("classification", params.classification);
     if (params?.difficulty)
       searchParams.append("difficulty", params.difficulty);
     if (params?.subjectId) searchParams.append("subjectId", params.subjectId);

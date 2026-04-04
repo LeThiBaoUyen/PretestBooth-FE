@@ -1,5 +1,5 @@
 import { httpClient } from "./httpClient";
-import type { LecturerPermission, User } from "./types";
+import type { User } from "./types";
 
 export interface PaginatedUsers {
   data: Partial<User>[];
@@ -18,29 +18,6 @@ export interface CreateStudentPayload {
   dateOfBirth?: string;
 }
 
-export interface CreateStudentResponse {
-  id: string;
-  email: string;
-  name?: string | null;
-  emailSent: boolean;
-  message: string;
-}
-
-export interface CreateLecturerPayload {
-  email: string;
-  name: string;
-  password: string;
-}
-
-export interface CreateLecturerResponse {
-  id: string;
-  email: string;
-  name?: string | null;
-  role: "LECTURER";
-  createdAt: string;
-  message: string;
-}
-
 export interface UpdateStudentPayload {
   email?: string;
   studentCode?: string;
@@ -49,55 +26,6 @@ export interface UpdateStudentPayload {
   dateOfBirth?: string;
   isLocked?: boolean;
   lockedReason?: string;
-}
-
-export interface LecturerListItem {
-  id: string;
-  email: string;
-  name?: string | null;
-  role: "LECTURER";
-  isLocked: boolean;
-  createdAt: string;
-  permissions: LecturerPermission[];
-  isLecturerAdmin: boolean;
-}
-
-export interface PaginatedLecturers {
-  data: LecturerListItem[];
-  total: number;
-  page: number;
-  limit: number;
-  totalPages: number;
-  requesterPermissions: LecturerPermission[];
-  assignablePermissions: LecturerPermission[];
-  canGrantAdminPackage: boolean;
-}
-
-export interface LecturerPermissionDetail {
-  id: string;
-  email: string;
-  name?: string | null;
-  role: "LECTURER";
-  isLocked: boolean;
-  createdAt: string;
-  permissions: LecturerPermission[];
-  isLecturerAdmin: boolean;
-  assignments: Array<{
-    permission: LecturerPermission;
-    grantedAt: string;
-    grantedByUser?: {
-      id: string;
-      email: string;
-      name?: string | null;
-    } | null;
-  }>;
-  requesterPermissions: LecturerPermission[];
-  assignablePermissions: LecturerPermission[];
-  canGrantAdminPackage: boolean;
-}
-
-export interface UpdateLecturerPermissionsPayload {
-  permissions: LecturerPermission[];
 }
 
 export const usersApi = {
@@ -116,37 +44,12 @@ export const usersApi = {
   getUser: (id: string) => httpClient.get<Partial<User>>(`/api/users/${id}`),
 
   createUser: (data: CreateStudentPayload) =>
-    httpClient.post<CreateStudentResponse>("/api/users", data),
-
-  createLecturer: (data: CreateLecturerPayload) =>
-    httpClient.post<CreateLecturerResponse>("/api/users/lecturers", data),
+    httpClient.post<{ message: string; id: string }>("/api/users", data),
 
   updateUser: (id: string, data: UpdateStudentPayload) =>
     httpClient.patch<Partial<User>>(`/api/users/${id}`, data),
 
   deleteUser: (id: string) => httpClient.delete<{ message: string }>(`/api/users/${id}`),
-
-  getLecturers: (params?: { page?: number; limit?: number; search?: string; sortOrder?: "asc" | "desc" }) => {
-    const query = new URLSearchParams();
-    if (params?.page) query.append("page", params.page.toString());
-    if (params?.limit) query.append("limit", params.limit.toString());
-    if (params?.search) query.append("search", params.search);
-    if (params?.sortOrder) query.append("sortOrder", params.sortOrder);
-
-    return httpClient.get<PaginatedLecturers>(`/api/users/lecturers?${query.toString()}`);
-  },
-
-  getLecturerPermissions: (id: string) =>
-    httpClient.get<LecturerPermissionDetail>(`/api/users/lecturers/${id}/permissions`),
-
-  updateLecturerPermissions: (id: string, data: UpdateLecturerPermissionsPayload) =>
-    httpClient.put<{
-      lecturerId: string;
-      permissions: LecturerPermission[];
-      isLecturerAdmin: boolean;
-      updatedBy: string;
-      canGrantAdminPackage: boolean;
-    }>(`/api/users/lecturers/${id}/permissions`, data),
 
   // File should be mapped toFormData in the UI layer and passed via fetch directly because httpClient forces JSON
   // We'll export a generic URL that the UI can hit using native fetch + tokens
