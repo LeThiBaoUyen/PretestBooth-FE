@@ -4,7 +4,11 @@ import { useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import * as XLSX from "xlsx";
-import type { Difficulty, QuestionType } from "@/lib/api/types";
+import type {
+  Difficulty,
+  QuestionType,
+  QuestionClassification,
+} from "@/lib/api/types";
 import { questionsApiClient } from "@/lib/api/questions";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { getTokenManager } from "@/lib/auth/tokenManager";
@@ -20,6 +24,7 @@ type QuestionImportPreviewRow = {
   rowNumber: number;
   content: string;
   questionType: string;
+  classification: string;
   difficulty: string;
   subjectId: string;
   topicId: string;
@@ -44,11 +49,22 @@ const QUESTION_REQUIRED_COLUMNS = ["content", "questionType", "difficulty"];
 function normalizeHeaderKey(header: string) {
   const normalized = header.replace(/\s+/g, "").replace(/[_-]/g, "").toLowerCase();
   if (normalized === "questiontype" || normalized === "type") return "questionType";
+  if (
+    normalized === "classification" ||
+    normalized === "questionclassification" ||
+    normalized === "examtype"
+  )
+    return "classification";
   if (normalized === "subjectref") return "subjectRef";
   if (normalized === "subject" || normalized === "subjectid") return "subjectId";
   if (normalized === "topicref") return "topicRef";
   if (normalized === "topic" || normalized === "topicid") return "topicId";
-  if (normalized === "correct" || normalized === "correctanswer") return "correctAnswer";
+  if (
+    normalized === "correct" ||
+    normalized === "correctanswer" ||
+    normalized === "correctans"
+  )
+    return "correctAnswer";
   if (normalized === "isa" || normalized === "ispublished" || normalized === "publish") return "isPublished";
   return header;
 }
@@ -109,9 +125,20 @@ function parseCsvContent(content: string) {
   return { headers, rows };
 }
 
+function normalizeRefLabel(rawValue: unknown) {
+  return String(rawValue || "")
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/đ/g, "d")
+    .replace(/[^a-z0-9]/g, "");
+}
+
 function validateQuestionPreviewRow(row: QuestionImportPreviewRow) {
   const errors: string[] = [];
   const type = row.questionType.toUpperCase();
+  const classification = row.classification.toUpperCase();
   const difficulty = row.difficulty.toUpperCase();
   const correctTokens = row.correctAnswer
     .split(",")
@@ -122,6 +149,9 @@ function validateQuestionPreviewRow(row: QuestionImportPreviewRow) {
   if (!row.subjectId) errors.push("Thiếu subjectRef/subjectId/subjectName");
   if (!["SINGLE_CHOICE", "MULTIPLE_CHOICE", "SHORT_ANSWER"].includes(type)) {
     errors.push("questionType không hợp lệ");
+  }
+  if (classification && !["PRACTICE", "EXAM"].includes(classification)) {
+    errors.push("classification không hợp lệ (PRACTICE hoặc EXAM)");
   }
   if (!["EASY", "MEDIUM", "HARD"].includes(difficulty)) {
     errors.push("difficulty không hợp lệ");
@@ -207,6 +237,7 @@ export default function QuestionsLibrary() {
         rowNumber: index + 2,
         content: String(row.content || "").trim(),
         questionType: String(row.questionType || "").trim().toUpperCase(),
+        classification: String(row.classification || "EXAM").trim().toUpperCase(),
         difficulty: String(row.difficulty || "").trim().toUpperCase(),
         subjectId: String(row.subjectId || row.subjectRef || row.subjectName || row.subject || "").trim(),
         topicId: String(row.topicId || row.topicRef || row.topicName || row.topic || "").trim(),
@@ -288,7 +319,32 @@ export default function QuestionsLibrary() {
         return;
       }
 
-      setPreviewRows(parsed.rows);
+      const existingSubjects = (subjects || []).map((s) => ({
+        id: String(s.id),
+        idNorm: normalizeRefLabel(s.id),
+        nameNorm: normalizeRefLabel(s.name),
+      }));
+
+      const rowsWithSubjectValidation = parsed.rows.map((row) => {
+        const ref = row.subjectId;
+        const refNorm = normalizeRefLabel(ref);
+        const found = existingSubjects.some(
+          (s) => s.idNorm === refNorm || s.nameNorm === refNorm,
+        );
+
+        if (!found) {
+          const errors = [...row.errors, `Không tìm thấy môn học '${ref}' trong hệ thống`];
+          return {
+            ...row,
+            isValid: false,
+            errors,
+          };
+        }
+
+        return row;
+      });
+
+      setPreviewRows(rowsWithSubjectValidation);
     } catch (err: any) {
       setPreviewError(err.message || "Không thể đọc file xem trước.");
     } finally {
@@ -321,10 +377,23 @@ export default function QuestionsLibrary() {
       }
 
       const payload = raw?.data ?? raw;
+      const messageText = String(payload?.message || "");
+      const matchedSuccess = messageText.match(/(\d+)\s*\/\s*(\d+)/) || messageText.match(/thành công\s*(\d+)/i);
+      const fallbackSuccess = matchedSuccess
+        ? Number(matchedSuccess[2] ? matchedSuccess[1] : matchedSuccess[1])
+        : 0;
+      const fallbackTotal = matchedSuccess
+        ? Number(matchedSuccess[2] || previewRows.length)
+        : previewRows.length;
+
+      const success = Number(payload?.success ?? fallbackSuccess);
+      const total = Number(payload?.total ?? fallbackTotal);
+      const failed = Number(payload?.failed ?? Math.max(total - success, 0));
+
       setImportResult({
-        total: Number(payload?.total ?? 0),
-        success: Number(payload?.success ?? 0),
-        failed: Number(payload?.failed ?? 0),
+        total,
+        success,
+        failed,
         errors: Array.isArray(payload?.errors) ? payload.errors : [],
       });
 
@@ -346,10 +415,10 @@ export default function QuestionsLibrary() {
 
   const handleDownloadTemplate = () => {
     const csv = [
-      "content,imageUrl,subjectRef,topicRef,questionType,difficulty,correctAnswer,optionA,optionB,optionC,optionD,isPublished,explanation",
-      '"2 + 2 bằng mấy?",https://example.com/math-q1.png,Cấu trúc dữ liệu,,SINGLE_CHOICE,EASY,A,A,B,C,,true,"Câu hỏi mẫu single"',
-      '"Chọn số nguyên tố",,Cấu trúc dữ liệu,Đệ quy,MULTIPLE_CHOICE,MEDIUM,"A,C",2,3,4,5,false,"Câu hỏi mẫu multiple"',
-      '"Nêu định nghĩa biến",,Cấu trúc dữ liệu,,SHORT_ANSWER,EASY,"Biến là vùng nhớ",,,,,true,"Câu hỏi mẫu short"',
+      "content,imageUrl,subjectRef,topicRef,questionType,classification,difficulty,correctAnswer,optionA,optionB,optionC,optionD,isPublished,explanation",
+      '"2 + 2 bằng mấy?",https://example.com/math-q1.png,Cấu trúc dữ liệu,,SINGLE_CHOICE,EXAM,EASY,A,A,B,C,,true,"Câu hỏi mẫu single"',
+      '"Chọn số nguyên tố",,Cấu trúc dữ liệu,Đệ quy,MULTIPLE_CHOICE,PRACTICE,MEDIUM,"A,C",2,3,4,5,false,"Câu hỏi mẫu multiple"',
+      '"Nêu định nghĩa biến",,Cấu trúc dữ liệu,,SHORT_ANSWER,PRACTICE,EASY,"Biến là vùng nhớ",,,,,true,"Câu hỏi mẫu short"',
     ].join("\r\n");
 
     const csvWithBom = `\uFEFF${csv}`;
@@ -482,7 +551,7 @@ export default function QuestionsLibrary() {
           {selectedFile && <p className="text-sm text-slate-600 mt-1">File: {selectedFile.name}</p>}
 
           <div className="mt-4 rounded-lg border border-slate-200 p-3 text-sm text-slate-700">
-            Cột mẫu: content, imageUrl (tùy chọn), subjectRef, topicRef, questionType, difficulty, correctAnswer, optionA, optionB, optionC, optionD, isPublished, explanation
+            Cột mẫu: content, imageUrl (tùy chọn), subjectRef, topicRef, questionType, classification, difficulty, correctAnswer, optionA, optionB, optionC, optionD, isPublished, explanation
           </div>
 
           {previewError && <p className="mt-3 text-sm text-red-600">{previewError}</p>}
@@ -505,6 +574,7 @@ export default function QuestionsLibrary() {
                       <th className="px-3 py-2">Dòng</th>
                       <th className="px-3 py-2">Nội dung</th>
                       <th className="px-3 py-2">Loại</th>
+                      <th className="px-3 py-2">Phân loại</th>
                       <th className="px-3 py-2">Độ khó</th>
                       <th className="px-3 py-2">SubjectRef</th>
                       <th className="px-3 py-2">Trạng thái</th>
@@ -516,6 +586,13 @@ export default function QuestionsLibrary() {
                         <td className="px-3 py-2">{row.rowNumber}</td>
                         <td className="px-3 py-2 max-w-md truncate">{row.content || "--"}</td>
                         <td className="px-3 py-2">{row.questionType || "--"}</td>
+                        <td className="px-3 py-2">
+                          {row.classification === "PRACTICE"
+                            ? "Luyện tập"
+                            : row.classification === "EXAM"
+                              ? "Thi"
+                              : row.classification || "--"}
+                        </td>
                         <td className="px-3 py-2">{row.difficulty || "--"}</td>
                         <td className="px-3 py-2">{row.subjectId || "--"}</td>
                         <td className="px-3 py-2">
