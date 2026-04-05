@@ -103,13 +103,22 @@ export interface UpdateStudentPayload {
 }
 
 export const usersApi = {
-  getUsers: (params: { page?: number; limit?: number; role?: string; search?: string; className?: string; isLocked?: boolean }) => {
+  getUsers: (params: {
+    page?: number;
+    limit?: number;
+    role?: string;
+    search?: string;
+    className?: string;
+    cohort?: number;
+    isLocked?: boolean;
+  }) => {
     const query = new URLSearchParams();
     if (params.page) query.append("page", params.page.toString());
     if (params.limit) query.append("limit", params.limit.toString());
     if (params.role) query.append("role", params.role);
     if (params.search) query.append("search", params.search);
     if (params.className) query.append("className", params.className);
+    if (params.cohort !== undefined) query.append("cohort", params.cohort.toString());
     if (params.isLocked !== undefined) query.append("isLocked", params.isLocked.toString());
 
     return httpClient.get<PaginatedUsers>(`/api/users?${query.toString()}`);
@@ -132,6 +141,7 @@ export const usersApi = {
   getExportUrl: (params?: {
     search?: string;
     className?: string;
+    cohort?: number;
     isLocked?: boolean;
     sortOrder?: "asc" | "desc";
     format?: "csv" | "xlsx";
@@ -140,6 +150,7 @@ export const usersApi = {
     query.append("role", "STUDENT");
     if (params?.search) query.append("search", params.search);
     if (params?.className) query.append("className", params.className);
+    if (params?.cohort !== undefined) query.append("cohort", params.cohort.toString());
     if (params?.isLocked !== undefined) query.append("isLocked", params.isLocked.toString());
     if (params?.sortOrder) query.append("sortOrder", params.sortOrder);
     if (params?.format) query.append("format", params.format);

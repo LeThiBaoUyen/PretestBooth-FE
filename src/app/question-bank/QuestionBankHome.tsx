@@ -145,46 +145,6 @@ export default function QuestionBankHome() {
           </div>
         </Link>
       </div>
-
-      <div className="mb-8 rounded-xl border border-slate-200 bg-white p-4">
-        <p className="text-sm text-slate-700">
-          Bạn có thể quản lý Subject và Topic tại
-          <Link href="/question-bank/categories" className="ml-1 font-semibold text-navy-700 hover:underline">
-            trang phân loại
-          </Link>
-          để dùng tham chiếu thân thiện khi import dữ liệu.
-        </p>
-      </div>
-
-      {/* Subjects Overview */}
-      {subjects && subjects.length > 0 && (
-        <div className="bg-white rounded-xl shadow-md p-6">
-          <h2 className="text-lg font-semibold text-navy-600 mb-4">Môn học</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            {subjects.map((subject) => (
-              <div
-                key={subject.id}
-                className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg"
-              >
-                <span className="text-xl">📚</span>
-                <div className="flex-1 min-w-0">
-                  <p className="font-medium text-gray-800 truncate">
-                    {subject.name}
-                  </p>
-                  {subject.description && (
-                    <p className="text-xs text-gray-500 truncate">
-                      {subject.description}
-                    </p>
-                  )}
-                </div>
-                <span className="text-xs text-gray-400 flex-shrink-0">
-                  {subject.questionCount ?? 0} câu
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
     </div>
   );
 }

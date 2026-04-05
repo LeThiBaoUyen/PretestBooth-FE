@@ -16,7 +16,7 @@ export default function AdminHomePage() {
               Quản lý Booth
             </Link>
             <Link
-              href="/admin/users"
+              href="/admin/student"
               className="rounded-xl border border-slate-200 bg-slate-50 p-4 font-semibold text-slate-800 transition hover:border-navy-200 hover:bg-white"
             >
               Quản lý Sinh viên

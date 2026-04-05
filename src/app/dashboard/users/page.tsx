@@ -53,6 +53,30 @@ type StudentForm = {
 };
 
 const REQUIRED_COLUMNS = ["studentCode", "email", "name"];
+const COHORT_PREFIX_OFFSET = 4;
+
+function getStudentCodePrefix(studentCode?: string | null) {
+  if (!studentCode) return null;
+  const trimmed = String(studentCode).trim();
+  if (trimmed.length < 2) return null;
+
+  const prefix = trimmed.slice(0, 2);
+  if (!/^\d{2}$/.test(prefix)) return null;
+  return Number(prefix);
+}
+
+function getCohortFromStudentCode(studentCode?: string | null) {
+  const prefix = getStudentCodePrefix(studentCode);
+  if (prefix === null) return null;
+  return prefix - COHORT_PREFIX_OFFSET;
+}
+
+function parseCohortValue(raw: string) {
+  if (!raw.trim()) return null;
+  const cohort = Number(raw);
+  if (!Number.isInteger(cohort) || cohort <= 0 || cohort > 99) return null;
+  return cohort;
+}
 
 function normalizeHeaderKey(header: string) {
   const normalized = header.replace(/\s+/g, "").replace(/[_-]/g, "").toLowerCase();
@@ -168,6 +192,7 @@ export default function AdminUsersPage() {
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
   const [classFilter, setClassFilter] = useState("");
+  const [cohortFilter, setCohortFilter] = useState("");
   const [lockFilter, setLockFilter] = useState<"ALL" | "LOCKED" | "ACTIVE">("ALL");
   const [loading, setLoading] = useState(true);
   const [savingForm, setSavingForm] = useState(false);
@@ -210,11 +235,13 @@ export default function AdminUsersPage() {
   const fetchUsers = async () => {
     setLoading(true);
     try {
+      const cohort = parseCohortValue(cohortFilter);
       const res = await usersApi.getUsers({
         page,
         limit: 12,
         search: search || undefined,
         className: classFilter || undefined,
+        cohort: cohort ?? undefined,
         isLocked: lockFilter === "ALL" ? undefined : lockFilter === "LOCKED",
         role: "STUDENT",
       });
@@ -238,7 +265,7 @@ export default function AdminUsersPage() {
     if (hasPermission(user, "MANAGE_STUDENTS")) {
       fetchUsers();
     }
-  }, [user, page, search, classFilter, lockFilter]);
+  }, [user, page, search, classFilter, cohortFilter, lockFilter]);
 
   const handleToggleLock = async (id: string, currentlyLocked: boolean) => {
     if (!confirm(currentlyLocked ? "Mở khóa tài khoản này?" : "Khóa tài khoản này?")) return;
@@ -530,6 +557,7 @@ export default function AdminUsersPage() {
       const exportUrl = usersApi.getExportUrl({
         search: search || undefined,
         className: classFilter || undefined,
+        cohort: parseCohortValue(cohortFilter) ?? undefined,
         isLocked: lockFilter === "ALL" ? undefined : lockFilter === "LOCKED",
         sortOrder: "desc",
         format: "xlsx",
@@ -584,7 +612,7 @@ export default function AdminUsersPage() {
 
             <div className="mt-3 flex flex-wrap items-center gap-2">
               <Link
-                href="/admin/users"
+                href="/admin/student"
                 className="inline-flex items-center rounded-full bg-navy-600 px-3 py-1.5 text-xs font-bold text-white"
               >
                 Quản lý sinh viên
@@ -719,57 +747,6 @@ export default function AdminUsersPage() {
           </div>
         </form>
       )}
-
-      <div className="mb-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-        <h2 className="text-lg font-bold text-slate-900">Cấu trúc file import</h2>
-        <p className="mt-1 text-sm text-slate-600">
-          Cột bắt buộc: <span className="font-semibold">studentCode</span>, <span className="font-semibold">email</span>, <span className="font-semibold">name</span>. Cột <span className="font-semibold">className</span> và <span className="font-semibold">dateOfBirth</span> là tùy chọn.
-        </p>
-        <div className="mt-3 overflow-x-auto rounded-lg border border-slate-200">
-          <table className="w-full text-left text-sm">
-            <thead className="bg-slate-50">
-              <tr>
-                <th className="px-3 py-2 font-semibold text-slate-700">Cột</th>
-                <th className="px-3 py-2 font-semibold text-slate-700">Bắt buộc</th>
-                <th className="px-3 py-2 font-semibold text-slate-700">Định dạng</th>
-                <th className="px-3 py-2 font-semibold text-slate-700">Ghi chú</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              <tr>
-                <td className="px-3 py-2 font-medium">studentCode</td>
-                <td className="px-3 py-2">Có</td>
-                <td className="px-3 py-2">Chuỗi</td>
-                <td className="px-3 py-2">MSSV duy nhất</td>
-              </tr>
-              <tr>
-                <td className="px-3 py-2 font-medium">email</td>
-                <td className="px-3 py-2">Có</td>
-                <td className="px-3 py-2">user@student.iuh.edu.vn</td>
-                <td className="px-3 py-2">Bắt buộc đúng đuôi @student.iuh.edu.vn</td>
-              </tr>
-              <tr>
-                <td className="px-3 py-2 font-medium">name</td>
-                <td className="px-3 py-2">Có</td>
-                <td className="px-3 py-2">Chuỗi</td>
-                <td className="px-3 py-2">Họ tên sinh viên</td>
-              </tr>
-              <tr>
-                <td className="px-3 py-2 font-medium">className</td>
-                <td className="px-3 py-2">Không</td>
-                <td className="px-3 py-2">Chuỗi</td>
-                <td className="px-3 py-2">Lớp học phần</td>
-              </tr>
-              <tr>
-                <td className="px-3 py-2 font-medium">dateOfBirth</td>
-                <td className="px-3 py-2">Không</td>
-                <td className="px-3 py-2">YYYY-MM-DD hoặc DD/MM/YYYY</td>
-                <td className="px-3 py-2">Nếu hợp lệ, mật khẩu mặc định sẽ là DDMM</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
 
       {(selectedFile || previewError) && (
         <div className="mb-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
@@ -921,6 +898,18 @@ export default function AdminUsersPage() {
               setPage(1);
             }}
           />
+          <input
+            type="number"
+            min={1}
+            max={99}
+            placeholder="Khóa (VD: 18)"
+            className="ml-3 w-40 px-3 py-2 border border-gray-300 rounded-lg focus:ring-navy-500 focus:border-navy-500 text-sm"
+            value={cohortFilter}
+            onChange={(e) => {
+              setCohortFilter(e.target.value);
+              setPage(1);
+            }}
+          />
           <select
             className="ml-3 px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white"
             value={lockFilter}
@@ -933,7 +922,9 @@ export default function AdminUsersPage() {
             <option value="ACTIVE">Đang hoạt động</option>
             <option value="LOCKED">Đã khóa</option>
           </select>
-          <div className="ml-4 text-sm text-gray-500 font-medium">Tổng cộng: {total} sinh viên</div>
+          <div className="ml-4 text-sm text-gray-500 font-medium">
+            Tổng cộng: {total} sinh viên
+          </div>
         </div>
 
         {loading ? (
@@ -947,6 +938,7 @@ export default function AdminUsersPage() {
                 <tr className="bg-white border-b-2 border-gray-100">
                   <th className="py-3 px-6 font-semibold text-gray-500 text-sm">Sinh viên</th>
                   <th className="py-3 px-6 font-semibold text-gray-500 text-sm">MSSV</th>
+                  <th className="py-3 px-6 font-semibold text-gray-500 text-sm">Khóa</th>
                   <th className="py-3 px-6 font-semibold text-gray-500 text-sm">Lớp học phần</th>
                   <th className="py-3 px-6 font-semibold text-gray-500 text-sm">Điểm tích lũy</th>
                   <th className="py-3 px-6 font-semibold text-gray-500 text-sm">Trạng thái</th>
@@ -961,6 +953,11 @@ export default function AdminUsersPage() {
                       <div className="text-xs text-gray-500">{student.email}</div>
                     </td>
                     <td className="py-4 px-6 font-medium text-navy-700">{student.studentCode || "--"}</td>
+                    <td className="py-4 px-6 text-gray-700">
+                      {getCohortFromStudentCode(student.studentCode) !== null
+                        ? `Khóa ${getCohortFromStudentCode(student.studentCode)}`
+                        : "--"}
+                    </td>
                     <td className="py-4 px-6 text-gray-700">{student.className || "--"}</td>
                     <td className="py-4 px-6">
                       <span className="font-bold text-yellow-600">{student.totalPoints || 0}</span>

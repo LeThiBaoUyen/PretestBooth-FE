@@ -202,7 +202,7 @@ export default function LecturerManagementPage() {
               <div className="mt-3 flex flex-wrap items-center gap-2">
                 {canManageStudents && (
                   <Link
-                    href="/admin/users"
+                    href="/admin/student"
                     className="inline-flex items-center rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-50"
                   >
                     Quản lý sinh viên

@@ -88,13 +88,13 @@ export default function Header() {
 
   const canManageUsers = hasAnyPermission(user, ["MANAGE_STUDENTS", "LECTURER_ADMIN"]);
   const userManagementHref = hasAnyPermission(user, ["MANAGE_STUDENTS"])
-    ? "/admin/users"
+    ? "/admin/student"
     : "/admin/lecturers";
   const userManagementItem: NavItem | null = canManageUsers
     ? {
       label: "Quản lý người dùng",
       href: userManagementHref,
-      activeMatches: ["/admin/users", "/admin/lecturers", "/admin/access-control"],
+      activeMatches: ["/admin/student", "/admin/lecturers", "/admin/access-control"],
     }
     : null;
 
@@ -110,6 +110,15 @@ export default function Header() {
     if (!item.roles) return true;
     if (!user) return false;
     return item.roles.includes(user.role);
+  }).map((item) => {
+    if (item.href === "/exams" && user?.role === "STUDENT") {
+      return {
+        ...item,
+        label: "Đề thi",
+      };
+    }
+
+    return item;
   });
 
   const handleLogout = async () => {
