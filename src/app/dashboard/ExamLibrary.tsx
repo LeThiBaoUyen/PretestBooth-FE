@@ -21,6 +21,7 @@ import {
 import ExamSelection from "./ExamSelection";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { boothSessionManager } from "@/lib/auth/boothSession";
 
 const DURATION_RANGE_CONFIG = {
   min: 15,
@@ -167,6 +168,16 @@ export default function ExamLibrary() {
 
   const attemptAutoAssignExam = useCallback(async () => {
     if (!accessToken || user?.role !== "STUDENT") {
+      return;
+    }
+
+    const hasBoothSession =
+      Boolean(boothSessionManager.getToken()) &&
+      Boolean(boothSessionManager.getMeta());
+
+    if (!hasBoothSession) {
+      setHasCheckedInExamBooking(false);
+      setAutoAssignError(null);
       return;
     }
 

@@ -6,6 +6,7 @@ import { examsApiClient } from "@/lib/api/exams";
 import { useAuth } from "@/lib/hooks";
 import type { Exam, ExamSessionListItem } from "@/lib/api/types";
 import { hasPermission } from "@/lib/auth/permissions";
+import { boothSessionManager } from "@/lib/auth/boothSession";
 
 export default function ExamDetailPage({
   params,
@@ -80,7 +81,11 @@ export default function ExamDetailPage({
     }
     try {
       const isStudentExam = user?.role === "STUDENT" && exam.type === "EXAM";
-      if (isStudentExam) {
+      const hasBoothSession =
+        Boolean(boothSessionManager.getToken()) &&
+        Boolean(boothSessionManager.getMeta());
+
+      if (isStudentExam && hasBoothSession) {
         router.push("/exams/prepare");
         return;
       }
