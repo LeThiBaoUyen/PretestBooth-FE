@@ -362,13 +362,29 @@ export default function AdminMonitoringPage() {
                 Theo dõi sinh viên đang CHECKED_IN, phiên đang chạy và can thiệp khi cần.
               </p>
             </div>
-            <div className="flex flex-wrap gap-2">
-              <Link
-                href="/admin/booths"
-                className="inline-flex items-center rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
-              >
-                Quản lý Booth
-              </Link>
+
+            <div className="flex flex-wrap items-center justify-end gap-2">
+              <div className="inline-flex items-center rounded-full border border-slate-200 bg-white p-1">
+                <Link
+                  href="/admin/booths"
+                  className="rounded-full px-3 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-50"
+                >
+                  Quản lý Booth
+                </Link>
+                <Link
+                  href="/admin/booths/schedule"
+                  className="rounded-full px-3 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-50"
+                >
+                  Lịch trình Booth
+                </Link>
+                <Link
+                  href="/admin/monitoring"
+                  className="rounded-full bg-navy-600 px-3 py-1.5 text-xs font-bold text-white"
+                >
+                  Giám sát realtime
+                </Link>
+              </div>
+
               <button
                 type="button"
                 onClick={() => void loadMonitoring()}

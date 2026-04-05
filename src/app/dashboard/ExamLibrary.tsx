@@ -15,7 +15,6 @@ import {
   RotateCcw,
   Search,
   SlidersHorizontal,
-  Sparkles,
 } from "lucide-react";
 
 import ExamSelection from "./ExamSelection";
@@ -165,6 +164,7 @@ export default function ExamLibrary() {
   // Role check: can this user manage the given exam?
   const canManage = (_exam: ExamListItem) => hasPermission(user, "CREATE_EXAM");
   const canCreateExam = hasPermission(user, "CREATE_EXAM");
+  const canManageQuestionBank = hasPermission(user, "MANAGE_QUESTION_BANK");
 
   const attemptAutoAssignExam = useCallback(async () => {
     if (!accessToken || user?.role !== "STUDENT") {
@@ -400,9 +400,23 @@ export default function ExamLibrary() {
             <h1 className="ui-page-title">Thư viện đề thi</h1>
             <p className="ui-page-subtitle">Hãy tìm theo môn học và bắt đầu phiên luyện tập/thi ngay.</p>
           </div>
-          <div className="inline-flex items-center gap-2 rounded-full bg-navy-50 px-3 py-1 text-xs font-bold text-navy-700">
-            <Sparkles className="h-3.5 w-3.5" />
-            {user.role}
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            <div className="inline-flex items-center rounded-full border border-slate-200 bg-white p-1">
+              <Link
+                href="/exams"
+                className="rounded-full bg-navy-600 px-3 py-1.5 text-xs font-bold text-white"
+              >
+                Đề thi
+              </Link>
+              {canManageQuestionBank && (
+                <Link
+                  href="/question-bank"
+                  className="rounded-full px-3 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-50"
+                >
+                  Ngân hàng câu hỏi
+                </Link>
+              )}
+            </div>
           </div>
         </div>
       </div>

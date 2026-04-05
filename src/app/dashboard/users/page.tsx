@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import * as XLSX from "xlsx";
 import {
@@ -569,6 +570,7 @@ export default function AdminUsersPage() {
   if (!hasPermission(user, "MANAGE_STUDENTS")) return null;
 
   const safeUsers = Array.isArray(users) ? users : [];
+  const canManageLecturers = hasPermission(user, "LECTURER_ADMIN");
 
   return (
     <div className="pb-8">
@@ -579,6 +581,24 @@ export default function AdminUsersPage() {
             <p className="ui-page-subtitle">
               Quản lý tài khoản sinh viên và nhập danh sách với bước xem trước trước khi xác nhận.
             </p>
+
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <Link
+                href="/admin/users"
+                className="inline-flex items-center rounded-full bg-navy-600 px-3 py-1.5 text-xs font-bold text-white"
+              >
+                Quản lý sinh viên
+              </Link>
+
+              {canManageLecturers && (
+                <Link
+                  href="/admin/lecturers"
+                  className="inline-flex items-center rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-50"
+                >
+                  Quản lý giảng viên
+                </Link>
+              )}
+            </div>
           </div>
 
           <div className="flex items-center gap-2">

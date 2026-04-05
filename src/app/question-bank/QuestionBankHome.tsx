@@ -43,6 +43,23 @@ export default function QuestionBankHome() {
               Quản lý bài tập lập trình và câu hỏi trắc nghiệm tập trung
             </p>
           </div>
+          <div className="inline-flex items-center rounded-full border border-slate-200 bg-white p-1">
+            <Link
+              href="/exams"
+              className="rounded-full px-3 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-50"
+            >
+              Đề thi
+            </Link>
+            <Link
+              href="/question-bank"
+              className="rounded-full bg-navy-600 px-3 py-1.5 text-xs font-bold text-white"
+            >
+              Ngân hàng câu hỏi
+            </Link>
+          </div>
+        </div>
+
+        <div className="mt-3 flex flex-wrap items-center gap-2">
           <Link
             href="/question-bank/categories"
             className="inline-flex w-fit items-center rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"

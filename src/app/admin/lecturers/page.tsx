@@ -31,6 +31,7 @@ const PERMISSION_ORDER: LecturerPermission[] = [
 export default function LecturerManagementPage() {
   const { user, userLoading } = useAuth();
   const canManageLecturers = hasPermission(user, "LECTURER_ADMIN");
+  const canManageStudents = hasPermission(user, "MANAGE_STUDENTS");
 
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
@@ -197,10 +198,36 @@ export default function LecturerManagementPage() {
               <p className="ui-page-subtitle">
                 Cấp quyền lẻ cho từng giảng viên và quản lý quyền admin giảng viên theo phân cấp.
               </p>
+
+              <div className="mt-3 flex flex-wrap items-center gap-2">
+                {canManageStudents && (
+                  <Link
+                    href="/admin/users"
+                    className="inline-flex items-center rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-50"
+                  >
+                    Quản lý sinh viên
+                  </Link>
+                )}
+                <Link
+                  href="/admin/lecturers"
+                  className="inline-flex items-center rounded-full bg-navy-600 px-3 py-1.5 text-xs font-bold text-white"
+                >
+                  Quản lý giảng viên
+                </Link>
+              </div>
             </div>
-            <div className="inline-flex items-center rounded-full bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-700">
-              <ShieldCheck className="mr-1 h-3.5 w-3.5" />
-              {canGrantAdminPackage ? "Có quyền cấp admin package" : "Chỉ cấp quyền thấp hơn"}
+
+            <div className="flex flex-wrap items-center justify-end gap-2">
+              <Link
+                href="/admin/access-control"
+                className="inline-flex items-center rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-50"
+              >
+                Phân quyền hệ thống
+              </Link>
+              <div className="inline-flex items-center rounded-full bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-700">
+                <ShieldCheck className="mr-1 h-3.5 w-3.5" />
+                {canGrantAdminPackage ? "Có quyền cấp admin package" : "Chỉ cấp quyền thấp hơn"}
+              </div>
             </div>
           </div>
         </div>

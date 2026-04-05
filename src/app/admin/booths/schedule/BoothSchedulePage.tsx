@@ -21,7 +21,6 @@ import { hasPermission } from "@/lib/auth/permissions";
 import type { Booking, BookingStatus, BookingType, Booth } from "@/lib/api/types";
 import type { BookingRealtimeEvent, BoothStatusUpdatedEvent } from "@/lib/api/types";
 import {
-  ArrowLeft,
   CalendarDays,
   ChevronLeft,
   ChevronRight,
@@ -557,77 +556,74 @@ export default function BoothSchedulePage() {
 
   return (
     <div className="py-8">
-      <nav className="mb-4 flex flex-wrap items-center gap-2" aria-label="Booth navigation">
-        <Link
-          href="/admin/booths"
-          className="inline-flex items-center rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-50"
-        >
-          Quản lý Booth
-        </Link>
-        <Link
-          href="/admin/booths/schedule"
-          className="inline-flex items-center rounded-full bg-navy-600 px-3 py-1.5 text-xs font-bold text-white"
-        >
-          Lịch trình Booth
-        </Link>
-        <Link
-          href="/admin/monitoring"
-          className="inline-flex items-center rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-50"
-        >
-          Giám sát realtime
-        </Link>
-      </nav>
-
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between mb-8 gap-4">
-        <div>
-          <h1 className="text-3xl font-bold text-navy-700">Lịch trình Booth</h1>
-          <p className="text-gray-600 mt-2">
-            Xem trực quan booth nào đang có người đặt ở khung giờ nào theo dạng timeline.
-          </p>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="inline-flex rounded-lg border border-slate-200 bg-white p-1">
-            <button
-              type="button"
-              onClick={() => setViewMode("TIMELINE")}
-              className={`inline-flex items-center rounded-md px-3 py-1.5 text-xs font-bold transition ${
-                viewMode === "TIMELINE"
-                  ? "bg-navy-600 text-white"
-                  : "text-slate-600 hover:bg-slate-50"
-              }`}
-            >
-              <LayoutGrid className="mr-1.5 h-3.5 w-3.5" />
-              Timeline
-            </button>
-            <button
-              type="button"
-              onClick={() => setViewMode("LIST")}
-              className={`inline-flex items-center rounded-md px-3 py-1.5 text-xs font-bold transition ${
-                viewMode === "LIST"
-                  ? "bg-navy-600 text-white"
-                  : "text-slate-600 hover:bg-slate-50"
-              }`}
-            >
-              <List className="mr-1.5 h-3.5 w-3.5" />
-              Danh sách
-            </button>
+      <div className="ui-page-header">
+        <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+          <div>
+            <h1 className="ui-page-title">Lịch trình Booth</h1>
+            <p className="ui-page-subtitle">
+              Xem trực quan booth nào đang có người đặt ở khung giờ nào theo dạng timeline.
+            </p>
           </div>
 
-          <Link
-            href="/admin/booths"
-            className="inline-flex items-center rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
-          >
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Quản lý Booth
-          </Link>
-          <button
-            onClick={fetchBookings}
-            className="inline-flex items-center rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
-          >
-            <RefreshCw className="h-4 w-4 mr-2" />
-            Làm mới
-          </button>
+          <div className="flex flex-col items-start gap-2 sm:items-end">
+            <div className="inline-flex items-center rounded-full border border-slate-200 bg-white p-1">
+              <Link
+                href="/admin/booths"
+                className="rounded-full px-3 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-50"
+              >
+                Quản lý Booth
+              </Link>
+              <Link
+                href="/admin/booths/schedule"
+                className="rounded-full bg-navy-600 px-3 py-1.5 text-xs font-bold text-white"
+              >
+                Lịch trình Booth
+              </Link>
+              <Link
+                href="/admin/monitoring"
+                className="rounded-full px-3 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-50"
+              >
+                Giám sát realtime
+              </Link>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="inline-flex rounded-lg border border-slate-200 bg-white p-1">
+                <button
+                  type="button"
+                  onClick={() => setViewMode("TIMELINE")}
+                  className={`inline-flex items-center rounded-md px-3 py-1.5 text-xs font-bold transition ${
+                    viewMode === "TIMELINE"
+                      ? "bg-navy-600 text-white"
+                      : "text-slate-600 hover:bg-slate-50"
+                  }`}
+                >
+                  <LayoutGrid className="mr-1.5 h-3.5 w-3.5" />
+                  Timeline
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setViewMode("LIST")}
+                  className={`inline-flex items-center rounded-md px-3 py-1.5 text-xs font-bold transition ${
+                    viewMode === "LIST"
+                      ? "bg-navy-600 text-white"
+                      : "text-slate-600 hover:bg-slate-50"
+                  }`}
+                >
+                  <List className="mr-1.5 h-3.5 w-3.5" />
+                  Danh sách
+                </button>
+              </div>
+
+              <button
+                onClick={fetchBookings}
+                className="inline-flex items-center rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+              >
+                <RefreshCw className="h-4 w-4 mr-2" />
+                Làm mới
+              </button>
+            </div>
+          </div>
         </div>
       </div>
 

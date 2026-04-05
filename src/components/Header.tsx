@@ -15,26 +15,39 @@ type NavItem = {
   href: string;
   roles?: Array<"STUDENT" | "LECTURER" | "ADMIN">;
   permissions?: LecturerPermission[];
+  activeMatches?: string[];
 };
 
 const navItems: NavItem[] = [
-  { label: "Đề thi", href: "/exams" },
+  {
+    label: "Đề thi & Ngân hàng câu hỏi",
+    href: "/exams",
+    activeMatches: ["/question-bank"],
+  },
   { label: "Danh sách bài lập trình", href: "/problems", roles: ["STUDENT"] },
-  { label: "Ngân hàng câu hỏi", href: "/question-bank", permissions: ["MANAGE_QUESTION_BANK"] },
   { label: "Lịch sử nộp bài", href: "/submissions" },
   { label: "Đặt lịch Booth", href: "/booths/booking", roles: ["STUDENT"] },
-  { label: "Quản lý Booth", href: "/admin/booths", permissions: ["MANAGE_BOOTHS"] },
-  { label: "Lịch trình Booth", href: "/admin/booths/schedule", permissions: ["MANAGE_BOOTHS"] },
-  { label: "Giám sát phiên thi/booth", href: "/admin/monitoring", permissions: ["MONITOR_SESSIONS"] },
-  { label: "Quản lý Sinh viên", href: "/admin/users", permissions: ["MANAGE_STUDENTS"] },
-  { label: "Quản lý Giảng viên", href: "/admin/lecturers", permissions: ["LECTURER_ADMIN"] },
-  { label: "Phân quyền hệ thống", href: "/admin/access-control", permissions: ["LECTURER_ADMIN"] },
-  { label: "Cài đặt hệ thống", href: "/admin/settings", roles: ["ADMIN"] },
+  {
+    label: "Quản lý Booth",
+    href: "/admin/booths",
+    permissions: ["MANAGE_BOOTHS"],
+    activeMatches: ["/admin/booths/schedule", "/admin/monitoring"],
+  },
 ];
 
-function isActive(pathname: string, href: string) {
+function isPathActive(pathname: string, href: string) {
   if (href === "/") return pathname === "/";
   return pathname === href || pathname.startsWith(`${href}/`);
+}
+
+function isNavItemActive(pathname: string, item: NavItem) {
+  if (isPathActive(pathname, item.href)) return true;
+
+  if (!item.activeMatches || item.activeMatches.length === 0) {
+    return false;
+  }
+
+  return item.activeMatches.some((href) => isPathActive(pathname, href));
 }
 
 export default function Header() {
@@ -73,7 +86,23 @@ export default function Header() {
     ? { label: "Tổng quan", href: "/dashboard" }
     : { label: "Trang chủ", href: "/" };
 
-  const visibleNavItems = [homeItem, ...navItems].filter((item) => {
+  const canManageUsers = hasAnyPermission(user, ["MANAGE_STUDENTS", "LECTURER_ADMIN"]);
+  const userManagementHref = hasAnyPermission(user, ["MANAGE_STUDENTS"])
+    ? "/admin/users"
+    : "/admin/lecturers";
+  const userManagementItem: NavItem | null = canManageUsers
+    ? {
+      label: "Quản lý người dùng",
+      href: userManagementHref,
+      activeMatches: ["/admin/users", "/admin/lecturers", "/admin/access-control"],
+    }
+    : null;
+
+  const visibleNavItems = [
+    homeItem,
+    ...navItems,
+    ...(userManagementItem ? [userManagementItem] : []),
+  ].filter((item) => {
     if (item.permissions && item.permissions.length > 0) {
       return hasAnyPermission(user, item.permissions);
     }
@@ -147,7 +176,7 @@ export default function Header() {
           {/* Desktop Navigation */}
           <nav className="hidden lg:flex items-center gap-2">
             {visibleNavItems.map((item) => {
-              const active = isActive(pathname, item.href);
+              const active = isNavItemActive(pathname, item);
               return (
                 <Link
                   key={item.href}
@@ -282,7 +311,7 @@ export default function Header() {
           <div className="md:hidden pb-4 space-y-2">
             <div className="rounded-xl border border-slate-200 bg-white p-2">
               {visibleNavItems.map((item) => {
-                const active = isActive(pathname, item.href);
+                const active = isNavItemActive(pathname, item);
                 return (
                   <Link
                     key={item.href}

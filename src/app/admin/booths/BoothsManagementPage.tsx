@@ -470,40 +470,36 @@ export default function BoothsManagementPage() {
       )}
 
       <div className="ui-page-header">
-        <div>
-          <h1 className="ui-page-title">Quản lý Booth</h1>
-          <p className="ui-page-subtitle">
-            Đổi trạng thái có ghi chú bắt buộc, lưu lịch sử thao tác theo thời gian.
-          </p>
+        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          <div>
+            <h1 className="ui-page-title">Quản lý Booth</h1>
+            <p className="ui-page-subtitle">
+              Đổi trạng thái có ghi chú bắt buộc, lưu lịch sử thao tác theo thời gian.
+            </p>
+          </div>
+
+          <div className="inline-flex items-center rounded-full border border-slate-200 bg-white p-1">
+            <Link
+              href="/admin/booths"
+              className="rounded-full bg-navy-600 px-3 py-1.5 text-xs font-bold text-white"
+            >
+              Quản lý Booth
+            </Link>
+            <Link
+              href="/admin/booths/schedule"
+              className="rounded-full px-3 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-50"
+            >
+              Lịch trình Booth
+            </Link>
+            <Link
+              href="/admin/monitoring"
+              className="rounded-full px-3 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-50"
+            >
+              Giám sát realtime
+            </Link>
+          </div>
         </div>
       </div>
-
-      <nav className="-mt-2 flex flex-wrap items-center gap-2" aria-label="Booth navigation">
-        <Link
-          href="/admin/booths"
-          className="inline-flex items-center rounded-full bg-navy-600 px-3 py-1.5 text-xs font-bold text-white"
-        >
-          Quản lý Booth
-        </Link>
-        <Link
-          href="/admin/booths/schedule"
-          className="inline-flex items-center rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-50"
-        >
-          Lịch trình Booth
-        </Link>
-        <Link
-          href="/admin/monitoring"
-          className="inline-flex items-center rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-50"
-        >
-          Giám sát realtime
-        </Link>
-        <Link
-          href="/admin/settings"
-          className="inline-flex items-center rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-50"
-        >
-          Cài đặt hệ thống
-        </Link>
-      </nav>
 
       <div className="-mt-2 flex flex-wrap justify-end gap-2">
         <button
