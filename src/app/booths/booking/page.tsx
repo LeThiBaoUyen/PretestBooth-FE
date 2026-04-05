@@ -23,6 +23,7 @@ export default function BookingPage() {
   const [dates, setDates] = useState<Date[]>([]);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [slots, setSlots] = useState<AvailableTimeSlot[]>([]);
+  const [myBookedRanges, setMyBookedRanges] = useState<Array<{ startTime: string; endTime: string }>>([]);
   const [loadingSlots, setLoadingSlots] = useState(false);
   
   const [selectedSlot, setSelectedSlot] = useState<AvailableTimeSlot | null>(null);
@@ -63,10 +64,29 @@ export default function BookingPage() {
       setError(null);
       try {
         const dateStr = format(selectedDate, "yyyy-MM-dd");
-        const res = await bookingsApi.getAvailability(dateStr);
-        setSlots(res.slots);
+        const [availability, myBookings] = await Promise.all([
+          bookingsApi.getAvailability(dateStr),
+          bookingsApi.getBookings({
+            date: dateStr,
+            limit: 50,
+            sortOrder: "asc",
+          }),
+        ]);
+
+        setSlots(availability.slots);
+
+        const activeStatuses = new Set(["PENDING", "CONFIRMED", "CHECKED_IN"]);
+        const myActiveBookings = (myBookings.data || [])
+          .filter((booking) => activeStatuses.has(booking.status))
+          .map((booking) => ({
+            startTime: booking.startTime,
+            endTime: booking.endTime,
+          }));
+
+        setMyBookedRanges(myActiveBookings);
       } catch (err: any) {
         setError("Không thể tải lịch trống. Vui lòng thử lại sau.");
+        setMyBookedRanges([]);
       } finally {
         setLoadingSlots(false);
       }
@@ -127,6 +147,17 @@ export default function BookingPage() {
   }, [user]);
 
   const isKycVerified = kycStatus === "VERIFIED" && hasFaceEmbedding;
+
+  const isSlotBookedByMe = (slot: AvailableTimeSlot) => {
+    const slotStart = new Date(slot.startTime).getTime();
+    const slotEnd = new Date(slot.endTime).getTime();
+
+    return myBookedRanges.some((booking) => {
+      const bookingStart = new Date(booking.startTime).getTime();
+      const bookingEnd = new Date(booking.endTime).getTime();
+      return bookingStart < slotEnd && bookingEnd > slotStart;
+    });
+  };
 
   const handleBook = async () => {
     if (!isKycVerified) {
@@ -338,30 +369,42 @@ export default function BookingPage() {
                   ) : (
                     <div>
                       <p className="text-sm text-gray-500 mb-4 font-medium flex items-center">
-                        <span className="w-3 h-3 rounded-full bg-emerald-500 inline-block mr-2"></span> Trống
-                        <span className="w-3 h-3 rounded-full bg-red-400 inline-block ml-4 mr-2"></span> Đã đầy
+                        <span className="w-3 h-3 rounded-full bg-emerald-500 inline-block mr-2"></span> Còn trống
+                        <span className="w-3 h-3 rounded-full bg-red-500 inline-block ml-4 mr-2"></span> Đã đầy
+                        <span className="w-3 h-3 rounded-full bg-slate-400 inline-block ml-4 mr-2"></span> Bạn đã đặt
                       </p>
                       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
                         {slots.map(slot => {
+                          const isBookedByMe = isSlotBookedByMe(slot);
                           const isFull = slot.availableBooths === 0;
                           const isSelected = selectedSlot?.startTime === slot.startTime;
+
                           return (
                             <button
                               key={slot.startTime}
-                              disabled={isFull}
+                              disabled={isFull || isBookedByMe}
                               onClick={() => setSelectedSlot(slot)}
                               className={`py-3 px-2 rounded-lg text-sm font-bold border transition ${
-                                isFull 
-                                  ? "bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed" 
+                                isBookedByMe
+                                  ? "bg-slate-200 border-slate-300 text-slate-600 cursor-not-allowed"
+                                  : isFull
+                                    ? "bg-red-100 border-red-200 text-red-600 cursor-not-allowed"
                                   : isSelected
                                     ? "bg-navy-600 border-navy-600 text-white shadow-md"
-                                    : "bg-white border-gray-200 text-navy-700 hover:border-navy-400 hover:bg-navy-50"
+                                    : "bg-emerald-50 border-emerald-200 text-emerald-700 hover:border-emerald-400 hover:bg-emerald-100"
                               }`}
                             >
                               {format(new Date(slot.startTime), "HH:mm")}
-                              {(!isFull && !isSelected) && <span className="block text-[10px] font-normal text-emerald-600 mt-1">Còn {slot.availableBooths}</span>}
-                              {isFull && <span className="block text-[10px] font-normal text-red-500 mt-1">Hết chỗ</span>}
-                              {isSelected && <span className="block text-[10px] font-normal text-navy-200 mt-1">Đã chọn</span>}
+                              {isBookedByMe && <span className="block text-[10px] font-normal text-slate-600 mt-1">Bạn đã đặt</span>}
+                              {!isBookedByMe && !isFull && !isSelected && (
+                                <span className="block text-[10px] font-normal text-emerald-600 mt-1">Còn {slot.availableBooths}</span>
+                              )}
+                              {!isBookedByMe && isFull && (
+                                <span className="block text-[10px] font-normal text-red-600 mt-1">Hết chỗ</span>
+                              )}
+                              {!isBookedByMe && isSelected && (
+                                <span className="block text-[10px] font-normal text-navy-200 mt-1">Đã chọn</span>
+                              )}
                             </button>
                           );
                         })}

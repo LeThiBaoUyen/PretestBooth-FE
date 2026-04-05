@@ -22,10 +22,14 @@ const navItems: NavItem[] = [
   { label: "Danh sách bài lập trình", href: "/problems", roles: ["STUDENT"] },
   { label: "Ngân hàng câu hỏi", href: "/question-bank", permissions: ["MANAGE_QUESTION_BANK"] },
   { label: "Lịch sử nộp bài", href: "/submissions" },
+  { label: "Đặt lịch Booth", href: "/booths/booking", roles: ["STUDENT"] },
   { label: "Quản lý Booth", href: "/admin/booths", permissions: ["MANAGE_BOOTHS"] },
+  { label: "Lịch trình Booth", href: "/admin/booths/schedule", permissions: ["MANAGE_BOOTHS"] },
+  { label: "Giám sát phiên thi/booth", href: "/admin/monitoring", permissions: ["MONITOR_SESSIONS"] },
   { label: "Quản lý Sinh viên", href: "/admin/users", permissions: ["MANAGE_STUDENTS"] },
   { label: "Quản lý Giảng viên", href: "/admin/lecturers", permissions: ["LECTURER_ADMIN"] },
-  { label: "Đặt lịch Booth", href: "/booths/booking", roles: ["STUDENT"] },
+  { label: "Phân quyền hệ thống", href: "/admin/access-control", permissions: ["LECTURER_ADMIN"] },
+  { label: "Cài đặt hệ thống", href: "/admin/settings", roles: ["ADMIN"] },
 ];
 
 function isActive(pathname: string, href: string) {
@@ -66,7 +70,7 @@ export default function Header() {
   }
 
   const homeItem: NavItem = user
-    ? { label: "Dashboard", href: "/dashboard" }
+    ? { label: "Tổng quan", href: "/dashboard" }
     : { label: "Trang chủ", href: "/" };
 
   const visibleNavItems = [homeItem, ...navItems].filter((item) => {

@@ -94,11 +94,11 @@ export default function StudentStatsDashboard() {
             <CalendarDays className="w-5 h-5 mr-2 text-navy-600" />
             Lịch sử dụng Booth sắp tới
           </h2>
-          <Link 
-            href="/booths/booking" 
-            className="text-sm font-medium text-navy-600 hover:text-navy-800 bg-navy-50 px-4 py-2 rounded-lg transition"
+          <Link
+            href="/booths/booking"
+            className="rounded-lg bg-navy-50 px-4 py-2 text-sm font-medium text-navy-700 transition hover:bg-navy-100 hover:text-navy-800"
           >
-            + Đặt lịch mới
+            Đặt lịch
           </Link>
         </div>
 
