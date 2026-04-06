@@ -236,6 +236,7 @@ export default function SubmissionTestDetailPage() {
                     <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Kết quả</th>
                     <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Kết quả đạt</th>
                     <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Ngày nộp</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Thao tác</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200 bg-white">
@@ -268,6 +269,18 @@ export default function SubmissionTestDetailPage() {
                       </td>
                       <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
                         {new Date(member.submittedAt).toLocaleString("vi-VN")}
+                      </td>
+                      <td className="whitespace-nowrap px-6 py-4 text-sm">
+                        <Link
+                          href={
+                            normalizedType === "EXAM"
+                              ? `/submissions/exam/${member.id}`
+                              : `/submissions/${member.id}`
+                          }
+                          className="inline-flex items-center rounded-md border border-navy-200 bg-white px-3 py-1.5 font-medium text-navy-700 hover:bg-navy-50"
+                        >
+                          Xem bài làm
+                        </Link>
                       </td>
                     </tr>
                   ))}

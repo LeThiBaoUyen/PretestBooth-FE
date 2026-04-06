@@ -975,6 +975,14 @@ export interface SessionResultSubmission {
   testCaseResults: SessionResultTestCase[] | null;
 }
 
+export interface SessionResultProctoringWarning {
+  id: string;
+  eventType: string;
+  warningLevel: number;
+  timestamp: string;
+  metadata: Record<string, unknown> | null;
+}
+
 export interface SessionResult {
   id: string;
   examId: string;
@@ -996,6 +1004,7 @@ export interface SessionResult {
   pendingItems: number;
   canViewItemDetails: boolean;
   detailMessage: string | null;
+  proctoringWarnings?: SessionResultProctoringWarning[];
   items: SessionResultItem[];
 }
 

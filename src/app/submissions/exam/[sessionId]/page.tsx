@@ -10,6 +10,7 @@ import type {
   ExamSessionStatus,
   QuestionType,
   SessionResultTestCase,
+  SessionResultProctoringWarning,
 } from "@/lib/api/types";
 
 const STATUS_COLORS: Record<ExamSessionStatus, string> = {
@@ -54,10 +55,37 @@ function testCaseBadgeClass(testCase: SessionResultTestCase) {
     : "border-red-200 bg-red-50 text-red-700";
 }
 
+function proctoringEventLabel(eventType: string) {
+  if (eventType === "TAB_SWITCH") return "Chuyển tab / rời khỏi màn hình thi";
+  if (eventType === "WINDOW_BLUR") return "Mất focus cửa sổ thi";
+  if (eventType === "FULLSCREEN_EXIT") return "Thoát toàn màn hình";
+  if (eventType === "COPY_PASTE") return "Sử dụng copy/paste";
+  if (eventType === "MULTIPLE_FACES") return "Nhiều khuôn mặt trong khung hình";
+  if (eventType === "NO_FACE") return "Không phát hiện khuôn mặt";
+  if (eventType === "DEVICE_DISCONNECTED") return "Thiết bị giám sát bị ngắt kết nối";
+  return eventType;
+}
+
+function warningLevelClass(level: number) {
+  if (level >= 3) return "bg-red-100 text-red-800";
+  if (level === 2) return "bg-orange-100 text-orange-800";
+  return "bg-amber-100 text-amber-800";
+}
+
+function formatWarningMetadata(metadata: SessionResultProctoringWarning["metadata"]) {
+  if (!metadata) return "Không có metadata";
+
+  try {
+    return JSON.stringify(metadata, null, 2);
+  } catch {
+    return "Không thể hiển thị metadata";
+  }
+}
+
 export default function ExamSessionDetailPage() {
   const params = useParams();
   const sessionId = params.sessionId as string;
-  const { accessToken } = useAuth();
+  const { accessToken, user } = useAuth();
 
   const { data: result, isLoading, isError, error } = useQuery({
     queryKey: ["exam-session-result", sessionId],
@@ -102,6 +130,8 @@ export default function ExamSessionDetailPage() {
       : 0;
 
   const canViewItemDetails = result.canViewItemDetails;
+  const canViewProctoringWarnings = user?.role === "ADMIN" || user?.role === "LECTURER";
+  const proctoringWarnings = canViewProctoringWarnings ? (result.proctoringWarnings || []) : [];
   const questionItems = result.items.filter((i) => i.section === "QUESTION");
   const problemItems = result.items.filter((i) => i.section === "PROBLEM");
 
@@ -194,6 +224,55 @@ export default function ExamSessionDetailPage() {
             </div>
           </div>
         </div>
+
+        {canViewProctoringWarnings && (
+          <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
+            <h2 className="text-xl font-bold text-gray-900 mb-1">Cảnh báo hành vi trái phép</h2>
+            <p className="text-sm text-gray-500 mb-4">
+              Danh sách cảnh báo giám sát được ghi nhận trong phiên thi này.
+            </p>
+
+            {proctoringWarnings.length === 0 ? (
+              <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-emerald-800">
+                Không có cảnh báo hành vi trái phép trong phiên thi này.
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {proctoringWarnings.map((warning) => (
+                  <div
+                    key={warning.id}
+                    className="rounded-lg border border-slate-200 bg-slate-50 p-4"
+                  >
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span
+                        className={`rounded-full px-2 py-1 text-xs font-semibold ${warningLevelClass(
+                          warning.warningLevel,
+                        )}`}
+                      >
+                        Mức {warning.warningLevel}
+                      </span>
+                      <span className="text-sm font-semibold text-slate-900">
+                        {proctoringEventLabel(warning.eventType)}
+                      </span>
+                      <span className="text-xs text-slate-500">
+                        {new Date(warning.timestamp).toLocaleString("vi-VN")}
+                      </span>
+                    </div>
+
+                    <details className="mt-3">
+                      <summary className="cursor-pointer text-sm font-medium text-slate-700">
+                        Xem metadata
+                      </summary>
+                      <pre className="mt-2 overflow-auto rounded-md bg-slate-900 p-3 text-xs text-slate-100">
+                        {formatWarningMetadata(warning.metadata)}
+                      </pre>
+                    </details>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
 
         {!canViewItemDetails && (
           <div className="mb-6 rounded-lg border border-amber-200 bg-amber-50 p-4 text-amber-900">
