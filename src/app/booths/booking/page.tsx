@@ -1,15 +1,36 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { format, addDays, isSameDay } from "date-fns";
+import {
+  format,
+  addDays,
+  addMonths,
+  subMonths,
+  startOfMonth,
+  endOfMonth,
+  startOfWeek,
+  endOfWeek,
+  eachDayOfInterval,
+  isSameDay,
+  isSameMonth,
+  isBefore,
+  isAfter,
+  startOfDay,
+} from "date-fns";
 import { vi } from "date-fns/locale";
-import { CalendarDays, Clock, CheckCircle, AlertCircle, ShieldCheck } from "lucide-react";
+import { CalendarDays, Clock, CheckCircle, AlertCircle, ShieldCheck, ChevronLeft, ChevronRight } from "lucide-react";
 import { useAuth } from "@/lib/hooks";
 import { bookingsApi } from "@/lib/api/bookings";
 import { bookingDurationsApi } from "@/lib/api/bookingDurations";
 import { kycApi } from "@/lib/api/kyc";
-import type { AvailableTimeSlot } from "@/lib/api/types";
+import type { AvailableTimeSlot, BookingType } from "@/lib/api/types";
 import { useRouter } from "next/navigation";
+
+const VIETNAM_OFFSET_MS = 7 * 60 * 60 * 1000;
+
+function hasOverlap(startA: number, endA: number, startB: number, endB: number) {
+  return startA < endB && endA > startB;
+}
 
 export default function BookingPage() {
   const { user } = useAuth();
@@ -19,10 +40,10 @@ export default function BookingPage() {
   const minDaysInAdvance = 7;
   const maxDaysInAdvance = 30;
 
-  const [dates, setDates] = useState<Date[]>([]);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [currentMonth, setCurrentMonth] = useState<Date | null>(null);
   const [slots, setSlots] = useState<AvailableTimeSlot[]>([]);
-  const [myBookedRanges, setMyBookedRanges] = useState<Array<{ startTime: string; endTime: string }>>([]);
+  const [myBookedRanges, setMyBookedRanges] = useState<Array<{ startTime: string; endTime: string; type: BookingType }>>([]);
   const [loadingSlots, setLoadingSlots] = useState(false);
   
   const [selectedSlot, setSelectedSlot] = useState<AvailableTimeSlot | null>(null);
@@ -38,19 +59,40 @@ export default function BookingPage() {
   const [kycStatus, setKycStatus] = useState<"NOT_STARTED" | "PENDING" | "VERIFIED" | "REJECTED">("NOT_STARTED");
   const [hasFaceEmbedding, setHasFaceEmbedding] = useState(false);
 
-  // Generate selectable dates (from today + 7 days, for next 30 days)
-  useEffect(() => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    
-    const availableDates = [];
-    for (let i = minDaysInAdvance; i <= maxDaysInAdvance; i++) {
-      const d = addDays(today, i);
-      // Optional: Skip Sundays? (d.getDay() !== 0)
-      availableDates.push(d);
+  const loadMyBookings = async () => {
+    const allBookings: Array<{ startTime: string; endTime: string; status: string; type: BookingType }> = [];
+    let page = 1;
+    let totalPages = 1;
+
+    while (page <= totalPages) {
+      const res = await bookingsApi.getBookings({
+        page,
+        limit: 50,
+        sortOrder: "asc",
+      });
+
+      const pageData = Array.isArray(res?.data) ? res.data : [];
+      pageData.forEach((booking) => {
+        allBookings.push({
+          startTime: booking.startTime,
+          endTime: booking.endTime,
+          status: booking.status,
+          type: booking.type,
+        });
+      });
+
+      totalPages = Math.max(1, Number(res?.totalPages || 1));
+      page += 1;
     }
-    setDates(availableDates);
-    setSelectedDate(availableDates[0]);
+
+    return allBookings;
+  };
+
+  // Initialize default selected day and visible month
+  useEffect(() => {
+    const initialDate = startOfDay(addDays(new Date(), minDaysInAdvance));
+    setSelectedDate(initialDate);
+    setCurrentMonth(startOfMonth(initialDate));
   }, []);
 
   // Fetch availability when date changes
@@ -65,21 +107,18 @@ export default function BookingPage() {
         const dateStr = format(selectedDate, "yyyy-MM-dd");
         const [availability, myBookings] = await Promise.all([
           bookingsApi.getAvailability(dateStr),
-          bookingsApi.getBookings({
-            date: dateStr,
-            limit: 50,
-            sortOrder: "asc",
-          }),
+          loadMyBookings(),
         ]);
 
         setSlots(Array.isArray(availability?.slots) ? availability.slots : []);
 
-        const activeStatuses = new Set(["PENDING", "CONFIRMED", "CHECKED_IN"]);
-        const myActiveBookings = (myBookings.data || [])
+        const activeStatuses = new Set(["PENDING", "CONFIRMED", "CHECKED_IN", "COMPLETED"]);
+        const myActiveBookings = myBookings
           .filter((booking) => activeStatuses.has(booking.status))
           .map((booking) => ({
             startTime: booking.startTime,
             endTime: booking.endTime,
+            type: booking.type,
           }));
 
         setMyBookedRanges(myActiveBookings);
@@ -150,16 +189,59 @@ export default function BookingPage() {
   const isKycVerified = kycStatus === "VERIFIED" && hasFaceEmbedding;
   const safeSlots = Array.isArray(slots) ? slots : [];
   const safeDurationOptions = Array.isArray(durationOptions) ? durationOptions : [];
+  const minSelectableDate = startOfDay(addDays(new Date(), minDaysInAdvance));
+  const maxSelectableDate = startOfDay(addDays(new Date(), maxDaysInAdvance));
+  const weekLabels = ["Th 2", "Th 3", "Th 4", "Th 5", "Th 6", "Th 7", "CN"];
 
-  const isSlotBookedByMe = (slot: AvailableTimeSlot) => {
+  const isDateSelectable = (date: Date) => {
+    const normalizedDate = startOfDay(date);
+    return !isBefore(normalizedDate, minSelectableDate) && !isAfter(normalizedDate, maxSelectableDate);
+  };
+
+  const calendarDays = currentMonth
+    ? eachDayOfInterval({
+        start: startOfWeek(startOfMonth(currentMonth), { weekStartsOn: 1 }),
+        end: endOfWeek(endOfMonth(currentMonth), { weekStartsOn: 1 }),
+      })
+    : [];
+
+  const canGoPrevMonth = currentMonth
+    ? isAfter(startOfMonth(currentMonth), startOfMonth(minSelectableDate))
+    : false;
+  const canGoNextMonth = currentMonth
+    ? isBefore(startOfMonth(currentMonth), startOfMonth(maxSelectableDate))
+    : false;
+
+  const getMyBookingTypeForSlot = (slot: AvailableTimeSlot): BookingType | null => {
     const slotStart = new Date(slot.startTime).getTime();
     const slotEnd = new Date(slot.endTime).getTime();
 
-    return myBookedRanges.some((booking) => {
+    let hasPracticeBooking = false;
+
+    for (const booking of myBookedRanges) {
       const bookingStart = new Date(booking.startTime).getTime();
       const bookingEnd = new Date(booking.endTime).getTime();
-      return bookingStart < slotEnd && bookingEnd > slotStart;
-    });
+      const overlaps =
+        hasOverlap(bookingStart, bookingEnd, slotStart, slotEnd) ||
+        hasOverlap(
+          bookingStart - VIETNAM_OFFSET_MS,
+          bookingEnd - VIETNAM_OFFSET_MS,
+          slotStart,
+          slotEnd,
+        );
+
+      if (!overlaps) {
+        continue;
+      }
+
+      if (booking.type === "EXAM") {
+        return "EXAM";
+      }
+
+      hasPracticeBooking = true;
+    }
+
+    return hasPracticeBooking ? "PRACTICE" : null;
   };
 
   const handleBook = async () => {
@@ -284,24 +366,78 @@ export default function BookingPage() {
                     <span className="bg-navy-600 text-white w-6 h-6 rounded-full inline-flex items-center justify-center text-sm mr-2">1</span>
                     Chọn ngày
                   </h3>
-                  <div className="grid grid-cols-4 sm:grid-cols-6 lg:grid-cols-4 gap-2">
-                    {dates.slice(0, 16).map(date => {
-                      const isSelected = selectedDate && isSameDay(date, selectedDate);
-                      return (
-                        <button
-                          key={date.toISOString()}
-                          onClick={() => setSelectedDate(date)}
-                          className={`flex flex-col items-center justify-center py-3 rounded-xl border transition ${
-                            isSelected 
-                              ? "bg-navy-600 border-navy-600 text-white shadow-md shadow-navy-200" 
-                              : "bg-white border-gray-200 text-gray-700 hover:border-navy-300 hover:bg-navy-50"
-                          }`}
-                        >
-                          <span className="text-xs uppercase font-medium">{format(date, "EEE", { locale: vi })}</span>
-                          <span className="text-xl font-bold mt-1">{format(date, "dd")}</span>
-                        </button>
-                      )
-                    })}
+                  <div className="rounded-xl border border-gray-200 bg-white p-4 sm:p-5">
+                    <div className="mb-4 flex items-center justify-between">
+                      <button
+                        type="button"
+                        onClick={() => currentMonth && setCurrentMonth(subMonths(currentMonth, 1))}
+                        disabled={!canGoPrevMonth}
+                        className={`inline-flex h-9 w-9 items-center justify-center rounded-lg border transition ${
+                          canGoPrevMonth
+                            ? "border-gray-200 text-gray-700 hover:bg-gray-50"
+                            : "border-gray-100 text-gray-300 cursor-not-allowed"
+                        }`}
+                      >
+                        <ChevronLeft className="h-4 w-4" />
+                      </button>
+
+                      <p className="text-sm sm:text-base font-bold text-gray-900 capitalize">
+                        {currentMonth ? format(currentMonth, "MMMM yyyy", { locale: vi }) : ""}
+                      </p>
+
+                      <button
+                        type="button"
+                        onClick={() => currentMonth && setCurrentMonth(addMonths(currentMonth, 1))}
+                        disabled={!canGoNextMonth}
+                        className={`inline-flex h-9 w-9 items-center justify-center rounded-lg border transition ${
+                          canGoNextMonth
+                            ? "border-gray-200 text-gray-700 hover:bg-gray-50"
+                            : "border-gray-100 text-gray-300 cursor-not-allowed"
+                        }`}
+                      >
+                        <ChevronRight className="h-4 w-4" />
+                      </button>
+                    </div>
+
+                    <div className="grid grid-cols-7 gap-1 text-center mb-2">
+                      {weekLabels.map((label) => (
+                        <span key={label} className="py-1 text-xs font-semibold text-gray-500">
+                          {label}
+                        </span>
+                      ))}
+                    </div>
+
+                    <div className="grid grid-cols-7 gap-1">
+                      {calendarDays.map((date) => {
+                        const selectable = isDateSelectable(date);
+                        const inCurrentMonth = currentMonth ? isSameMonth(date, currentMonth) : false;
+                        const isSelected = selectedDate ? isSameDay(date, selectedDate) : false;
+
+                        return (
+                          <button
+                            key={format(date, "yyyy-MM-dd")}
+                            type="button"
+                            disabled={!selectable}
+                            onClick={() => setSelectedDate(startOfDay(date))}
+                            className={`h-10 rounded-lg border text-sm font-semibold transition ${
+                              isSelected
+                                ? "bg-navy-600 border-navy-600 text-white shadow-sm"
+                                : !selectable
+                                  ? "bg-gray-50 border-gray-100 text-gray-300 cursor-not-allowed"
+                                  : inCurrentMonth
+                                    ? "bg-white border-gray-200 text-gray-700 hover:border-navy-300 hover:bg-navy-50"
+                                    : "bg-navy-50 border-navy-100 text-navy-700 hover:bg-navy-100"
+                            }`}
+                          >
+                            {format(date, "d")}
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    <p className="mt-3 text-xs text-gray-500">
+                      Có thể đặt từ {format(minSelectableDate, "dd/MM/yyyy")} đến {format(maxSelectableDate, "dd/MM/yyyy")}
+                    </p>
                   </div>
                 </div>
 
@@ -373,11 +509,13 @@ export default function BookingPage() {
                       <p className="text-sm text-gray-500 mb-4 font-medium flex items-center">
                         <span className="w-3 h-3 rounded-full bg-emerald-500 inline-block mr-2"></span> Còn trống
                         <span className="w-3 h-3 rounded-full bg-red-500 inline-block ml-4 mr-2"></span> Đã đầy
-                        <span className="w-3 h-3 rounded-full bg-slate-400 inline-block ml-4 mr-2"></span> Bạn đã đặt
+                        <span className="w-3 h-3 rounded-full bg-amber-400 inline-block ml-4 mr-2"></span> Bạn đã đặt (Thi)
+                        <span className="w-3 h-3 rounded-full bg-sky-300 inline-block ml-4 mr-2"></span> Bạn đã đặt (Luyện tập)
                       </p>
                       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
                         {safeSlots.map(slot => {
-                          const isBookedByMe = isSlotBookedByMe(slot);
+                          const myBookedType = getMyBookingTypeForSlot(slot);
+                          const isBookedByMe = Boolean(myBookedType);
                           const isFull = slot.availableBooths === 0;
                           const isSelected = selectedSlot?.startTime === slot.startTime;
 
@@ -388,7 +526,9 @@ export default function BookingPage() {
                               onClick={() => setSelectedSlot(slot)}
                               className={`py-3 px-2 rounded-lg text-sm font-bold border transition ${
                                 isBookedByMe
-                                  ? "bg-slate-200 border-slate-300 text-slate-600 cursor-not-allowed"
+                                  ? myBookedType === "EXAM"
+                                    ? "bg-amber-100 border-amber-300 text-amber-700 cursor-not-allowed"
+                                    : "bg-sky-100 border-sky-300 text-sky-700 cursor-not-allowed"
                                   : isFull
                                     ? "bg-red-100 border-red-200 text-red-600 cursor-not-allowed"
                                   : isSelected
@@ -397,7 +537,13 @@ export default function BookingPage() {
                               }`}
                             >
                               {format(new Date(slot.startTime), "HH:mm")}
-                              {isBookedByMe && <span className="block text-[10px] font-normal text-slate-600 mt-1">Bạn đã đặt</span>}
+                              {isBookedByMe && (
+                                <span className={`block text-[10px] font-normal mt-1 ${
+                                  myBookedType === "EXAM" ? "text-amber-700" : "text-sky-700"
+                                }`}>
+                                  {myBookedType === "EXAM" ? "Bạn đã đặt (Thi)" : "Bạn đã đặt (Luyện tập)"}
+                                </span>
+                              )}
                               {!isBookedByMe && !isFull && !isSelected && (
                                 <span className="block text-[10px] font-normal text-emerald-600 mt-1">Còn {slot.availableBooths}</span>
                               )}
