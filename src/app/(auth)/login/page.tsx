@@ -109,11 +109,29 @@ export default function LoginPage() {
         | { id: string; type: "PRACTICE" | "EXAM" }
         | undefined;
       const boothBookingType = checkedInType || pendingCheckinBooking?.type || null;
+      const boothAccessMode = (response as any)?.accessMode as
+        | "SCHEDULED"
+        | "WALK_IN"
+        | undefined;
+      const walkInProtection = (response as any)?.walkInProtection as
+        | {
+            nextExamStartTime?: string | null;
+            warnAt?: string | null;
+            forceLogoutAt?: string | null;
+            noShowGraceUntil?: string | null;
+          }
+        | undefined;
 
       if (boothSessionManager.getToken() && boothSessionManager.getMeta()) {
-        boothSessionManager.setBookingType(
-          response.user.role === "STUDENT" ? boothBookingType : null,
-        );
+        if (response.user.role === "STUDENT") {
+          boothSessionManager.setBookingType(boothBookingType);
+          boothSessionManager.setAccessMode(boothAccessMode || null);
+          boothSessionManager.setWalkInProtection(walkInProtection || {});
+        } else {
+          boothSessionManager.setBookingType(null);
+          boothSessionManager.setAccessMode(null);
+          boothSessionManager.setWalkInProtection({});
+        }
       }
 
       const kioskRedirect = checkedInType

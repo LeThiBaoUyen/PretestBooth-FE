@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { Clock3, Loader2, MonitorCheck, ShieldCheck } from "lucide-react";
 import { examsApiClient } from "@/lib/api/exams";
 import { useAuth } from "@/lib/hooks";
+import { boothSessionManager } from "@/lib/auth/boothSession";
 
 export default function ExamPreparePage() {
   const router = useRouter();
@@ -14,6 +15,14 @@ export default function ExamPreparePage() {
   const [error, setError] = useState("");
 
   const handleStartExam = async () => {
+    const boothToken = boothSessionManager.getToken();
+    const boothMeta = boothSessionManager.getMeta();
+
+    if (boothToken && boothMeta?.boothAccessMode === "WALK_IN") {
+      setError("Ban dang o che do tan dung booth (walk-in), chi duoc phep luyen tap.");
+      return;
+    }
+
     if (!accessToken) {
       router.push("/login");
       return;

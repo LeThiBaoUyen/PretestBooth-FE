@@ -55,6 +55,7 @@ export default function BoothCheckInPage() {
       if (response.matched) {
         if (bookingType === "EXAM" || bookingType === "PRACTICE") {
           boothSessionManager.setBookingType(bookingType);
+          boothSessionManager.setAccessMode("SCHEDULED");
         }
 
         if (bookingType === "EXAM" && accessToken) {

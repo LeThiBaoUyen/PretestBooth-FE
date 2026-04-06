@@ -60,12 +60,22 @@ export interface BoothLoginRequest {
   boothSessionToken: string;
 }
 
+export type BoothAccessMode = "SCHEDULED" | "WALK_IN";
+
+export interface BoothWalkInProtection {
+  nextExamStartTime: string | null;
+  warnAt: string | null;
+  forceLogoutAt: string | null;
+  noShowGraceUntil: string | null;
+}
+
 export interface BoothLoginResponse extends LoginResponse {
   booth: {
     id: string;
     code: string;
     name: string;
   };
+  accessMode: BoothAccessMode;
   checkedInBooking: {
     id: string;
     boothId: string;
@@ -82,6 +92,7 @@ export interface BoothLoginResponse extends LoginResponse {
     startTime: string;
     endTime: string;
   } | null;
+  walkInProtection?: BoothWalkInProtection | null;
 }
 
 export interface BoothSessionStatusResponse {
@@ -1428,6 +1439,25 @@ export interface CheckinThresholdConfig {
   updatedAt: string | null;
   updatedByUserId?: string | null;
 }
+
+export interface BoothPolicyConfig {
+  bookingMinDaysInAdvance: number;
+  bookingMaxDaysInAdvance: number;
+  walkInPracticeEnabled: boolean;
+  warnBeforeNextExamMinutes: number;
+  forceLogoutBeforeNextExamMinutes: number;
+  noShowGraceMinutes: number;
+}
+
+export interface BoothPolicyConfigResponse {
+  key: string;
+  config: BoothPolicyConfig;
+  source: "database" | "default";
+  updatedAt: string | null;
+  updatedByUserId?: string | null;
+}
+
+export type UpdateBoothPolicyRequest = Partial<BoothPolicyConfig>;
 
 export interface UpdateCheckinThresholdRequest {
   threshold: number;

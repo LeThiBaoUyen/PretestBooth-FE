@@ -4,12 +4,15 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { Loader2, Pencil, RefreshCw, Trash2 } from "lucide-react";
 import { bookingDurationsApi } from "@/lib/api/bookingDurations";
+import { boothPoliciesApi } from "@/lib/api/boothPolicies";
 import { checkinApi } from "@/lib/api/checkin";
 import { examsApiClient } from "@/lib/api/exams";
 import type {
   ExamListItem,
   BookingDurationOption,
   BookingType,
+  BoothPolicyConfig,
+  BoothPolicyConfigResponse,
   CheckinThresholdConfig,
   PretestAssignmentMode,
   PretestConfig,
@@ -28,11 +31,29 @@ interface DurationFormData {
   isActive: boolean;
 }
 
+interface BoothPolicyFormData {
+  bookingMinDaysInAdvance: string;
+  bookingMaxDaysInAdvance: string;
+  walkInPracticeEnabled: boolean;
+  warnBeforeNextExamMinutes: string;
+  forceLogoutBeforeNextExamMinutes: string;
+  noShowGraceMinutes: string;
+}
+
 const emptyDurationForm: DurationFormData = {
   type: "PRACTICE",
   durationMinutes: "30",
   displayOrder: "",
   isActive: true,
+};
+
+const emptyBoothPolicyForm: BoothPolicyFormData = {
+  bookingMinDaysInAdvance: "7",
+  bookingMaxDaysInAdvance: "30",
+  walkInPracticeEnabled: true,
+  warnBeforeNextExamMinutes: "15",
+  forceLogoutBeforeNextExamMinutes: "5",
+  noShowGraceMinutes: "15",
 };
 
 function formatDateTime(value?: string | Date | null) {
@@ -63,6 +84,11 @@ export default function AdminSettingsPage() {
   const [thresholdInput, setThresholdInput] = useState("0.6");
   const [thresholdLoading, setThresholdLoading] = useState(true);
   const [thresholdSubmitting, setThresholdSubmitting] = useState(false);
+
+  const [boothPolicyConfig, setBoothPolicyConfig] = useState<BoothPolicyConfigResponse | null>(null);
+  const [boothPolicyForm, setBoothPolicyForm] = useState<BoothPolicyFormData>(emptyBoothPolicyForm);
+  const [boothPolicyLoading, setBoothPolicyLoading] = useState(true);
+  const [boothPolicySubmitting, setBoothPolicySubmitting] = useState(false);
 
   const [pretestConfig, setPretestConfig] = useState<PretestConfig | null>(null);
   const [pretestLoading, setPretestLoading] = useState(true);
@@ -99,6 +125,31 @@ export default function AdminSettingsPage() {
   const resetDurationForm = () => {
     setEditingDurationId(null);
     setDurationForm(emptyDurationForm);
+  };
+
+  const hydrateBoothPolicyForm = (config: BoothPolicyConfig) => {
+    setBoothPolicyForm({
+      bookingMinDaysInAdvance: String(config.bookingMinDaysInAdvance),
+      bookingMaxDaysInAdvance: String(config.bookingMaxDaysInAdvance),
+      walkInPracticeEnabled: config.walkInPracticeEnabled,
+      warnBeforeNextExamMinutes: String(config.warnBeforeNextExamMinutes),
+      forceLogoutBeforeNextExamMinutes: String(config.forceLogoutBeforeNextExamMinutes),
+      noShowGraceMinutes: String(config.noShowGraceMinutes),
+    });
+  };
+
+  const loadBoothPolicy = async () => {
+    try {
+      setBoothPolicyLoading(true);
+      const config = await boothPoliciesApi.getBoothPolicyConfig();
+      setBoothPolicyConfig(config);
+      hydrateBoothPolicyForm(config.config);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Không thể tải cấu hình booth policy");
+      setBoothPolicyConfig(null);
+    } finally {
+      setBoothPolicyLoading(false);
+    }
   };
 
   const loadCheckinThreshold = async () => {
@@ -217,6 +268,7 @@ export default function AdminSettingsPage() {
     if (canManageGeneralSettings) {
       void loadDurationOptions();
       void loadCheckinThreshold();
+      void loadBoothPolicy();
     }
 
     if (canManagePretestSettings) {
@@ -333,6 +385,80 @@ export default function AdminSettingsPage() {
       setError(err instanceof Error ? err.message : "Không thể cập nhật ngưỡng xác thực khuôn mặt");
     } finally {
       setThresholdSubmitting(false);
+    }
+  };
+
+  const saveBoothPolicy = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+
+    if (!canManageGeneralSettings) {
+      setError("Bạn không có quyền thực hiện thao tác này");
+      return;
+    }
+
+    const bookingMinDaysInAdvance = Number(boothPolicyForm.bookingMinDaysInAdvance);
+    const bookingMaxDaysInAdvance = Number(boothPolicyForm.bookingMaxDaysInAdvance);
+    const warnBeforeNextExamMinutes = Number(boothPolicyForm.warnBeforeNextExamMinutes);
+    const forceLogoutBeforeNextExamMinutes = Number(boothPolicyForm.forceLogoutBeforeNextExamMinutes);
+    const noShowGraceMinutes = Number(boothPolicyForm.noShowGraceMinutes);
+
+    if (!Number.isInteger(bookingMinDaysInAdvance) || bookingMinDaysInAdvance < 0) {
+      setError("Số ngày đặt trước tối thiểu phải là số nguyên >= 0");
+      return;
+    }
+
+    if (!Number.isInteger(bookingMaxDaysInAdvance) || bookingMaxDaysInAdvance < 1) {
+      setError("Số ngày đặt trước tối đa phải là số nguyên >= 1");
+      return;
+    }
+
+    if (bookingMaxDaysInAdvance < bookingMinDaysInAdvance) {
+      setError("Số ngày đặt trước tối đa phải >= số ngày đặt trước tối thiểu");
+      return;
+    }
+
+    if (!Number.isInteger(warnBeforeNextExamMinutes) || warnBeforeNextExamMinutes < 1) {
+      setError("Thời gian cảnh báo trước ca EXAM phải là số nguyên >= 1");
+      return;
+    }
+
+    if (
+      !Number.isInteger(forceLogoutBeforeNextExamMinutes) ||
+      forceLogoutBeforeNextExamMinutes < 0
+    ) {
+      setError("Thời gian force logout trước ca EXAM phải là số nguyên >= 0");
+      return;
+    }
+
+    if (warnBeforeNextExamMinutes <= forceLogoutBeforeNextExamMinutes) {
+      setError("Thời gian cảnh báo phải lớn hơn thời gian force logout");
+      return;
+    }
+
+    if (!Number.isInteger(noShowGraceMinutes) || noShowGraceMinutes < 0) {
+      setError("Thời gian no-show grace phải là số nguyên >= 0");
+      return;
+    }
+
+    try {
+      setBoothPolicySubmitting(true);
+      setError(null);
+
+      const saved = await boothPoliciesApi.updateBoothPolicyConfig({
+        bookingMinDaysInAdvance,
+        bookingMaxDaysInAdvance,
+        walkInPracticeEnabled: boothPolicyForm.walkInPracticeEnabled,
+        warnBeforeNextExamMinutes,
+        forceLogoutBeforeNextExamMinutes,
+        noShowGraceMinutes,
+      });
+
+      setBoothPolicyConfig(saved);
+      hydrateBoothPolicyForm(saved.config);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Không thể cập nhật booth policy");
+    } finally {
+      setBoothPolicySubmitting(false);
     }
   };
 
@@ -558,6 +684,159 @@ export default function AdminSettingsPage() {
               </div>
             </form>
           )}
+          </div>
+        )}
+
+        {canManageGeneralSettings && (
+          <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h2 className="text-lg font-semibold text-gray-900">Booth Policy</h2>
+                <p className="text-sm text-gray-600">
+                  Cấu hình chung cho cửa sổ đặt lịch và hành vi tận dụng booth đã kích hoạt.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={loadBoothPolicy}
+                className="inline-flex items-center rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
+              >
+                <RefreshCw className="mr-2 h-4 w-4" />
+                Làm mới policy
+              </button>
+            </div>
+
+            {boothPolicyLoading ? (
+              <div className="flex items-center gap-2 text-sm text-gray-600">
+                <Loader2 className="h-4 w-4 animate-spin" /> Đang tải booth policy...
+              </div>
+            ) : (
+              <form onSubmit={saveBoothPolicy} className="space-y-4">
+                <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+                  <label className="space-y-1">
+                    <span className="text-xs font-semibold text-gray-600">Đặt lịch trước tối thiểu (ngày)</span>
+                    <input
+                      type="number"
+                      min={0}
+                      step={1}
+                      value={boothPolicyForm.bookingMinDaysInAdvance}
+                      onChange={(e) =>
+                        setBoothPolicyForm((prev) => ({
+                          ...prev,
+                          bookingMinDaysInAdvance: e.target.value,
+                        }))
+                      }
+                      disabled={boothPolicySubmitting}
+                      className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none disabled:bg-gray-100"
+                    />
+                  </label>
+
+                  <label className="space-y-1">
+                    <span className="text-xs font-semibold text-gray-600">Đặt lịch trước tối đa (ngày)</span>
+                    <input
+                      type="number"
+                      min={1}
+                      step={1}
+                      value={boothPolicyForm.bookingMaxDaysInAdvance}
+                      onChange={(e) =>
+                        setBoothPolicyForm((prev) => ({
+                          ...prev,
+                          bookingMaxDaysInAdvance: e.target.value,
+                        }))
+                      }
+                      disabled={boothPolicySubmitting}
+                      className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none disabled:bg-gray-100"
+                    />
+                  </label>
+
+                  <label className="inline-flex items-center gap-2 rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-700 md:mt-6">
+                    <input
+                      type="checkbox"
+                      checked={boothPolicyForm.walkInPracticeEnabled}
+                      onChange={(e) =>
+                        setBoothPolicyForm((prev) => ({
+                          ...prev,
+                          walkInPracticeEnabled: e.target.checked,
+                        }))
+                      }
+                      disabled={boothPolicySubmitting}
+                    />
+                    Bật tận dụng booth (walk-in luyện tập)
+                  </label>
+                </div>
+
+                <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+                  <label className="space-y-1">
+                    <span className="text-xs font-semibold text-gray-600">Cảnh báo trước ca EXAM (phút)</span>
+                    <input
+                      type="number"
+                      min={1}
+                      step={1}
+                      value={boothPolicyForm.warnBeforeNextExamMinutes}
+                      onChange={(e) =>
+                        setBoothPolicyForm((prev) => ({
+                          ...prev,
+                          warnBeforeNextExamMinutes: e.target.value,
+                        }))
+                      }
+                      disabled={boothPolicySubmitting}
+                      className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none disabled:bg-gray-100"
+                    />
+                  </label>
+
+                  <label className="space-y-1">
+                    <span className="text-xs font-semibold text-gray-600">Force logout trước ca EXAM (phút)</span>
+                    <input
+                      type="number"
+                      min={0}
+                      step={1}
+                      value={boothPolicyForm.forceLogoutBeforeNextExamMinutes}
+                      onChange={(e) =>
+                        setBoothPolicyForm((prev) => ({
+                          ...prev,
+                          forceLogoutBeforeNextExamMinutes: e.target.value,
+                        }))
+                      }
+                      disabled={boothPolicySubmitting}
+                      className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none disabled:bg-gray-100"
+                    />
+                  </label>
+
+                  <label className="space-y-1">
+                    <span className="text-xs font-semibold text-gray-600">No-show grace sau giờ bắt đầu EXAM (phút)</span>
+                    <input
+                      type="number"
+                      min={0}
+                      step={1}
+                      value={boothPolicyForm.noShowGraceMinutes}
+                      onChange={(e) =>
+                        setBoothPolicyForm((prev) => ({
+                          ...prev,
+                          noShowGraceMinutes: e.target.value,
+                        }))
+                      }
+                      disabled={boothPolicySubmitting}
+                      className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none disabled:bg-gray-100"
+                    />
+                  </label>
+                </div>
+
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <p className="text-xs text-gray-500">
+                    Nguồn cấu hình: {boothPolicyConfig?.source ?? "-"} • Cập nhật lúc: {" "}
+                    {boothPolicyConfig?.updatedAt ? formatDateTime(boothPolicyConfig.updatedAt) : "-"}
+                  </p>
+                  <button
+                    type="submit"
+                    disabled={boothPolicySubmitting}
+                    className="inline-flex items-center rounded-lg bg-navy-600 px-3 py-2 text-sm font-medium text-white hover:bg-navy-700 disabled:cursor-not-allowed disabled:bg-navy-300"
+                  >
+                    {boothPolicySubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    Lưu booth policy
+                  </button>
+                </div>
+              </form>
+            )}
           </div>
         )}
 

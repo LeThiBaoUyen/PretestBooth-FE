@@ -2,12 +2,18 @@ const BOOTH_SESSION_TOKEN_KEY = "booth_session_token";
 const BOOTH_SESSION_META_KEY = "booth_session_meta";
 
 export type BoothBookingType = "PRACTICE" | "EXAM";
+export type BoothAccessMode = "SCHEDULED" | "WALK_IN";
 
 export interface BoothSessionMeta {
   boothId: string;
   boothCode: string;
   boothName: string;
   boothBookingType?: BoothBookingType | null;
+  boothAccessMode?: BoothAccessMode | null;
+  nextExamStartTime?: string | null;
+  warnAt?: string | null;
+  forceLogoutAt?: string | null;
+  noShowGraceUntil?: string | null;
 }
 
 const canUseStorage = () => typeof window !== "undefined";
@@ -51,6 +57,42 @@ export const boothSessionManager = {
     const nextMeta: BoothSessionMeta = {
       ...current,
       boothBookingType,
+    };
+
+    window.sessionStorage.setItem(BOOTH_SESSION_META_KEY, JSON.stringify(nextMeta));
+    window.localStorage.setItem(BOOTH_SESSION_META_KEY, JSON.stringify(nextMeta));
+  },
+
+  setAccessMode(boothAccessMode: BoothAccessMode | null) {
+    if (!canUseStorage()) return;
+    const current = this.getMeta();
+    if (!current) return;
+
+    const nextMeta: BoothSessionMeta = {
+      ...current,
+      boothAccessMode,
+    };
+
+    window.sessionStorage.setItem(BOOTH_SESSION_META_KEY, JSON.stringify(nextMeta));
+    window.localStorage.setItem(BOOTH_SESSION_META_KEY, JSON.stringify(nextMeta));
+  },
+
+  setWalkInProtection(payload: {
+    nextExamStartTime?: string | null;
+    warnAt?: string | null;
+    forceLogoutAt?: string | null;
+    noShowGraceUntil?: string | null;
+  }) {
+    if (!canUseStorage()) return;
+    const current = this.getMeta();
+    if (!current) return;
+
+    const nextMeta: BoothSessionMeta = {
+      ...current,
+      nextExamStartTime: payload.nextExamStartTime ?? null,
+      warnAt: payload.warnAt ?? null,
+      forceLogoutAt: payload.forceLogoutAt ?? null,
+      noShowGraceUntil: payload.noShowGraceUntil ?? null,
     };
 
     window.sessionStorage.setItem(BOOTH_SESSION_META_KEY, JSON.stringify(nextMeta));

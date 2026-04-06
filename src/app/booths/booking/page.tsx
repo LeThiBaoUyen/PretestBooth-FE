@@ -22,11 +22,20 @@ import { CalendarDays, Clock, CheckCircle, AlertCircle, ShieldCheck, ChevronLeft
 import { useAuth } from "@/lib/hooks";
 import { bookingsApi } from "@/lib/api/bookings";
 import { bookingDurationsApi } from "@/lib/api/bookingDurations";
+import { boothPoliciesApi } from "@/lib/api/boothPolicies";
 import { kycApi } from "@/lib/api/kyc";
-import type { AvailableTimeSlot, BookingType } from "@/lib/api/types";
+import type { AvailableTimeSlot, BookingType, BoothPolicyConfig } from "@/lib/api/types";
 import { useRouter } from "next/navigation";
 
 const VIETNAM_OFFSET_MS = 7 * 60 * 60 * 1000;
+const DEFAULT_BOOKING_POLICY: BoothPolicyConfig = {
+  bookingMinDaysInAdvance: 7,
+  bookingMaxDaysInAdvance: 30,
+  walkInPracticeEnabled: true,
+  warnBeforeNextExamMinutes: 15,
+  forceLogoutBeforeNextExamMinutes: 5,
+  noShowGraceMinutes: 15,
+};
 
 function hasOverlap(startA: number, endA: number, startB: number, endB: number) {
   return startA < endB && endA > startB;
@@ -36,12 +45,9 @@ export default function BookingPage() {
   const { user } = useAuth();
   const router = useRouter();
 
-  // Booking config rules
-  const minDaysInAdvance = 7;
-  const maxDaysInAdvance = 30;
-
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [currentMonth, setCurrentMonth] = useState<Date | null>(null);
+  const [bookingPolicy, setBookingPolicy] = useState<BoothPolicyConfig>(DEFAULT_BOOKING_POLICY);
   const [slots, setSlots] = useState<AvailableTimeSlot[]>([]);
   const [myBookedRanges, setMyBookedRanges] = useState<Array<{ startTime: string; endTime: string; type: BookingType }>>([]);
   const [loadingSlots, setLoadingSlots] = useState(false);
@@ -58,6 +64,24 @@ export default function BookingPage() {
   const [loadingKyc, setLoadingKyc] = useState(true);
   const [kycStatus, setKycStatus] = useState<"NOT_STARTED" | "PENDING" | "VERIFIED" | "REJECTED">("NOT_STARTED");
   const [hasFaceEmbedding, setHasFaceEmbedding] = useState(false);
+
+  useEffect(() => {
+    const loadBookingPolicy = async () => {
+      try {
+        const response = await boothPoliciesApi.getBoothPolicyConfig();
+        if (response?.config) {
+          setBookingPolicy({
+            ...DEFAULT_BOOKING_POLICY,
+            ...response.config,
+          });
+        }
+      } catch {
+        setBookingPolicy(DEFAULT_BOOKING_POLICY);
+      }
+    };
+
+    void loadBookingPolicy();
+  }, []);
 
   const loadMyBookings = async () => {
     const allBookings: Array<{ startTime: string; endTime: string; status: string; type: BookingType }> = [];
@@ -90,10 +114,29 @@ export default function BookingPage() {
 
   // Initialize default selected day and visible month
   useEffect(() => {
-    const initialDate = startOfDay(addDays(new Date(), minDaysInAdvance));
-    setSelectedDate(initialDate);
-    setCurrentMonth(startOfMonth(initialDate));
-  }, []);
+    if (!selectedDate) {
+      const initialDate = startOfDay(addDays(new Date(), bookingPolicy.bookingMinDaysInAdvance));
+      setSelectedDate(initialDate);
+      setCurrentMonth(startOfMonth(initialDate));
+    }
+  }, [bookingPolicy.bookingMinDaysInAdvance, selectedDate]);
+
+  useEffect(() => {
+    if (!selectedDate) return;
+
+    const minDate = startOfDay(addDays(new Date(), bookingPolicy.bookingMinDaysInAdvance));
+    const maxDate = startOfDay(addDays(new Date(), bookingPolicy.bookingMaxDaysInAdvance));
+
+    if (isBefore(selectedDate, minDate) || isAfter(selectedDate, maxDate)) {
+      setSelectedDate(minDate);
+      setCurrentMonth(startOfMonth(minDate));
+      setSelectedSlot(null);
+    }
+  }, [
+    bookingPolicy.bookingMinDaysInAdvance,
+    bookingPolicy.bookingMaxDaysInAdvance,
+    selectedDate,
+  ]);
 
   // Fetch availability when date changes
   useEffect(() => {
@@ -189,8 +232,12 @@ export default function BookingPage() {
   const isKycVerified = kycStatus === "VERIFIED" && hasFaceEmbedding;
   const safeSlots = Array.isArray(slots) ? slots : [];
   const safeDurationOptions = Array.isArray(durationOptions) ? durationOptions : [];
-  const minSelectableDate = startOfDay(addDays(new Date(), minDaysInAdvance));
-  const maxSelectableDate = startOfDay(addDays(new Date(), maxDaysInAdvance));
+  const minSelectableDate = startOfDay(
+    addDays(new Date(), bookingPolicy.bookingMinDaysInAdvance),
+  );
+  const maxSelectableDate = startOfDay(
+    addDays(new Date(), bookingPolicy.bookingMaxDaysInAdvance),
+  );
   const weekLabels = ["Th 2", "Th 3", "Th 4", "Th 5", "Th 6", "Th 7", "CN"];
 
   const isDateSelectable = (date: Date) => {
@@ -341,7 +388,9 @@ export default function BookingPage() {
             </div>
             <div>
               <h1 className="text-2xl font-bold text-navy-900">Đặt lịch sử dụng Booth</h1>
-              <p className="text-gray-500 mt-1">Lưu ý: Bạn phải đặt lịch trước ít nhất 1 tuần.</p>
+              <p className="text-gray-500 mt-1">
+                Lưu ý: Bạn phải đặt lịch trước ít nhất {bookingPolicy.bookingMinDaysInAdvance} ngày.
+              </p>
             </div>
           </div>
 

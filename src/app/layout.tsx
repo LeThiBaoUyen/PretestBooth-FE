@@ -6,6 +6,7 @@ import QueryProvider from "@/components/providers/QueryProvider";
 import Header from "@/components/Header";
 import BackButton from "@/components/BackButton";
 import ResumeExamDialog from "@/components/exam/ResumeExamDialog";
+import BoothWalkInGuard from "@/components/BoothWalkInGuard";
 import ConditionalFooter from "@/components/layout/ConditionalFooter";
 
 const inter = Inter({ subsets: ["latin", "vietnamese"] });
@@ -33,6 +34,7 @@ export default function RootLayout({
           <Header />
           <BackButton />
           <ResumeExamDialog />
+          <BoothWalkInGuard />
           {children}
           <ConditionalFooter />
         </QueryProvider>
