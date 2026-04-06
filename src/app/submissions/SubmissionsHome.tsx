@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { submissionsApi } from "@/lib/api/execution";
 import { useAuth } from "@/lib/hooks";
 import type {
@@ -60,7 +61,9 @@ const TYPE_LABELS: Record<UnifiedSubmissionType, string> = {
 };
 
 export default function SubmissionsHome() {
+  const router = useRouter();
   const { accessToken, user, userLoading } = useAuth();
+  const isManagerView = user?.role === "ADMIN" || user?.role === "LECTURER";
   const [page, setPage] = useState(1);
   const [type, setType] = useState<"ALL" | "PROBLEM" | "EXAM">("ALL");
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
@@ -82,7 +85,27 @@ export default function SubmissionsHome() {
         },
         accessToken || undefined,
       ),
-    enabled: !!accessToken,
+    enabled: !!accessToken && !isManagerView,
+  });
+
+  const {
+    data: groupedTestsData,
+    isLoading: groupedTestsLoading,
+    isError: groupedTestsError,
+  } = useQuery({
+    queryKey: ["submission-test-groups", page, type, keyword, !!accessToken],
+    queryFn: () =>
+      submissionsApi.getSubmissionTestGroups(
+        {
+          page,
+          limit,
+          type,
+          keyword,
+          sortOrder: "desc",
+        },
+        accessToken || undefined,
+      ),
+    enabled: !!accessToken && isManagerView,
   });
 
   const submissions = data?.data || [];
@@ -140,6 +163,134 @@ export default function SubmissionsHome() {
             Đi tới đăng nhập
           </Link>
         </div>
+      </div>
+    );
+  }
+
+  if (isManagerView) {
+    const groupedTests = groupedTestsData?.data || [];
+    const groupedTotalPages = groupedTestsData?.totalPages || 1;
+
+    return (
+      <div className="pb-8">
+        <div className="ui-page-header">
+          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+            <div>
+              <h1 className="ui-page-title">Lịch sử nộp bài theo bài test</h1>
+              <p className="ui-page-subtitle">
+                Danh sách bài test lấy từ database. Bấm vào từng bài để xem ai đã nộp và kết quả chi tiết.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="mb-6 flex flex-wrap gap-2">
+          {(["ALL", "PROBLEM", "EXAM"] as const).map((typeOption) => (
+            <button
+              key={typeOption}
+              className={`rounded-full border px-4 py-2 text-sm font-medium transition ${
+                type === typeOption
+                  ? "border-navy-600 bg-navy-600 text-white"
+                  : "border-navy-200 bg-white text-navy-600 hover:bg-navy-50"
+              }`}
+              onClick={() => {
+                setType(typeOption);
+                setPage(1);
+              }}
+            >
+              {typeOption === "ALL"
+                ? "Tất cả"
+                : typeOption === "PROBLEM"
+                  ? "Bài tập Code"
+                  : "Bài Thi"}
+            </button>
+          ))}
+        </div>
+
+        <div className="mb-6 rounded-lg bg-white p-6 shadow-sm">
+          <label className="mb-2 block text-sm font-medium text-gray-700">Từ khóa bài test</label>
+          <input
+            value={keyword}
+            onChange={(e) => {
+              setKeyword(e.target.value);
+              setPage(1);
+            }}
+            placeholder="Nhập tên bài test"
+            className="w-full rounded-lg border border-gray-300 px-4 py-2 focus:border-transparent focus:ring-2 focus:ring-blue-500"
+          />
+        </div>
+
+        <div className="overflow-hidden rounded-lg bg-white shadow-sm">
+          {groupedTestsLoading ? (
+            <div className="p-12 text-center text-gray-500">Đang tải danh sách bài test...</div>
+          ) : groupedTestsError ? (
+            <div className="p-12 text-center text-red-500">Không thể tải danh sách bài test.</div>
+          ) : groupedTests.length === 0 ? (
+            <div className="p-12 text-center text-gray-500">Chưa có bài test nào có dữ liệu nộp bài.</div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Loại</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Bài test</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Số người nộp</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Số lượt nộp</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Đạt</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Lần nộp gần nhất</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-200 bg-white">
+                  {groupedTests.map((item) => (
+                    <tr
+                      key={`${item.type}-${item.entityId}`}
+                      className="cursor-pointer hover:bg-gray-50"
+                      onClick={() => {
+                        router.push(`/submissions/tests/${item.type}/${item.entityId}`);
+                      }}
+                    >
+                      <td className="whitespace-nowrap px-6 py-4">
+                        <span className={`rounded-full px-2 py-1 text-xs font-medium ${TYPE_COLORS[item.type]}`}>
+                          {TYPE_LABELS[item.type]}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 text-sm font-medium text-gray-900">{item.title}</td>
+                      <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-700">{item.totalSubmitters}</td>
+                      <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-700">{item.totalSubmissions}</td>
+                      <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-700">{item.passedCount}</td>
+                      <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
+                        {new Date(item.latestSubmittedAt).toLocaleString("vi-VN")}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {groupedTotalPages > 1 && (
+            <div className="flex items-center justify-between border-t border-gray-200 bg-gray-50 px-6 py-4">
+              <button
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                disabled={page === 1}
+                className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Trước
+              </button>
+              <span className="text-sm text-gray-700">
+                Trang {page}/{groupedTotalPages}
+              </span>
+              <button
+                onClick={() => setPage((p) => Math.min(groupedTotalPages, p + 1))}
+                disabled={page === groupedTotalPages}
+                className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Sau
+              </button>
+            </div>
+          )}
+        </div>
+
       </div>
     );
   }

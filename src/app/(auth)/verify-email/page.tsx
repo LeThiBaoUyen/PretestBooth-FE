@@ -4,7 +4,6 @@ import { useState, useEffect, Suspense } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useSearchParams, useRouter } from "next/navigation";
-import Footer from "@/components/Footer";
 import { apiClient } from "@/lib/api/auth";
 
 function VerifyEmailContent() {
@@ -192,7 +191,6 @@ function VerifyEmailContent() {
           </div>
         </div>
       </main>
-      <Footer />
     </>
   );
 }
@@ -205,7 +203,6 @@ export default function VerifyEmailPage() {
           <main className="min-h-screen flex items-center justify-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-navy-600" />
           </main>
-          <Footer />
         </>
       }
     >

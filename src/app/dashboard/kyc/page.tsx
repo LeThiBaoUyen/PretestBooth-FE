@@ -4,7 +4,6 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import { CheckCircle2, ShieldAlert } from "lucide-react";
-import Footer from "@/components/Footer";
 import FaceCameraCapture from "@/components/FaceCameraCapture";
 import { kycApi } from "@/lib/api/kyc";
 import type { KycStatusResponse } from "@/lib/api/types";
@@ -230,7 +229,6 @@ export default function KycPage() {
           )}
         </div>
       </main>
-      <Footer />
     </div>
   );
 }

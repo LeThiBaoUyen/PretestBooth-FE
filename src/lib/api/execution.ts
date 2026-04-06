@@ -14,6 +14,10 @@ import type {
   SubmissionStats,
   QueryUnifiedSubmissionsParams,
   PaginatedUnifiedSubmissions,
+  QuerySubmissionTestGroupsParams,
+  PaginatedSubmissionTestGroups,
+  QuerySubmissionTestMembersParams,
+  PaginatedSubmissionTestMembers,
 } from "./types";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
@@ -411,6 +415,52 @@ class SubmissionsApiClient {
     const queryString = searchParams.toString();
     return this.request<PaginatedUnifiedSubmissions>(
       `/api/submissions/all${queryString ? `?${queryString}` : ""}`,
+      {
+        headers: { Authorization: `Bearer ${token}` },
+      },
+    );
+  }
+
+  async getSubmissionTestGroups(
+    params: QuerySubmissionTestGroupsParams = {},
+    accessToken?: string,
+  ): Promise<PaginatedSubmissionTestGroups> {
+    const token = accessToken || getAccessToken();
+    if (!token) throw new Error("Access token required");
+
+    const searchParams = new URLSearchParams();
+    if (params.page) searchParams.append("page", params.page.toString());
+    if (params.limit) searchParams.append("limit", params.limit.toString());
+    if (params.type) searchParams.append("type", params.type);
+    if (params.keyword) searchParams.append("keyword", params.keyword);
+    if (params.sortOrder) searchParams.append("sortOrder", params.sortOrder);
+
+    const queryString = searchParams.toString();
+    return this.request<PaginatedSubmissionTestGroups>(
+      `/api/submissions/tests${queryString ? `?${queryString}` : ""}`,
+      {
+        headers: { Authorization: `Bearer ${token}` },
+      },
+    );
+  }
+
+  async getSubmissionTestMembers(
+    type: "PROBLEM" | "EXAM",
+    entityId: string,
+    params: QuerySubmissionTestMembersParams = {},
+    accessToken?: string,
+  ): Promise<PaginatedSubmissionTestMembers> {
+    const token = accessToken || getAccessToken();
+    if (!token) throw new Error("Access token required");
+
+    const searchParams = new URLSearchParams();
+    if (params.page) searchParams.append("page", params.page.toString());
+    if (params.limit) searchParams.append("limit", params.limit.toString());
+    if (params.sortOrder) searchParams.append("sortOrder", params.sortOrder);
+
+    const queryString = searchParams.toString();
+    return this.request<PaginatedSubmissionTestMembers>(
+      `/api/submissions/tests/${type}/${entityId}/submissions${queryString ? `?${queryString}` : ""}`,
       {
         headers: { Authorization: `Bearer ${token}` },
       },

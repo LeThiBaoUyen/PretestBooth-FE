@@ -1,10 +1,10 @@
 "use client";
-import { useState, useEffect, useCallback, useRef, type ReactNode } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef, type ReactNode } from "react";
 import { examsApiClient } from "@/lib/api/exams";
 import { questionsApiClient } from "@/lib/api/questions";
 import { bookingsApi } from "@/lib/api/bookings";
 import { useAuth } from "@/lib/hooks";
-import type { ExamListItem, Subject } from "@/lib/api/types";
+import type { ExamListItem, ExamSessionListItem, Subject } from "@/lib/api/types";
 import { hasPermission } from "@/lib/auth/permissions";
 import {
   BookOpen,
@@ -151,6 +151,7 @@ export default function ExamLibrary() {
   const [checkingExamAutoAssign, setCheckingExamAutoAssign] = useState(false);
   const [hasCheckedInExamBooking, setHasCheckedInExamBooking] = useState(false);
   const [autoAssignError, setAutoAssignError] = useState<string | null>(null);
+  const [recentExamSessions, setRecentExamSessions] = useState<ExamSessionListItem[]>([]);
 
   // Data
   const [exams, setExams] = useState<ExamListItem[]>([]);
@@ -327,12 +328,73 @@ export default function ExamLibrary() {
     fetchExams();
   }, [fetchExams]);
 
+  const fetchRecentExamSessions = useCallback(async () => {
+    if (!accessToken || user?.role !== "STUDENT") {
+      setRecentExamSessions([]);
+      return;
+    }
+
+    try {
+      const result = await examsApiClient.listSessions(
+        {
+          page: 1,
+          limit: 100,
+          sortBy: "startedAt",
+          sortOrder: "desc",
+        },
+        accessToken,
+      );
+
+      const sessions = Array.isArray(result?.data) ? result.data : [];
+      setRecentExamSessions(sessions);
+    } catch {
+      setRecentExamSessions([]);
+    }
+  }, [accessToken, user?.role]);
+
+  useEffect(() => {
+    fetchRecentExamSessions();
+  }, [fetchRecentExamSessions]);
+
   const safeSubjects = Array.isArray(subjects) ? subjects : [];
   const safeExams = Array.isArray(exams) ? exams : [];
   const visibleExams =
     user?.role === "STUDENT"
       ? safeExams.filter((exam) => exam.type === "EXAM")
       : safeExams;
+
+  const doneExamLatestTime = useMemo(() => {
+    const latestByExam = new Map<string, number>();
+
+    recentExamSessions.forEach((session) => {
+      if (session.status === "IN_PROGRESS") {
+        return;
+      }
+
+      const timestampSource = session.finishedAt ?? session.startedAt;
+      const timestamp = timestampSource ? new Date(timestampSource).getTime() : 0;
+      const previous = latestByExam.get(session.examId) ?? 0;
+
+      if (timestamp > previous) {
+        latestByExam.set(session.examId, timestamp);
+      }
+    });
+
+    return latestByExam;
+  }, [recentExamSessions]);
+
+  const pendingExams =
+    user?.role === "STUDENT"
+      ? visibleExams.filter((exam) => !doneExamLatestTime.has(exam.id))
+      : visibleExams;
+
+  const recentCompletedExams =
+    user?.role === "STUDENT"
+      ? [...visibleExams]
+          .filter((exam) => doneExamLatestTime.has(exam.id))
+          .sort((a, b) => (doneExamLatestTime.get(b.id) ?? 0) - (doneExamLatestTime.get(a.id) ?? 0))
+      : [];
+
   const subjectNames = ["Tất cả", ...safeSubjects.map((s) => s.name)];
 
   if (userLoading) {
@@ -399,19 +461,18 @@ export default function ExamLibrary() {
           <div>
             <h1 className="ui-page-title">Thư viện đề thi</h1>
             <p className="ui-page-subtitle">Hãy tìm theo môn học và bắt đầu phiên luyện tập/thi ngay.</p>
-          </div>
-          <div className="flex flex-wrap items-center justify-end gap-2">
-            <div className="inline-flex items-center rounded-full border border-slate-200 bg-white p-1">
+            <div className="mt-3 flex flex-wrap items-center gap-2">
               <Link
                 href="/exams"
-                className="rounded-full bg-navy-600 px-3 py-1.5 text-xs font-bold text-white"
+                className="inline-flex items-center rounded-full border border-navy-600 bg-navy-600 px-3 py-1.5 text-xs font-bold text-white"
               >
                 Đề thi
               </Link>
+
               {canManageQuestionBank && (
                 <Link
                   href="/question-bank"
-                  className="rounded-full px-3 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-50"
+                  className="inline-flex items-center rounded-full border border-slate-300 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-50"
                 >
                   Ngân hàng câu hỏi
                 </Link>
@@ -592,7 +653,7 @@ export default function ExamLibrary() {
       ) : (
         <>
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-            {visibleExams.map((exam) => (
+            {pendingExams.map((exam) => (
               <div
                 key={exam.id}
                 className="bg-white rounded-xl shadow-sm p-5 flex flex-col justify-between border border-slate-200 relative hover:shadow-md transition"
@@ -656,12 +717,92 @@ export default function ExamLibrary() {
                 )}
               </div>
             ))}
-            {visibleExams.length === 0 && (
+            {pendingExams.length === 0 && recentCompletedExams.length === 0 && (
               <div className="col-span-full text-center text-gray-500 py-10">
                 Không tìm thấy bộ đề phù hợp.
               </div>
             )}
+            {pendingExams.length === 0 && recentCompletedExams.length > 0 && (
+              <div className="col-span-full text-center text-gray-500 py-10">
+                Bạn đã làm các đề trong danh sách này. Xem lại ở mục bên dưới.
+              </div>
+            )}
           </div>
+
+          {user?.role === "STUDENT" && recentCompletedExams.length > 0 && (
+            <section className="mt-10">
+              <div className="mb-4 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+                <h2 className="text-base font-bold text-navy-700">Các bài luyện tập đã làm gần đây</h2>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                {recentCompletedExams.map((exam) => (
+                  <div
+                    key={`done-${exam.id}`}
+                    className="bg-white rounded-xl shadow-sm p-5 flex flex-col justify-between border border-slate-200 relative hover:shadow-md transition"
+                  >
+                    <div className="flex-1">
+                      <div className="min-h-[3.5rem] mb-2">
+                        <h2 className="text-lg font-bold text-navy-700 line-clamp-2">
+                          {exam.title}
+                        </h2>
+                      </div>
+                      <div className="flex items-center text-gray-500 text-sm mb-2 gap-3 min-h-[1.5rem]">
+                        <span>⏰ {exam.duration} phút</span>
+                        <span>👁️ {exam.sessionCount} lượt thi</span>
+                        <span>📝 {exam.totalItems} câu</span>
+                      </div>
+                      <div className="flex flex-wrap items-start gap-2 mb-3 min-h-[2rem]">
+                        {exam.subject && (
+                          <span className="bg-navy-50 text-navy-600 px-2 py-1 rounded text-xs font-semibold">
+                            #{exam.subject.name}
+                          </span>
+                        )}
+                        {exam.difficulty && (
+                          <span className="bg-navy-50 text-navy-600 px-2 py-1 rounded text-xs font-semibold">
+                            {exam.difficulty === "EASY"
+                              ? "Dễ"
+                              : exam.difficulty === "MEDIUM"
+                                ? "Trung bình"
+                                : "Khó"}
+                          </span>
+                        )}
+                        {!exam.subject && !exam.difficulty && (
+                          <span className="invisible bg-navy-50 px-2 py-1 rounded text-xs font-semibold">
+                            placeholder
+                          </span>
+                        )}
+                      </div>
+                      <div className="text-xs text-gray-400 mb-2 min-h-[1.25rem]">
+                        Trắc nghiệm: {exam.questionCount} | Code:{" "}
+                        {exam.problemCount}
+                      </div>
+                      <div className="text-xs text-gray-500 mb-2 flex items-center gap-2 min-h-[1.25rem]">
+                        <Filter className="h-3 w-3" />
+                        {exam.isPublished ? "Công bố" : "Nháp"}
+                      </div>
+                    </div>
+                    <Link
+                      href={`/exams/${exam.id}`}
+                      className="mt-2 w-full bg-navy-600 text-white py-2 rounded-lg font-bold hover:bg-navy-700 transition block text-center"
+                    >
+                      Chi tiết
+                    </Link>
+                    {canManage(exam) && (
+                      <div className="flex gap-2 mt-2">
+                        <Link
+                          href={`/exams/${exam.id}/edit`}
+                          className="flex-1 px-3 py-1.5 rounded-lg text-sm font-semibold border border-navy-200 text-navy-600 hover:bg-navy-50 transition text-center"
+                        >
+                          ✏️ Sửa
+                        </Link>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
           {/* Pagination */}
           {total > 12 && (
             <div className="flex justify-center gap-2 mt-8">

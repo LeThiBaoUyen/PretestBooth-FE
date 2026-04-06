@@ -1,6 +1,5 @@
 "use client";
 
-import Footer from "@/components/Footer";
 import QuestionsLibrary from "./QuestionsLibrary";
 
 export default function QuestionsPage() {
@@ -9,7 +8,6 @@ export default function QuestionsPage() {
       <main className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-100 pt-6 pb-20">
         <QuestionsLibrary />
       </main>
-      <Footer />
     </>
   );
 }

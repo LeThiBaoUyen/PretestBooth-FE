@@ -3,7 +3,6 @@
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { FolderOpen, Plus, Save, Trash2, PenSquare, Search } from "lucide-react";
-import Footer from "@/components/Footer";
 import { useAuth } from "@/lib/hooks";
 import { questionsApiClient } from "@/lib/api/questions";
 
@@ -389,7 +388,6 @@ export default function SubjectTopicManagementPage() {
           </section>
         </div>
       </main>
-      <Footer />
     </div>
   );
 }

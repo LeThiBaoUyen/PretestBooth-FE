@@ -3,7 +3,6 @@
 import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import Footer from "@/components/Footer";
 import { FormInput, SubmitButton } from "@/components/FormComponents";
 import { apiClient } from "@/lib/api/auth";
 
@@ -163,7 +162,6 @@ export default function ForgotPasswordPage() {
           </div>
         </div>
       </main>
-      <Footer />
     </>
   );
 }
