@@ -53,6 +53,10 @@ export default function BoothCheckInPage() {
       });
 
       if (response.matched) {
+        if (bookingType === "EXAM" || bookingType === "PRACTICE") {
+          boothSessionManager.setBookingType(bookingType);
+        }
+
         if (bookingType === "EXAM" && accessToken) {
           setResultMessage("Xác thực thành công. Đang mở bước khởi động trước bài thi...");
           setTimeout(() => router.push("/exams/prepare"), 600);

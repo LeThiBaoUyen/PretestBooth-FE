@@ -1,10 +1,13 @@
 const BOOTH_SESSION_TOKEN_KEY = "booth_session_token";
 const BOOTH_SESSION_META_KEY = "booth_session_meta";
 
+export type BoothBookingType = "PRACTICE" | "EXAM";
+
 export interface BoothSessionMeta {
   boothId: string;
   boothCode: string;
   boothName: string;
+  boothBookingType?: BoothBookingType | null;
 }
 
 const canUseStorage = () => typeof window !== "undefined";
@@ -38,6 +41,20 @@ export const boothSessionManager = {
     } catch {
       return null;
     }
+  },
+
+  setBookingType(boothBookingType: BoothBookingType | null) {
+    if (!canUseStorage()) return;
+    const current = this.getMeta();
+    if (!current) return;
+
+    const nextMeta: BoothSessionMeta = {
+      ...current,
+      boothBookingType,
+    };
+
+    window.sessionStorage.setItem(BOOTH_SESSION_META_KEY, JSON.stringify(nextMeta));
+    window.localStorage.setItem(BOOTH_SESSION_META_KEY, JSON.stringify(nextMeta));
   },
 
   clear() {

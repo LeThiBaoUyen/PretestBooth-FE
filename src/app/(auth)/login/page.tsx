@@ -108,6 +108,14 @@ export default function LoginPage() {
       const pendingCheckinBooking = (response as any)?.pendingCheckinBooking as
         | { id: string; type: "PRACTICE" | "EXAM" }
         | undefined;
+      const boothBookingType = checkedInType || pendingCheckinBooking?.type || null;
+
+      if (boothSessionManager.getToken() && boothSessionManager.getMeta()) {
+        boothSessionManager.setBookingType(
+          response.user.role === "STUDENT" ? boothBookingType : null,
+        );
+      }
+
       const kioskRedirect = checkedInType
         ? checkedInType === "PRACTICE"
           ? "/practice"

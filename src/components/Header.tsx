@@ -112,9 +112,10 @@ export default function Header() {
     return item.roles.includes(user.role);
   }).map((item) => {
     if (item.href === "/exams" && user?.role === "STUDENT") {
+      const isBoothExam = boothMeta?.boothBookingType === "EXAM";
       return {
         ...item,
-        label: "Đề thi",
+        label: isBoothExam ? "Tham gia thi" : "Tham gia luyện tập",
       };
     }
 
