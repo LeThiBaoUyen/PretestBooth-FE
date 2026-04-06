@@ -104,7 +104,11 @@ export default function ProctoringOverlay({
         );
       }
     } catch (err) {
-      console.error("Proctoring report failed:", err);
+      // Backend proctoring endpoint can be temporarily unavailable; keep exam UI stable.
+      const message = err instanceof Error ? err.message : "Không thể gửi sự kiện giám sát.";
+      if (!message.toLowerCase().includes("internal server error")) {
+        console.warn("Proctoring report unavailable:", message);
+      }
     }
   }, [sessionId, isActive, redirectWithViolationNotice]);
 
@@ -137,7 +141,6 @@ export default function ProctoringOverlay({
     };
 
     syncFullscreenState();
-    void requestFullscreen();
 
     document.addEventListener("fullscreenchange", handleFullscreenChange);
     return () => {

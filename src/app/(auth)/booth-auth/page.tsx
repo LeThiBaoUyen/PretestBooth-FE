@@ -6,7 +6,6 @@ import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { FormInput, SubmitButton } from "@/components/FormComponents";
-import Footer from "@/components/Footer";
 import { apiClient } from "@/lib/api/auth";
 import { boothSessionManager } from "@/lib/auth/boothSession";
 
@@ -137,7 +136,6 @@ export default function BoothAuthPage() {
           </div>
         </div>
       </main>
-      <Footer />
     </>
   );
 }

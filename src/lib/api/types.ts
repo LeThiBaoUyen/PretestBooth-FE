@@ -1145,6 +1145,77 @@ export interface QueryUnifiedSubmissionsParams {
   sortOrder?: "asc" | "desc";
 }
 
+export interface SubmissionTestGroupItem {
+  type: UnifiedSubmissionType;
+  entityId: string;
+  title: string;
+  slug: string | null;
+  difficulty: Difficulty | null;
+  questionCount: number | null;
+  problemCount: number | null;
+  totalSubmissions: number;
+  totalSubmitters: number;
+  passedCount: number;
+  latestSubmittedAt: string;
+}
+
+export interface PaginatedSubmissionTestGroups {
+  data: SubmissionTestGroupItem[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}
+
+export interface QuerySubmissionTestGroupsParams {
+  page?: number;
+  limit?: number;
+  type?: "PROBLEM" | "EXAM" | "ALL";
+  keyword?: string;
+  sortOrder?: "asc" | "desc";
+}
+
+export interface SubmissionTestMemberItem {
+  id: string;
+  userId: string;
+  userName: string | null;
+  userEmail: string | null;
+  studentCode: string | null;
+  status: string;
+  language: string | null;
+  passed: boolean | null;
+  passedTestCases: number | null;
+  totalTestCases: number | null;
+  score: number | null;
+  maxScore: number | null;
+  submittedAt: string;
+}
+
+export interface SubmissionTestMeta {
+  type: UnifiedSubmissionType;
+  entityId: string;
+  title: string;
+  slug: string | null;
+  difficulty: Difficulty | null;
+  questionCount: number | null;
+  problemCount: number | null;
+}
+
+export interface PaginatedSubmissionTestMembers {
+  test: SubmissionTestMeta;
+  data: SubmissionTestMemberItem[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}
+
+export interface QuerySubmissionTestMembersParams {
+  page?: number;
+  limit?: number;
+  sortOrder?: "asc" | "desc";
+}
+
 // ==================== NEW MODULES (PHASE 1) ====================
 
 // Booths

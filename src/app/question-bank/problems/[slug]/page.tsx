@@ -4,7 +4,6 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import Footer from "@/components/Footer";
 import { problemsApiClient } from "@/lib/api/problems";
 import { getTokenManager } from "@/lib/auth/tokenManager";
 import { useAuth } from "@/lib/hooks/useAuth";
@@ -63,7 +62,6 @@ export default function ProblemDetailPage() {
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-navy-600"></div>
           </div>
         </main>
-        <Footer />
       </>
     );
   }
@@ -90,7 +88,6 @@ export default function ProblemDetailPage() {
             </div>
           </div>
         </main>
-        <Footer />
       </>
     );
   }
@@ -300,7 +297,6 @@ export default function ProblemDetailPage() {
 
         </div>
       </main>
-      <Footer />
     </>
   );
 }

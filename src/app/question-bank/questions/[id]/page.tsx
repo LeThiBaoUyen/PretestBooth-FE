@@ -3,7 +3,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import Footer from "@/components/Footer";
 import { questionsApiClient } from "@/lib/api/questions";
 import { useAuth } from "@/lib/hooks";
 import type { Difficulty, QuestionType } from "@/lib/api/types";
@@ -106,7 +105,6 @@ export default function QuestionDetailPage() {
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-navy-600"></div>
           </div>
         </main>
-        <Footer />
       </>
     );
   }
@@ -133,7 +131,6 @@ export default function QuestionDetailPage() {
             </div>
           </div>
         </main>
-        <Footer />
       </>
     );
   }
@@ -334,7 +331,6 @@ export default function QuestionDetailPage() {
           )}
         </div>
       </main>
-      <Footer />
     </>
   );
 }

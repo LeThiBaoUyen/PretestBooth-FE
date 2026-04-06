@@ -185,14 +185,26 @@ function parseCsvContent(content: string) {
 }
 
 export default function AdminUsersPage() {
+  return <AdminUsersPageContent />;
+}
+
+type AdminUsersPageContentProps = {
+  initialClassFilter?: string;
+  initialCohortFilter?: string | number;
+};
+
+export function AdminUsersPageContent({
+  initialClassFilter = "",
+  initialCohortFilter = "",
+}: AdminUsersPageContentProps) {
   const { user } = useAuth();
 
   const [users, setUsers] = useState<any[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
-  const [classFilter, setClassFilter] = useState("");
-  const [cohortFilter, setCohortFilter] = useState("");
+  const [classFilter, setClassFilter] = useState(initialClassFilter);
+  const [cohortFilter, setCohortFilter] = useState(String(initialCohortFilter));
   const [lockFilter, setLockFilter] = useState<"ALL" | "LOCKED" | "ACTIVE">("ALL");
   const [loading, setLoading] = useState(true);
   const [savingForm, setSavingForm] = useState(false);
@@ -266,6 +278,14 @@ export default function AdminUsersPage() {
       fetchUsers();
     }
   }, [user, page, search, classFilter, cohortFilter, lockFilter]);
+
+  useEffect(() => {
+    setClassFilter(initialClassFilter);
+  }, [initialClassFilter]);
+
+  useEffect(() => {
+    setCohortFilter(String(initialCohortFilter));
+  }, [initialCohortFilter]);
 
   const handleToggleLock = async (id: string, currentlyLocked: boolean) => {
     if (!confirm(currentlyLocked ? "Mở khóa tài khoản này?" : "Khóa tài khoản này?")) return;

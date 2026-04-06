@@ -3,7 +3,6 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Settings, Play, Target, Clock, BookOpen, AlertCircle } from "lucide-react";
-import Footer from "@/components/Footer";
 import { useAuth } from "@/lib/hooks";
 import { practiceApi } from "@/lib/api/practice";
 import type { Difficulty } from "@/lib/api/types";
@@ -146,7 +145,6 @@ export default function PracticeSetupPage() {
           </div>
         </div>
       </main>
-      <Footer />
     </div>
   );
 }

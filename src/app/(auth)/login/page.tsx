@@ -5,7 +5,6 @@ import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
-import Footer from "@/components/Footer";
 import { FormInput, SubmitButton } from "@/components/FormComponents";
 import { apiClient } from "@/lib/api/auth";
 import { getTokenManager } from "@/lib/auth/tokenManager";
@@ -330,7 +329,6 @@ export default function LoginPage() {
           </div>
         </div>
       </main>
-      <Footer />
     </>
   );
 }

@@ -1,4 +1,3 @@
-import Footer from "@/components/Footer";
 import Link from "next/link";
 
 export default function Home() {
@@ -162,7 +161,6 @@ export default function Home() {
           </div>
         </section>
       </main>
-      <Footer />
     </>
   );
 }

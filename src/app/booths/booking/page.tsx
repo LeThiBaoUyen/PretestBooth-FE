@@ -4,7 +4,6 @@ import { useState, useEffect } from "react";
 import { format, addDays, isSameDay } from "date-fns";
 import { vi } from "date-fns/locale";
 import { CalendarDays, Clock, CheckCircle, AlertCircle, ShieldCheck } from "lucide-react";
-import Footer from "@/components/Footer";
 import { useAuth } from "@/lib/hooks";
 import { bookingsApi } from "@/lib/api/bookings";
 import { bookingDurationsApi } from "@/lib/api/bookingDurations";
@@ -73,7 +72,7 @@ export default function BookingPage() {
           }),
         ]);
 
-        setSlots(availability.slots);
+        setSlots(Array.isArray(availability?.slots) ? availability.slots : []);
 
         const activeStatuses = new Set(["PENDING", "CONFIRMED", "CHECKED_IN"]);
         const myActiveBookings = (myBookings.data || [])
@@ -106,7 +105,9 @@ export default function BookingPage() {
           isActive: true,
         });
 
-        const minutes = options.map((item) => item.durationMinutes);
+        const minutes = Array.isArray(options)
+          ? options.map((item) => item.durationMinutes)
+          : [];
         setDurationOptions(minutes);
 
         if (minutes.length > 0) {
@@ -147,6 +148,8 @@ export default function BookingPage() {
   }, [user]);
 
   const isKycVerified = kycStatus === "VERIFIED" && hasFaceEmbedding;
+  const safeSlots = Array.isArray(slots) ? slots : [];
+  const safeDurationOptions = Array.isArray(durationOptions) ? durationOptions : [];
 
   const isSlotBookedByMe = (slot: AvailableTimeSlot) => {
     const slotStart = new Date(slot.startTime).getTime();
@@ -166,7 +169,7 @@ export default function BookingPage() {
     }
 
     if (!selectedDate || !selectedSlot) return;
-    if (!durationOptions.includes(duration)) {
+    if (!safeDurationOptions.includes(duration)) {
       setError("Vui lòng chọn thời lượng hợp lệ.");
       return;
     }
@@ -240,7 +243,6 @@ export default function BookingPage() {
             </div>
           </div>
         </main>
-        <Footer />
       </div>
     );
   }
@@ -331,15 +333,15 @@ export default function BookingPage() {
                     <label className="block text-sm font-medium text-gray-700 mb-2">Thời lượng mong muốn (phút)</label>
                     <select 
                       className="w-full bg-gray-50 border border-gray-300 text-gray-900 rounded-lg focus:ring-navy-500 focus:border-navy-500 block p-3"
-                      disabled={loadingDurations || durationOptions.length === 0}
+                      disabled={loadingDurations || safeDurationOptions.length === 0}
                       value={duration}
                       onChange={(e) => setDuration(Number(e.target.value))}
                     >
                       {loadingDurations && <option value={duration}>Đang tải...</option>}
-                      {!loadingDurations && durationOptions.length === 0 && (
+                      {!loadingDurations && safeDurationOptions.length === 0 && (
                         <option value={duration}>Chưa có cấu hình thời lượng</option>
                       )}
-                      {!loadingDurations && durationOptions.map((item) => (
+                      {!loadingDurations && safeDurationOptions.map((item) => (
                         <option key={item} value={item}>{item} phút</option>
                       ))}
                     </select>
@@ -361,7 +363,7 @@ export default function BookingPage() {
                       <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-navy-600 mr-3"></div>
                       Đang tải khung giờ...
                     </div>
-                  ) : slots.length === 0 ? (
+                  ) : safeSlots.length === 0 ? (
                     <div className="text-center text-gray-500 py-20 flex flex-col items-center">
                       <Clock className="w-12 h-12 text-gray-300 mb-3" />
                       Không có khung giờ nào khả dụng trong ngày này.
@@ -374,7 +376,7 @@ export default function BookingPage() {
                         <span className="w-3 h-3 rounded-full bg-slate-400 inline-block ml-4 mr-2"></span> Bạn đã đặt
                       </p>
                       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-                        {slots.map(slot => {
+                        {safeSlots.map(slot => {
                           const isBookedByMe = isSlotBookedByMe(slot);
                           const isFull = slot.availableBooths === 0;
                           const isSelected = selectedSlot?.startTime === slot.startTime;
@@ -422,10 +424,10 @@ export default function BookingPage() {
 
                 <div className="mt-8 pt-6 border-t border-gray-100 flex justify-end">
                   <button
-                    disabled={!selectedSlot || isSubmitting || durationOptions.length === 0}
+                    disabled={!selectedSlot || isSubmitting || safeDurationOptions.length === 0}
                     onClick={handleBook}
                     className={`px-8 py-3 rounded-xl font-bold text-white transition shadow-lg ${
-                      !selectedSlot || isSubmitting || durationOptions.length === 0
+                      !selectedSlot || isSubmitting || safeDurationOptions.length === 0
                         ? "bg-gray-400 cursor-not-allowed shadow-none"
                         : "bg-navy-600 hover:bg-navy-700 hover:shadow-navy-200/50"
                     }`}
@@ -440,7 +442,6 @@ export default function BookingPage() {
           </div>
         </div>
       </main>
-      <Footer />
     </div>
   );
 }

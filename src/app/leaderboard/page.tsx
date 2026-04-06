@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react";
 import { Trophy, Medal, Crown, History, ArrowUpCircle, ArrowDownCircle } from "lucide-react";
-import Footer from "@/components/Footer";
 import { pointsApi } from "@/lib/api/points";
 import { useAuth } from "@/lib/hooks";
 import type { LeaderboardUser, PointTransaction } from "@/lib/api/points";
@@ -188,7 +187,6 @@ export default function LeaderboardPage() {
 
         </div>
       </main>
-      <Footer />
     </div>
   );
 }
