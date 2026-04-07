@@ -8,14 +8,18 @@ import {
   endOfMonth,
   endOfWeek,
   format,
+  isAfter,
+  isBefore,
   isSameDay,
   isSameMonth,
+  startOfDay,
   startOfMonth,
   startOfWeek,
   subMonths,
 } from "date-fns";
 import { bookingsApi } from "@/lib/api/bookings";
 import { boothsApi } from "@/lib/api/booths";
+import { boothPoliciesApi } from "@/lib/api/boothPolicies";
 import { useAuth } from "@/lib/hooks";
 import { hasPermission } from "@/lib/auth/permissions";
 import type { Booking, BookingStatus, BookingType, Booth } from "@/lib/api/types";
@@ -131,6 +135,7 @@ export default function BoothSchedulePage() {
   const [monthlySummaries, setMonthlySummaries] = useState<Record<string, MonthlyDaySummary>>({});
   const [monthlyLoading, setMonthlyLoading] = useState(false);
   const [selectedTimelineBooking, setSelectedTimelineBooking] = useState<Booking | null>(null);
+  const [bookingWindowDays, setBookingWindowDays] = useState({ min: 7, max: 30 });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const scheduleSectionRef = useRef<HTMLDivElement | null>(null);
@@ -152,6 +157,20 @@ export default function BoothSchedulePage() {
       setBooths(Array.isArray(data) ? data : []);
     } catch {
       setBooths([]);
+    }
+  };
+
+  const fetchBookingWindow = async () => {
+    try {
+      const policy = await boothPoliciesApi.getBoothPolicyConfig();
+      const min = Number(policy?.bookingMinDaysInAdvance);
+      const max = Number(policy?.bookingMaxDaysInAdvance);
+
+      if (Number.isInteger(min) && Number.isInteger(max)) {
+        setBookingWindowDays({ min, max });
+      }
+    } catch {
+      setBookingWindowDays((current) => current);
     }
   };
 
@@ -204,6 +223,9 @@ export default function BoothSchedulePage() {
     try {
       const monthStart = startOfMonth(targetMonth);
       const monthEnd = endOfMonth(targetMonth);
+      const today = startOfDay(new Date());
+      const minDate = addDays(today, bookingWindowDays.min);
+      const maxDate = addDays(today, bookingWindowDays.max);
 
       const days: string[] = [];
       let cursor = monthStart;
@@ -214,6 +236,18 @@ export default function BoothSchedulePage() {
 
       const summaryEntries = await Promise.all(
         days.map(async (day) => {
+          const targetDate = startOfDay(new Date(day));
+          if (isBefore(targetDate, minDate) || isAfter(targetDate, maxDate)) {
+            return [
+              day,
+              {
+                bookedBooths: 0,
+                bookedSlots: 0,
+                totalBooths: 0,
+              } as MonthlyDaySummary,
+            ] as const;
+          }
+
           try {
             const availability = await bookingsApi.getAvailability(day);
             const uniqueBookedBoothIds = new Set<string>();
@@ -265,6 +299,7 @@ export default function BoothSchedulePage() {
   useEffect(() => {
     if (!canViewPage) return;
     void fetchBooths();
+    void fetchBookingWindow();
   }, [canViewPage]);
 
   useEffect(() => {
@@ -275,7 +310,7 @@ export default function BoothSchedulePage() {
   useEffect(() => {
     if (!canViewPage) return;
     void fetchMonthlySummaries(monthCursor);
-  }, [canViewPage, monthCursor]);
+  }, [canViewPage, monthCursor, bookingWindowDays.max, bookingWindowDays.min]);
 
   useEffect(() => {
     if (!date) return;
