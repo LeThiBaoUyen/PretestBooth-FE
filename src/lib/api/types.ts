@@ -816,6 +816,7 @@ export interface QueryExamsParams {
   limit?: number;
   subjectId?: string;
   topicId?: string;
+  type?: "PRACTICE" | "EXAM";
   difficulty?: Difficulty;
   search?: string;
   minDuration?: number;

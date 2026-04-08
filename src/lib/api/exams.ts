@@ -70,6 +70,7 @@ class ExamsApiClient {
     if (params?.limit) searchParams.append("limit", params.limit.toString());
     if (params?.subjectId) searchParams.append("subjectId", params.subjectId);
     if (params?.topicId) searchParams.append("topicId", params.topicId);
+    if (params?.type) searchParams.append("type", params.type);
     if (params?.difficulty)
       searchParams.append("difficulty", params.difficulty);
     if (params?.search) searchParams.append("search", params.search);
