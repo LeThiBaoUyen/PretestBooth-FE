@@ -4,6 +4,8 @@ import type { RefreshTokenResponse } from "../api/types";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
 
+type ApiError = Error & { status?: number };
+
 class HttpClient {
   private baseURL: string;
   private isRefreshing = false;
@@ -37,7 +39,11 @@ class HttpClient {
       const refreshToken = tokenManager.getRefreshToken();
 
       if (!refreshToken) {
-        throw new Error("No refresh token available");
+        tokenManager.clearTokens();
+        if (typeof window !== "undefined") {
+          window.location.href = "/login";
+        }
+        throw new Error("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.");
       }
 
       const response = await fetch(`${this.baseURL}/api/auth/refresh`, {
@@ -65,7 +71,6 @@ class HttpClient {
 
       return data.accessToken;
     } catch (error) {
-      console.error("Token refresh failed:", error);
       throw error;
     }
   }
@@ -92,6 +97,18 @@ class HttpClient {
 
       // If 401 Unauthorized, try to refresh token
       if (response.status === 401) {
+        const refreshToken = tokenManager.getRefreshToken();
+
+        if (!refreshToken) {
+          tokenManager.clearTokens();
+          if (typeof window !== "undefined") {
+            window.location.href = "/login";
+          }
+          const authError = new Error("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.") as ApiError;
+          authError.status = 401;
+          throw authError;
+        }
+
         if (!this.isRefreshing) {
           this.isRefreshing = true;
 
@@ -130,11 +147,13 @@ class HttpClient {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(
+        const apiError = new Error(
           Array.isArray(data.message)
             ? data.message.join(", ")
             : data.message || "Request failed",
-        );
+        ) as ApiError;
+        apiError.status = response.status;
+        throw apiError;
       }
 
       // Auto-unwrap the backend's TransformInterceptor payload if present

@@ -66,7 +66,9 @@ export default function AddQuestionForm() {
 
   // Form state
   const [content, setContent] = useState("");
-  const [imageUrl, setImageUrl] = useState("");
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreviewUrl, setImagePreviewUrl] = useState<string | null>(null);
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
   const [questionType, setQuestionType] =
     useState<QuestionType>("SINGLE_CHOICE");
   const [classification, setClassification] =
@@ -160,7 +162,7 @@ export default function AddQuestionForm() {
     },
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setFormError(null);
 
@@ -174,9 +176,28 @@ export default function AddQuestionForm() {
       return;
     }
 
+    let uploadedImageUrl: string | undefined;
+    if (imageFile) {
+      try {
+        setIsUploadingImage(true);
+        uploadedImageUrl = await questionsApiClient.uploadQuestionImage(
+          imageFile,
+          accessToken,
+        );
+      } catch (error) {
+        setFormError(
+          error instanceof Error ? error.message : "Upload ảnh minh họa thất bại",
+        );
+        setIsUploadingImage(false);
+        return;
+      } finally {
+        setIsUploadingImage(false);
+      }
+    }
+
     const data: CreateQuestionRequest = {
       content: content.trim(),
-      imageUrl: imageUrl.trim() || undefined,
+      imageUrl: uploadedImageUrl,
       questionType,
       classification,
       difficulty,
@@ -350,15 +371,36 @@ export default function AddQuestionForm() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Ảnh minh họa (URL)
+                  Ảnh minh họa
                 </label>
-                <input
-                  type="url"
-                  value={imageUrl}
-                  onChange={(e) => setImageUrl(e.target.value)}
-                  placeholder="https://example.com/question-image.png"
-                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-navy-500 focus:border-transparent text-gray-900"
-                />
+                <div className="space-y-3">
+                  <input
+                    type="file"
+                    accept="image/png,image/jpeg,image/jpg,image/webp,image/gif"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0] || null;
+                      setImageFile(file);
+                      if (file) {
+                        setImagePreviewUrl(URL.createObjectURL(file));
+                      } else {
+                        setImagePreviewUrl(null);
+                      }
+                    }}
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-navy-500 focus:border-transparent text-gray-900"
+                  />
+                  <p className="text-xs text-gray-500">
+                    Chấp nhận PNG/JPG/WEBP/GIF, tối đa 5MB.
+                  </p>
+                  {imagePreviewUrl && (
+                    <div className="rounded-lg border border-gray-200 p-2 bg-gray-50">
+                      <img
+                        src={imagePreviewUrl}
+                        alt="Xem trước ảnh minh họa"
+                        className="max-h-52 w-auto rounded-md mx-auto"
+                      />
+                    </div>
+                  )}
+                </div>
               </div>
 
               {/* Difficulty */}
@@ -381,10 +423,9 @@ export default function AddQuestionForm() {
                       {opt.label}
                     </button>
                   ))}
-                </div>
+              </div>
               </div>
 
-              {/* Subject & Topic */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -592,11 +633,16 @@ export default function AddQuestionForm() {
             <button
               type="submit"
               disabled={
-                createMutation.isPending || !content.trim() || !subjectId
+                createMutation.isPending ||
+                isUploadingImage ||
+                !content.trim() ||
+                !subjectId
               }
               className="px-8 py-2.5 bg-navy-600 text-white rounded-lg hover:bg-navy-700 disabled:opacity-50 disabled:cursor-not-allowed transition font-medium flex items-center gap-2"
             >
-              {createMutation.isPending ? (
+              {isUploadingImage ? (
+                "Đang upload ảnh..."
+              ) : createMutation.isPending ? (
                 <>
                   <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
                     <circle

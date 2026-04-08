@@ -7,7 +7,6 @@ import * as XLSX from "xlsx";
 import type {
   Difficulty,
   QuestionType,
-  QuestionClassification,
 } from "@/lib/api/types";
 import { questionsApiClient } from "@/lib/api/questions";
 import { useAuth } from "@/lib/hooks/useAuth";
@@ -23,6 +22,7 @@ import {
 type QuestionImportPreviewRow = {
   rowNumber: number;
   content: string;
+  image: string;
   questionType: string;
   classification: string;
   difficulty: string;
@@ -185,18 +185,20 @@ export default function QuestionsLibrary() {
   const [page, setPage] = useState(1);
   const [difficulty, setDifficulty] = useState<Difficulty | "ALL">("ALL");
   const [questionType, setQuestionType] = useState<QuestionType | "ALL">("ALL");
-  const [classificationFilter, setClassificationFilter] = useState<QuestionClassification | "ALL">("ALL");
   const [subjectId, setSubjectId] = useState<string>("ALL");
   const [search, setSearch] = useState("");
 
   const [isParsingFile, setIsParsingFile] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [selectedImages, setSelectedImages] = useState<File[]>([]);
+  const [isZipImportMode, setIsZipImportMode] = useState(false);
   const [previewRows, setPreviewRows] = useState<QuestionImportPreviewRow[]>([]);
   const [previewError, setPreviewError] = useState<string | null>(null);
   const [importResult, setImportResult] = useState<ImportResult | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const imageInputRef = useRef<HTMLInputElement>(null);
   const limit = 20;
 
   const isAuthorized = user && ["LECTURER", "ADMIN"].includes(user.role);
@@ -212,7 +214,7 @@ export default function QuestionsLibrary() {
     error,
     refetch,
   } = useQuery({
-    queryKey: ["questions", page, difficulty, questionType, classificationFilter, subjectId, search],
+    queryKey: ["questions", page, difficulty, questionType, subjectId, search],
     queryFn: () =>
       questionsApiClient.getQuestions(
         {
@@ -220,7 +222,6 @@ export default function QuestionsLibrary() {
           limit,
           difficulty: difficulty === "ALL" ? undefined : difficulty,
           questionType: questionType === "ALL" ? undefined : questionType,
-          classification: classificationFilter === "ALL" ? undefined : classificationFilter,
           subjectId: subjectId === "ALL" ? undefined : subjectId,
           search: search || undefined,
           sortBy: "createdAt",
@@ -232,12 +233,22 @@ export default function QuestionsLibrary() {
 
   const validCount = previewRows.filter((row) => row.isValid).length;
   const invalidCount = previewRows.length - validCount;
+  const isCsvSelected = !!selectedFile && selectedFile.name.toLowerCase().endsWith(".csv");
+  const isExcelSelected =
+    !!selectedFile &&
+    (selectedFile.name.toLowerCase().endsWith(".xlsx") || selectedFile.name.toLowerCase().endsWith(".xls"));
+  const hasEmbeddedPictureMarker = previewRows.some((row) => /^picture(\s*\d+)?$/i.test(row.image || ""));
+  const hasImageFileReferences = previewRows.some(
+    (row) => !!row.image && !/^picture(\s*\d+)?$/i.test(row.image || ""),
+  );
+  const isCsvMissingRequiredImages = isCsvSelected && hasImageFileReferences && selectedImages.length === 0;
 
   const parseRowsForPreview = (rows: Record<string, unknown>[]) => {
     return rows.map((row, index) =>
       validateQuestionPreviewRow({
         rowNumber: index + 2,
         content: String(row.content || "").trim(),
+        image: String(row.image || row.imageFile || row.imageName || "").trim(),
         questionType: String(row.questionType || "").trim().toUpperCase(),
         classification: String(row.classification || "EXAM").trim().toUpperCase(),
         difficulty: String(row.difficulty || "").trim().toUpperCase(),
@@ -294,7 +305,20 @@ export default function QuestionsLibrary() {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    const isZip = file.name.toLowerCase().endsWith(".zip");
+    if (isZip) {
+      setSelectedFile(file);
+      setSelectedImages([]);
+      setIsZipImportMode(true);
+      setPreviewRows([]);
+      setPreviewError(null);
+      setImportResult(null);
+      setIsParsingFile(false);
+      return;
+    }
+
     setSelectedFile(file);
+    setIsZipImportMode(false);
     setPreviewRows([]);
     setPreviewError(null);
     setImportResult(null);
@@ -304,6 +328,22 @@ export default function QuestionsLibrary() {
       const parsed = await parseFileForPreview(file);
       if (parsed.rows.length === 0) {
         setPreviewError("File không có dữ liệu.");
+        return;
+      }
+
+      const isCsvFile = file.name.toLowerCase().endsWith(".csv");
+      const containsExcelPicturePlaceholder = parsed.rows.some((row) =>
+        /^picture(\s*\d+)?$/i.test(row.image || ""),
+      );
+      if (isCsvFile && containsExcelPicturePlaceholder) {
+        setPreviewError(
+          "File CSV không chứa được ảnh nhúng. Hãy lưu file dạng .xlsx (Excel Workbook) rồi import lại.",
+        );
+        return;
+      }
+
+      if (parsed.headers.includes("imageUrl") && !parsed.headers.includes("image")) {
+        setPreviewError("Không dùng cột imageUrl nữa. Hãy đổi sang cột image (chứa tên file ảnh) và chọn ảnh ở nút 'Chọn ảnh import'.");
         return;
       }
 
@@ -357,8 +397,16 @@ export default function QuestionsLibrary() {
   const handleConfirmImport = async () => {
     if (!selectedFile) return;
 
+    if (isCsvMissingRequiredImages) {
+      alert("File CSV có cột image theo tên file nên bắt buộc chọn ảnh ở nút 'Chọn ảnh import' trước khi import.");
+      return;
+    }
+
     const formData = new FormData();
     formData.append("file", selectedFile);
+    selectedImages.forEach((image) => {
+      formData.append("images", image);
+    });
 
     setIsUploading(true);
     setImportResult(null);
@@ -409,17 +457,26 @@ export default function QuestionsLibrary() {
 
   const handleResetImport = () => {
     setSelectedFile(null);
+    setSelectedImages([]);
+    setIsZipImportMode(false);
     setPreviewRows([]);
     setPreviewError(null);
     setImportResult(null);
     if (fileInputRef.current) fileInputRef.current.value = "";
+    if (imageInputRef.current) imageInputRef.current.value = "";
+  };
+
+  const handlePickImages = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    setSelectedImages(files);
+    setImportResult(null);
   };
 
   const handleDownloadTemplate = () => {
     const csv = [
-      "content,imageUrl,subjectRef,topicRef,questionType,classification,difficulty,correctAnswer,optionA,optionB,optionC,optionD,isPublished,explanation",
-      '"2 + 2 bằng mấy?",https://example.com/math-q1.png,Cấu trúc dữ liệu,,SINGLE_CHOICE,EXAM,EASY,A,A,B,C,,true,"Câu hỏi mẫu single"',
-      '"Chọn số nguyên tố",,Cấu trúc dữ liệu,Đệ quy,MULTIPLE_CHOICE,PRACTICE,MEDIUM,"A,C",2,3,4,5,false,"Câu hỏi mẫu multiple"',
+      "content,image,subjectRef,topicRef,questionType,classification,difficulty,correctAnswer,optionA,optionB,optionC,optionD,isPublished,explanation",
+      '"2 + 2 bằng mấy?",math-q1.png,Cấu trúc dữ liệu,,SINGLE_CHOICE,EXAM,EASY,A,A,B,C,,true,"Câu hỏi mẫu single"',
+      '"Chọn số nguyên tố",prime-q2.jpg,Cấu trúc dữ liệu,Đệ quy,MULTIPLE_CHOICE,PRACTICE,MEDIUM,"A,C",2,3,4,5,false,"Câu hỏi mẫu multiple"',
       '"Nêu định nghĩa biến",,Cấu trúc dữ liệu,,SHORT_ANSWER,PRACTICE,EASY,"Biến là vùng nhớ",,,,,true,"Câu hỏi mẫu short"',
     ].join("\r\n");
 
@@ -480,21 +537,14 @@ export default function QuestionsLibrary() {
     }
   };
 
-  const getClassificationText = (classification: QuestionClassification) => {
-    switch (classification) {
-      case "PRACTICE":
-        return "Luyện tập";
-      case "EXAM":
-        return "Thi";
-    }
-  };
-
-  const getClassificationColor = (classification: QuestionClassification) => {
-    switch (classification) {
-      case "PRACTICE":
-        return "text-emerald-700 bg-emerald-50 border-emerald-200";
-      case "EXAM":
-        return "text-rose-700 bg-rose-50 border-rose-200";
+  const getTypeIcon = (type: QuestionType) => {
+    switch (type) {
+      case "SINGLE_CHOICE":
+        return "🔘";
+      case "MULTIPLE_CHOICE":
+        return "☑️";
+      case "SHORT_ANSWER":
+        return "✏️";
     }
   };
 
@@ -529,7 +579,7 @@ export default function QuestionsLibrary() {
               type="file"
               ref={fileInputRef}
               className="hidden"
-              accept=".csv, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel"
+              accept=".csv,.xlsx,.xls,.zip,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,application/zip"
               onChange={handlePickFile}
             />
             <button
@@ -543,6 +593,22 @@ export default function QuestionsLibrary() {
                 <Upload className="w-4 h-4" />
               )}
               Import file
+            </button>
+            <input
+              type="file"
+              ref={imageInputRef}
+              className="hidden"
+              accept="image/*"
+              multiple
+              onChange={handlePickImages}
+            />
+            <button
+              onClick={() => imageInputRef.current?.click()}
+              disabled={isUploading || isParsingFile}
+              className="px-4 py-2 bg-sky-600 text-white rounded-lg hover:bg-sky-700 transition font-medium text-sm flex items-center gap-2 shadow-sm disabled:opacity-50"
+            >
+              <Upload className="w-4 h-4" />
+              Chọn ảnh import
             </button>
             <Link
               href="/question-bank/questions/create"
@@ -559,9 +625,37 @@ export default function QuestionsLibrary() {
           <h2 className="text-lg font-bold text-slate-900">Xem trước import câu hỏi</h2>
           {selectedFile && <p className="text-sm text-slate-600 mt-1">File: {selectedFile.name}</p>}
 
+          {isZipImportMode && (
+            <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
+              ZIP mode: Hệ thống sẽ tự lấy file bảng (.csv/.xlsx/.xls) và ảnh bên trong file .zip để import.
+            </div>
+          )}
+
           <div className="mt-4 rounded-lg border border-slate-200 p-3 text-sm text-slate-700">
-            Cột mẫu: content, imageUrl (tùy chọn), subjectRef, topicRef, questionType, classification, difficulty, correctAnswer, optionA, optionB, optionC, optionD, isPublished, explanation
+            Cột mẫu: content, image (tùy chọn - nhập tên file ảnh), subjectRef, topicRef, questionType, classification, difficulty, correctAnswer, optionA, optionB, optionC, optionD, isPublished, explanation
           </div>
+          <div className="mt-2 rounded-lg border border-sky-200 bg-sky-50 p-3 text-xs text-sky-800">
+            Nếu dùng ảnh nhúng trong Excel: bắt buộc lưu file .xlsx. Nếu dùng cột image là tên file (vd: math-q1.png): bấm "Chọn ảnh import" để tải các file ảnh lên cùng lúc import.
+          </div>
+
+          {isCsvMissingRequiredImages && (
+            <div className="mt-2 rounded-lg border border-red-200 bg-red-50 p-3 text-xs text-red-700">
+              File .csv đang dùng cột image theo tên file, nên bắt buộc chọn ảnh ở nút "Chọn ảnh import" trước khi bấm xác nhận.
+            </div>
+          )}
+
+          {isExcelSelected && hasEmbeddedPictureMarker && (
+            <div className="mt-2 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-xs text-emerald-700">
+              Đã phát hiện ảnh nhúng trong file Excel. Bạn có thể bấm "Xác nhận import" ngay, không cần chọn ảnh import.
+            </div>
+          )}
+
+          {selectedImages.length > 0 && (
+            <div className="mt-3 rounded-lg border border-slate-200 p-3">
+              <p className="text-xs font-semibold text-slate-700">Ảnh đã chọn: {selectedImages.length}</p>
+              <p className="mt-1 text-xs text-slate-600 break-all">{selectedImages.map((f) => f.name).join(", ")}</p>
+            </div>
+          )}
 
           {previewError && <p className="mt-3 text-sm text-red-600">{previewError}</p>}
 
@@ -582,6 +676,7 @@ export default function QuestionsLibrary() {
                     <tr>
                       <th className="px-3 py-2">Dòng</th>
                       <th className="px-3 py-2">Nội dung</th>
+                      <th className="px-3 py-2">Hình ảnh</th>
                       <th className="px-3 py-2">Loại</th>
                       <th className="px-3 py-2">Phân loại</th>
                       <th className="px-3 py-2">Độ khó</th>
@@ -594,6 +689,7 @@ export default function QuestionsLibrary() {
                       <tr key={row.rowNumber} className={row.isValid ? "" : "bg-red-50/50"}>
                         <td className="px-3 py-2">{row.rowNumber}</td>
                         <td className="px-3 py-2 max-w-md truncate">{row.content || "--"}</td>
+                        <td className="px-3 py-2 max-w-48 truncate">{row.image || "--"}</td>
                         <td className="px-3 py-2">{row.questionType || "--"}</td>
                         <td className="px-3 py-2">
                           {row.classification === "PRACTICE"
@@ -628,7 +724,11 @@ export default function QuestionsLibrary() {
             </button>
             <button
               onClick={handleConfirmImport}
-              disabled={isUploading || previewRows.length === 0}
+              disabled={
+                isUploading ||
+                (!isZipImportMode && previewRows.length === 0) ||
+                isCsvMissingRequiredImages
+              }
               className="inline-flex items-center rounded-lg bg-emerald-600 px-4 py-2 text-xs font-bold text-white hover:bg-emerald-700 disabled:opacity-60"
             >
               {isUploading ? (
@@ -664,7 +764,7 @@ export default function QuestionsLibrary() {
       )}
 
       <div className="bg-white rounded-xl shadow-md p-6 mb-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Tìm kiếm</label>
             <input
@@ -693,22 +793,6 @@ export default function QuestionsLibrary() {
               <option value="SINGLE_CHOICE">Một đáp án</option>
               <option value="MULTIPLE_CHOICE">Nhiều đáp án</option>
               <option value="SHORT_ANSWER">Tự luận ngắn</option>
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Phân loại</label>
-            <select
-              value={classificationFilter}
-              onChange={(e) => {
-                setClassificationFilter(e.target.value as QuestionClassification | "ALL");
-                setPage(1);
-              }}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-navy-500 focus:border-transparent"
-            >
-              <option value="ALL">Tất cả</option>
-              <option value="PRACTICE">Luyện tập</option>
-              <option value="EXAM">Thi</option>
             </select>
           </div>
 
@@ -773,7 +857,6 @@ export default function QuestionsLibrary() {
                     <th className="px-6 py-4 text-left font-semibold">#</th>
                     <th className="px-6 py-4 text-left font-semibold">Nội dung</th>
                     <th className="px-6 py-4 text-center font-semibold">Loại</th>
-                    <th className="px-6 py-4 text-center font-semibold">Phân loại</th>
                     <th className="px-6 py-4 text-center font-semibold">Độ khó</th>
                     <th className="px-6 py-4 text-center font-semibold">Môn học</th>
                     {isAuthorized && <th className="px-6 py-4 text-center font-semibold">Trạng thái</th>}
@@ -794,12 +877,7 @@ export default function QuestionsLibrary() {
                       </td>
                       <td className="px-6 py-4 text-center">
                         <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium border ${getTypeColor(question.questionType)}`}>
-                          {getTypeText(question.questionType)}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 text-center">
-                        <span className={`inline-block px-3 py-1 rounded-full text-xs font-medium border ${getClassificationColor(question.classification)}`}>
-                          {getClassificationText(question.classification)}
+                          {getTypeIcon(question.questionType)} {getTypeText(question.questionType)}
                         </span>
                       </td>
                       <td className="px-6 py-4 text-center">

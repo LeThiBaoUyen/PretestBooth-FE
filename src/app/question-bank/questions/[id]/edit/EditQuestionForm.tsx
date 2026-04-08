@@ -80,6 +80,11 @@ export default function EditQuestionForm() {
 
   // Form state
   const [content, setContent] = useState("");
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreviewUrl, setImagePreviewUrl] = useState<string | null>(null);
+  const [currentImageUrl, setCurrentImageUrl] = useState<string | null>(null);
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
+  const [removeImage, setRemoveImage] = useState(false);
   const [questionType, setQuestionType] =
     useState<QuestionType>("SINGLE_CHOICE");
   const [classification, setClassification] =
@@ -126,6 +131,7 @@ export default function EditQuestionForm() {
   useEffect(() => {
     if (question && !initialized) {
       setContent(question.content);
+      setCurrentImageUrl(question.imageUrl || null);
       setQuestionType(question.questionType);
       setClassification(question.classification || "EXAM");
       setDifficulty(question.difficulty);
@@ -221,13 +227,37 @@ export default function EditQuestionForm() {
     },
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setFormError(null);
+
+    if (!accessToken) {
+      setFormError("Bạn cần đăng nhập để cập nhật câu hỏi");
+      return;
+    }
 
     if (!subjectId) {
       setFormError("Vui lòng chọn môn học");
       return;
+    }
+
+    let uploadedImageUrl: string | undefined;
+    if (imageFile) {
+      try {
+        setIsUploadingImage(true);
+        uploadedImageUrl = await questionsApiClient.uploadQuestionImage(
+          imageFile,
+          accessToken,
+        );
+      } catch (error) {
+        setFormError(
+          error instanceof Error ? error.message : "Upload ảnh minh họa thất bại",
+        );
+        setIsUploadingImage(false);
+        return;
+      } finally {
+        setIsUploadingImage(false);
+      }
     }
 
     const data: UpdateQuestionRequest = {
@@ -240,6 +270,12 @@ export default function EditQuestionForm() {
       explanation: explanation.trim() || null,
       isPublished,
     };
+
+    if (removeImage) {
+      data.imageUrl = null;
+    } else if (uploadedImageUrl) {
+      data.imageUrl = uploadedImageUrl;
+    }
 
     if (questionType === "SHORT_ANSWER") {
       if (!correctAnswer.trim()) {
@@ -439,6 +475,57 @@ export default function EditQuestionForm() {
                 className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-navy-500 focus:border-transparent text-gray-900 resize-none"
                 required
               />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Ảnh minh họa
+              </label>
+              <div className="space-y-3">
+                <input
+                  type="file"
+                  accept="image/png,image/jpeg,image/jpg,image/webp,image/gif"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0] || null;
+                    setImageFile(file);
+                    setRemoveImage(false);
+                    if (file) {
+                      setImagePreviewUrl(URL.createObjectURL(file));
+                    } else {
+                      setImagePreviewUrl(null);
+                    }
+                  }}
+                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-navy-500 focus:border-transparent text-gray-900"
+                />
+                <p className="text-xs text-gray-500">
+                  Chấp nhận PNG/JPG/WEBP/GIF, tối đa 5MB.
+                </p>
+
+                {!removeImage && (imagePreviewUrl || currentImageUrl) && (
+                  <div className="rounded-lg border border-gray-200 p-2 bg-gray-50">
+                    <img
+                      src={imagePreviewUrl || currentImageUrl || ""}
+                      alt="Xem trước ảnh minh họa"
+                      className="max-h-52 w-auto rounded-md mx-auto"
+                    />
+                  </div>
+                )}
+
+                {(currentImageUrl || imagePreviewUrl) && !removeImage && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setImageFile(null);
+                      setImagePreviewUrl(null);
+                      setCurrentImageUrl(null);
+                      setRemoveImage(true);
+                    }}
+                    className="text-sm text-red-600 hover:text-red-700 font-medium"
+                  >
+                    Xóa ảnh minh họa
+                  </button>
+                )}
+              </div>
             </div>
 
             <div>
@@ -667,10 +754,17 @@ export default function EditQuestionForm() {
           </Link>
           <button
             type="submit"
-            disabled={updateMutation.isPending || !content.trim() || !subjectId}
+            disabled={
+              updateMutation.isPending ||
+              isUploadingImage ||
+              !content.trim() ||
+              !subjectId
+            }
             className="px-8 py-2.5 bg-navy-600 text-white rounded-lg hover:bg-navy-700 disabled:opacity-50 disabled:cursor-not-allowed transition font-medium flex items-center gap-2"
           >
-            {updateMutation.isPending ? (
+            {isUploadingImage ? (
+              "Đang upload ảnh..."
+            ) : updateMutation.isPending ? (
               <>
                 <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
                   <circle

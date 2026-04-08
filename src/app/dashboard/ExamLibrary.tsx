@@ -360,7 +360,7 @@ export default function ExamLibrary() {
   const safeExams = Array.isArray(exams) ? exams : [];
   const visibleExams =
     user?.role === "STUDENT"
-      ? safeExams.filter((exam) => exam.type === "EXAM")
+      ? safeExams.filter((exam) => exam.type === "PRACTICE")
       : safeExams;
 
   const doneExamLatestTime = useMemo(() => {
@@ -391,7 +391,7 @@ export default function ExamLibrary() {
   const recentCompletedExams =
     user?.role === "STUDENT"
       ? [...visibleExams]
-          .filter((exam) => doneExamLatestTime.has(exam.id))
+          .filter((exam) => exam.type === "PRACTICE" && doneExamLatestTime.has(exam.id))
           .sort((a, b) => (doneExamLatestTime.get(b.id) ?? 0) - (doneExamLatestTime.get(a.id) ?? 0))
       : [];
 

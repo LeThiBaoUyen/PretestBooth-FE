@@ -28,6 +28,7 @@ export default function ExamDetailPage({
   const canDelete =
     user?.role === "ADMIN" ||
     (user?.role === "LECTURER" && exam?.creatorId === user.id);
+  const isStudent = user?.role === "STUDENT";
 
   useEffect(() => {
     async function fetchExam() {
@@ -129,9 +130,10 @@ export default function ExamDetailPage({
         : exam?.difficulty === "HARD"
           ? "Khó"
           : null;
+  const totalItemsCount = (exam?.questionCount || 0) + (exam?.problemCount || 0);
 
   return (
-    <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           {loading ? (
             <div className="text-center py-20 text-gray-500">Đang tải...</div>
           ) : error ? (
@@ -151,101 +153,111 @@ export default function ExamDetailPage({
                 <h1 className="text-4xl font-bold text-navy-700 leading-tight mb-3">
                   {exam.title}
                 </h1>
-                {exam.description && (
+                {!isStudent && exam.description && (
                   <p className="text-gray-600 text-lg mb-4">
                     {exam.description}
                   </p>
                 )}
-                <div className="flex flex-wrap gap-3">
-                  {exam.subject && (
-                    <span className="bg-navy-50 text-navy-600 px-4 py-2 rounded-full text-sm font-semibold">
-                      📚 {exam.subject.name}
-                    </span>
-                  )}
-                  {exam.topic && (
-                    <span className="bg-navy-50 text-navy-600 px-4 py-2 rounded-full text-sm font-semibold">
-                      🏷️ {exam.topic.name}
-                    </span>
-                  )}
-                  {difficultyLabel && (
-                    <span className="bg-navy-50 text-navy-600 px-4 py-2 rounded-full text-sm font-semibold">
-                      📊 Mức độ: {difficultyLabel}
-                    </span>
-                  )}
-                  {exam.type !== "PRACTICE" && exam.passingScoreAbsolute !== undefined && (
-                    <span className="bg-emerald-50 text-emerald-700 px-4 py-2 rounded-full text-sm font-semibold">
-                      ✅ Ngưỡng đạt: {exam.passingScoreAbsolute ?? "-"}
-                    </span>
-                  )}
-                </div>
+                {!isStudent && (
+                  <div className="flex flex-wrap gap-3">
+                    {exam.subject && (
+                      <span className="bg-navy-50 text-navy-600 px-4 py-2 rounded-full text-sm font-semibold">
+                        {exam.subject.name}
+                      </span>
+                    )}
+                    {exam.topic && (
+                      <span className="bg-navy-50 text-navy-600 px-4 py-2 rounded-full text-sm font-semibold">
+                        {exam.topic.name}
+                      </span>
+                    )}
+                    {difficultyLabel && (
+                      <span className="bg-navy-50 text-navy-600 px-4 py-2 rounded-full text-sm font-semibold">
+                        Mức độ: {difficultyLabel}
+                      </span>
+                    )}
+                    {exam.type !== "PRACTICE" && exam.passingScoreAbsolute !== undefined && (
+                      <span className="bg-emerald-50 text-emerald-700 px-4 py-2 rounded-full text-sm font-semibold">
+                        Ngưỡng đạt: {exam.passingScoreAbsolute ?? "-"}
+                      </span>
+                    )}
+                  </div>
+                )}
               </div>
 
               {/* Info grid */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-                <div className="bg-gray-50 rounded-lg p-4">
-                  <div className="text-3xl font-bold text-navy-600">
+              <div className={`grid gap-4 mb-8 ${isStudent ? "grid-cols-1 sm:grid-cols-2" : "grid-cols-2 md:grid-cols-4"}`}>
+                <div className="bg-gray-50 rounded-lg p-4 flex items-center justify-center gap-3 text-center">
+                  <div className="text-sm text-gray-600 whitespace-nowrap">Thời gian</div>
+                  <div className="text-3xl font-bold text-navy-600 leading-none">
                     {exam.duration}
                   </div>
-                  <div className="text-sm text-gray-600 mt-1">⏰ Phút</div>
                 </div>
-                <div className="bg-gray-50 rounded-lg p-4">
-                  <div className="text-3xl font-bold text-navy-600">
-                    {exam.questionCount}
+                <div className="bg-gray-50 rounded-lg p-4 flex items-center justify-center gap-3 text-center">
+                  <div className="text-sm text-gray-600 whitespace-nowrap">
+                    {isStudent ? "Tổng số câu" : "Câu TN"}
                   </div>
-                  <div className="text-sm text-gray-600 mt-1">❓ Câu TN</div>
-                </div>
-                <div className="bg-gray-50 rounded-lg p-4">
-                  <div className="text-3xl font-bold text-navy-600">
-                    {exam.problemCount}
+                  <div className="text-3xl font-bold text-navy-600 leading-none">
+                    {isStudent ? totalItemsCount : exam.questionCount}
                   </div>
-                  <div className="text-sm text-gray-600 mt-1">💻 Bài Code</div>
                 </div>
-                <div className="bg-gray-50 rounded-lg p-4">
-                  <div className="text-3xl font-bold text-navy-600">
-                    {exam.sessionCount || 0}
+                {!isStudent && (
+                  <div className="bg-gray-50 rounded-lg p-4">
+                    <div className="text-3xl font-bold text-navy-600">
+                      {exam.problemCount}
+                    </div>
+                    <div className="text-sm text-gray-600 mt-1">Câu tự luận ngắn</div>
                   </div>
-                  <div className="text-sm text-gray-600 mt-1">👁️ Lượt thi</div>
-                </div>
+                )}
+                {!isStudent && (
+                  <div className="bg-gray-50 rounded-lg p-4">
+                    <div className="text-3xl font-bold text-navy-600">
+                      {exam.sessionCount || 0}
+                    </div>
+                    <div className="text-sm text-gray-600 mt-1">Lượt thi</div>
+                  </div>
+                )}
               </div>
 
               {/* Shuffle settings */}
-              <div className="bg-blue-50 rounded-lg p-6 mb-8 border border-blue-100">
-                <h3 className="font-semibold text-navy-700 mb-3">
-                  ⚙️ Cài đặt xáo trộn
-                </h3>
-                <div className="space-y-2 text-sm text-gray-700">
-                  <div>
-                    🔀 Thứ tự câu hỏi:{" "}
-                    <span className="font-semibold">
-                      {exam.shuffleQuestions ? "✓ Xáo trộn" : "✗ Theo thứ tự"}
-                    </span>
-                  </div>
-                  <div>
-                    🔀 Thứ tự đáp án:{" "}
-                    <span className="font-semibold">
-                      {exam.shuffleChoices ? "✓ Xáo trộn" : "✗ Theo thứ tự"}
-                    </span>
-                  </div>
-                  <div>
-                    👁️ Xem lại kết quả:{" "}
-                    <span className="font-semibold">
-                      {exam.allowStudentReviewResults ? "✓ Cho phép" : "✗ Không cho phép"}
-                    </span>
-                  </div>
-                  {exam.type !== "PRACTICE" && exam.passingScoreAbsolute !== undefined && (
+              {!isStudent && (
+                <div className="bg-blue-50 rounded-lg p-6 mb-8 border border-blue-100">
+                  <h3 className="font-semibold text-navy-700 mb-3">
+                    Cài đặt xáo trộn
+                  </h3>
+                  <div className="space-y-2 text-sm text-gray-700">
                     <div>
-                      ✅ Ngưỡng điểm đạt:{" "}
-                      <span className="font-semibold">{exam.passingScoreAbsolute ?? "-"}</span>
+                      Thứ tự câu hỏi: {" "}
+                      <span className="font-semibold">
+                        {exam.shuffleQuestions ? "✓ Xáo trộn" : "✗ Theo thứ tự"}
+                      </span>
                     </div>
-                  )}
+                    <div>
+                      Thứ tự đáp án: {" "}
+                      <span className="font-semibold">
+                        {exam.shuffleChoices ? "✓ Xáo trộn" : "✗ Theo thứ tự"}
+                      </span>
+                    </div>
+                    <div>
+                      Xem lại kết quả: {" "}
+                      <span className="font-semibold">
+                        {exam.allowStudentReviewResults ? "✓ Cho phép" : "✗ Không cho phép"}
+                      </span>
+                    </div>
+                    {exam.type !== "PRACTICE" && exam.passingScoreAbsolute !== undefined && (
+                      <div>
+                        Ngưỡng điểm đạt: {" "}
+                        <span className="font-semibold">{exam.passingScoreAbsolute ?? "-"}</span>
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
+              )}
 
               {/* Exam items */}
-              {exam.items && exam.items.length > 0 && (
+              {!isStudent && exam.items && exam.items.length > 0 && (
                 <div className="mb-8">
                   <h3 className="text-xl font-bold text-navy-700 mb-4">
-                    📋 Danh sách câu hỏi ({exam.items.length})
+                    Danh sách câu hỏi ({exam.items.length})
                   </h3>
                   <div className="space-y-3">
                     {exam.items.map((item, idx) => (
@@ -335,14 +347,14 @@ export default function ExamDetailPage({
                       onClick={handleResumeExam}
                       disabled={checkingSession}
                     >
-                      ⏸️ Tiếp tục bài thi
+                      {exam.type === "PRACTICE" ? "Tiếp tục luyện tập" : "Tiếp tục bài thi"}
                     </button>
                     <button
                       className="flex-1 px-6 py-3 rounded-lg font-bold text-gray-600 border border-gray-300 hover:bg-gray-50 transition text-lg"
                       onClick={() => setExistingSession(null)}
                       disabled={checkingSession}
                     >
-                      ➕ Làm bài mới
+                      {exam.type === "PRACTICE" ? "Làm lại từ đầu" : "Làm bài mới"}
                     </button>
                   </>
                 ) : (
@@ -350,7 +362,11 @@ export default function ExamDetailPage({
                     className="flex-1 px-6 py-3 rounded-lg font-bold text-white bg-navy-600 hover:bg-navy-700 transition text-lg"
                     onClick={handleStartExam}
                   >
-                    ▶️ Bắt đầu thi ngay
+                    {isStudent
+                      ? exam.type === "PRACTICE"
+                        ? "Bắt đầu/Làm lại luyện tập"
+                        : "Bắt đầu làm bài"
+                      : "Bắt đầu thi ngay"}
                   </button>
                 )}
                 {canEdit && (
@@ -359,7 +375,7 @@ export default function ExamDetailPage({
                       href={`/exams/${exam.id}/edit`}
                       className="flex-1 px-6 py-3 rounded-lg font-bold text-navy-600 border border-navy-200 hover:bg-navy-50 transition text-center"
                     >
-                      ✏️ Chỉnh sửa
+                      Chỉnh sửa
                     </Link>
                   </>
                 )}
@@ -369,7 +385,7 @@ export default function ExamDetailPage({
                       className="flex-1 px-6 py-3 rounded-lg font-bold text-red-600 border border-red-200 hover:bg-red-50 transition"
                       onClick={() => setShowDeleteConfirm(true)}
                     >
-                      🗑️ Xóa đề thi
+                      Xóa đề thi
                     </button>
                   </>
                 )}
