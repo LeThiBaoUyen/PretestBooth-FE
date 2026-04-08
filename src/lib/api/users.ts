@@ -1,6 +1,8 @@
 import { httpClient } from "./httpClient";
 import type { LecturerPermission, User } from "./types";
 
+const MAX_LECTURER_ROLE_PAGE_LIMIT = 100;
+
 export interface PaginatedUsers {
   data: Partial<User>[];
   total: number;
@@ -36,7 +38,27 @@ export interface LecturerListItem {
   isLocked?: boolean;
   createdAt?: string;
   permissions: LecturerPermission[];
+  individualPermissions?: LecturerPermission[];
+  rolePermissions?: LecturerPermission[];
+  lecturerRole?: LecturerRoleSummaryItem | null;
   isLecturerAdmin: boolean;
+}
+
+export interface LecturerRoleSummaryItem {
+  id: string;
+  code: string;
+  name: string;
+  description?: string | null;
+  priority: number;
+  isActive: boolean;
+  isSystemLocked: boolean;
+}
+
+export interface LecturerRoleItem extends LecturerRoleSummaryItem {
+  permissions: LecturerPermission[];
+  memberCount: number;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface PaginatedLecturers {
@@ -47,7 +69,18 @@ export interface PaginatedLecturers {
   totalPages: number;
   requesterPermissions?: LecturerPermission[];
   assignablePermissions?: LecturerPermission[];
+  assignableRoles?: LecturerRoleItem[];
   canGrantAdminPackage?: boolean;
+}
+
+export interface PaginatedLecturerRoles {
+  data: LecturerRoleItem[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+  requesterPermissions?: LecturerPermission[];
+  canManageRoleCatalog?: boolean;
 }
 
 export interface CreateLecturerPayload {
@@ -58,6 +91,37 @@ export interface CreateLecturerPayload {
 
 export interface UpdateLecturerPermissionsPayload {
   permissions: LecturerPermission[];
+}
+
+export interface AssignLecturerRolePayload {
+  roleId: string | null;
+}
+
+export interface QueryLecturerRolesParams {
+  page?: number;
+  limit?: number;
+  search?: string;
+  isActive?: boolean;
+  sortOrder?: "asc" | "desc";
+}
+
+export interface CreateLecturerRolePayload {
+  code: string;
+  name: string;
+  description?: string;
+  priority: number;
+  isActive?: boolean;
+  isSystemLocked?: boolean;
+  permissions: LecturerPermission[];
+}
+
+export interface UpdateLecturerRolePayload {
+  code?: string;
+  name?: string;
+  description?: string | null;
+  priority?: number;
+  isActive?: boolean;
+  permissions?: LecturerPermission[];
 }
 
 export const usersApi = {
@@ -99,10 +163,58 @@ export const usersApi = {
     httpClient.put<{
       lecturerId: string;
       permissions: LecturerPermission[];
+      individualPermissions: LecturerPermission[];
+      rolePermissions: LecturerPermission[];
+      lecturerRole: LecturerRoleSummaryItem | null;
       isLecturerAdmin: boolean;
       updatedBy: string;
       canGrantAdminPackage: boolean;
     }>(`/api/users/lecturers/${id}/permissions`, data),
+
+  assignLecturerRole: (id: string, data: AssignLecturerRolePayload) =>
+    httpClient.put<{
+      lecturerId: string;
+      lecturerRole: LecturerRoleSummaryItem | null;
+      permissions: LecturerPermission[];
+      individualPermissions: LecturerPermission[];
+      rolePermissions: LecturerPermission[];
+      isLecturerAdmin: boolean;
+      updatedBy: string;
+    }>(`/api/users/lecturers/${id}/role`, data),
+
+  getLecturerRoles: (params?: QueryLecturerRolesParams) => {
+    const query = new URLSearchParams();
+    if (params?.page) query.append("page", String(params.page));
+    if (params?.limit) {
+      query.append(
+        "limit",
+        String(Math.max(1, Math.min(params.limit, MAX_LECTURER_ROLE_PAGE_LIMIT))),
+      );
+    }
+    if (params?.search) query.append("search", params.search);
+    if (params?.isActive !== undefined) query.append("isActive", String(params.isActive));
+    if (params?.sortOrder) query.append("sortOrder", params.sortOrder);
+    const queryString = query.toString();
+
+    return httpClient.get<PaginatedLecturerRoles>(
+      `/api/users/lecturer-roles${queryString ? `?${queryString}` : ""}`,
+    );
+  },
+
+  getLecturerRole: (id: string) =>
+    httpClient.get<LecturerRoleItem & {
+      requesterPermissions?: LecturerPermission[];
+      canManageRoleCatalog?: boolean;
+    }>(`/api/users/lecturer-roles/${id}`),
+
+  createLecturerRole: (data: CreateLecturerRolePayload) =>
+    httpClient.post<LecturerRoleItem & { message: string }>("/api/users/lecturer-roles", data),
+
+  updateLecturerRole: (id: string, data: UpdateLecturerRolePayload) =>
+    httpClient.patch<LecturerRoleItem & { message: string }>(`/api/users/lecturer-roles/${id}`, data),
+
+  deleteLecturerRole: (id: string) =>
+    httpClient.delete<{ message: string; roleId: string }>(`/api/users/lecturer-roles/${id}`),
 
   getUser: (id: string) => httpClient.get<Partial<User>>(`/api/users/${id}`),
 

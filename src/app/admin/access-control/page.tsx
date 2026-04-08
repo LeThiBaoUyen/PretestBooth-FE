@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Shield, ShieldCheck } from "lucide-react";
 import { useAuth } from "@/lib/hooks";
+import { usersApi, type LecturerRoleItem } from "@/lib/api/users";
 import { getEffectivePermissions, hasPermission } from "@/lib/auth/permissions";
 import type { LecturerPermission } from "@/lib/api/types";
 
@@ -51,6 +52,30 @@ export default function AccessControlPage() {
   const { user, userLoading } = useAuth();
   const canAccess = hasPermission(user, "LECTURER_ADMIN");
   const effectivePermissions = useMemo(() => getEffectivePermissions(user), [user]);
+  const [roles, setRoles] = useState<LecturerRoleItem[]>([]);
+  const [rolesLoading, setRolesLoading] = useState(false);
+
+  useEffect(() => {
+    if (!canAccess) return;
+
+    const loadRoles = async () => {
+      try {
+        setRolesLoading(true);
+        const response = await usersApi.getLecturerRoles({
+          page: 1,
+          limit: 100,
+          sortOrder: "asc",
+        });
+        setRoles(response.data || []);
+      } catch {
+        setRoles([]);
+      } finally {
+        setRolesLoading(false);
+      }
+    };
+
+    void loadRoles();
+  }, [canAccess]);
 
   if (userLoading) {
     return (
@@ -92,24 +117,31 @@ export default function AccessControlPage() {
                 Theo dõi ma trận quyền giảng viên và quy tắc phân cấp cấp quyền.
               </p>
             </div>
-            <Link
-              href="/admin/lecturers"
-              className="inline-flex items-center rounded-lg bg-navy-600 px-4 py-2 text-sm font-semibold text-white hover:bg-navy-700"
-            >
-              <ShieldCheck className="mr-2 h-4 w-4" />
-              Đi tới quản lý giảng viên
-            </Link>
+            <div className="flex flex-wrap items-center gap-2">
+              <Link
+                href="/admin/lecturers"
+                className="inline-flex items-center rounded-lg bg-navy-600 px-4 py-2 text-sm font-semibold text-white hover:bg-navy-700"
+              >
+                <ShieldCheck className="mr-2 h-4 w-4" />
+                Đi tới quản lý giảng viên
+              </Link>
+              <Link
+                href="/admin/roles"
+                className="inline-flex items-center rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+              >
+                Danh mục vai trò
+              </Link>
+            </div>
           </div>
         </div>
 
         <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
           <h2 className="text-lg font-bold text-slate-900">Quy tắc phân cấp hiện tại</h2>
           <ul className="mt-3 space-y-2 text-sm text-slate-700">
-            <li>1. ADMIN gốc có toàn quyền và là bên duy nhất được cấp/revoke quyền admin giảng viên.</li>
-            <li>
-              2. Giảng viên có quyền admin chỉ được cấp các quyền thấp hơn, không thể cấp quyền admin giảng viên.
-            </li>
-            <li>3. Giảng viên không có quyền nào sẽ không truy cập được các module quản trị tương ứng.</li>
+            <li>1. Mỗi giảng viên có tối đa một vai trò (role) làm quyền mặc định.</li>
+            <li>2. Quyền hiệu lực là hợp của quyền từ vai trò và quyền gán lẻ cho từng giảng viên.</li>
+            <li>3. Role có priority nhỏ hơn có quyền quản lý role có priority lớn hơn.</li>
+            <li>4. ADMIN gốc là người kiểm soát cao nhất với toàn bộ danh mục vai trò hệ thống.</li>
           </ul>
         </div>
 
@@ -156,6 +188,62 @@ export default function AccessControlPage() {
               ))}
             </tbody>
           </table>
+        </div>
+
+        <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+          <div className="border-b border-slate-100 bg-slate-50 px-4 py-3">
+            <h2 className="text-sm font-bold text-slate-800">Ma trận vai trò theo priority</h2>
+          </div>
+
+          {rolesLoading ? (
+            <div className="px-4 py-8 text-center text-sm text-slate-500">Đang tải danh mục vai trò...</div>
+          ) : roles.length === 0 ? (
+            <div className="px-4 py-8 text-center text-sm text-slate-500">Chưa có vai trò nào trong hệ thống.</div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-sm">
+                <thead className="bg-slate-50">
+                  <tr>
+                    <th className="px-4 py-3 font-semibold text-slate-700">Vai trò</th>
+                    <th className="px-4 py-3 font-semibold text-slate-700">Priority</th>
+                    <th className="px-4 py-3 font-semibold text-slate-700">Permissions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {roles
+                    .slice()
+                    .sort((a, b) => a.priority - b.priority || a.name.localeCompare(b.name))
+                    .map((role) => (
+                      <tr key={role.id}>
+                        <td className="px-4 py-3">
+                          <span className="font-semibold text-slate-900">{role.name}</span>
+                          <p className="text-xs text-slate-500">{role.code}</p>
+                        </td>
+                        <td className="px-4 py-3 text-sm font-semibold text-slate-700">{role.priority}</td>
+                        <td className="px-4 py-3">
+                          <div className="flex flex-wrap gap-1.5">
+                            {role.permissions.length === 0 ? (
+                              <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-600">
+                                Không có quyền
+                              </span>
+                            ) : (
+                              role.permissions.map((permission) => (
+                                <span
+                                  key={`${role.id}-${permission}`}
+                                  className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800"
+                                >
+                                  {permission}
+                                </span>
+                              ))
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       </div>
     </main>

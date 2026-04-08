@@ -34,6 +34,12 @@ export default function AdminHomePage() {
               Phân quyền hệ thống
             </Link>
             <Link
+              href="/admin/roles"
+              className="rounded-xl border border-slate-200 bg-slate-50 p-4 font-semibold text-slate-800 transition hover:border-navy-200 hover:bg-white"
+            >
+              Danh mục vai trò giảng viên
+            </Link>
+            <Link
               href="/admin/monitoring"
               className="rounded-xl border border-slate-200 bg-slate-50 p-4 font-semibold text-slate-800 transition hover:border-navy-200 hover:bg-white"
             >

@@ -4,7 +4,11 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { Loader2, Save, ShieldCheck, Users } from "lucide-react";
 import { useAuth } from "@/lib/hooks";
-import { usersApi, type LecturerListItem } from "@/lib/api/users";
+import {
+  usersApi,
+  type LecturerListItem,
+  type LecturerRoleItem,
+} from "@/lib/api/users";
 import type { LecturerPermission } from "@/lib/api/types";
 import { hasPermission } from "@/lib/auth/permissions";
 
@@ -41,10 +45,12 @@ export default function LecturerManagementPage() {
 
   const [lecturers, setLecturers] = useState<LecturerListItem[]>([]);
   const [assignablePermissions, setAssignablePermissions] = useState<LecturerPermission[]>([]);
+  const [assignableRoles, setAssignableRoles] = useState<LecturerRoleItem[]>([]);
   const [canGrantAdminPackage, setCanGrantAdminPackage] = useState(false);
 
   const [selectedLecturer, setSelectedLecturer] = useState<LecturerListItem | null>(null);
   const [draftPermissions, setDraftPermissions] = useState<LecturerPermission[]>([]);
+  const [draftRoleId, setDraftRoleId] = useState<string | null>(null);
   const [createForm, setCreateForm] = useState({
     email: "",
     name: "",
@@ -52,6 +58,32 @@ export default function LecturerManagementPage() {
   });
 
   const permissionSet = useMemo(() => new Set(draftPermissions), [draftPermissions]);
+  const selectedDraftRole = useMemo(() => {
+    if (!draftRoleId) return null;
+
+    const fromAssignable = assignableRoles.find((role) => role.id === draftRoleId);
+    if (fromAssignable) return fromAssignable;
+
+    if (selectedLecturer?.lecturerRole?.id === draftRoleId) {
+      return selectedLecturer.lecturerRole;
+    }
+
+    return null;
+  }, [assignableRoles, draftRoleId, selectedLecturer]);
+  const selectedDraftRolePermissions = useMemo<LecturerPermission[]>(() => {
+    if (!draftRoleId) return [];
+
+    const fromAssignable = assignableRoles.find((role) => role.id === draftRoleId);
+    if (fromAssignable) {
+      return fromAssignable.permissions || [];
+    }
+
+    if (selectedLecturer?.lecturerRole?.id === draftRoleId) {
+      return selectedLecturer.rolePermissions || [];
+    }
+
+    return [];
+  }, [assignableRoles, draftRoleId, selectedLecturer]);
 
   const loadLecturers = async () => {
     try {
@@ -67,10 +99,12 @@ export default function LecturerManagementPage() {
 
       setLecturers(response.data || []);
       setAssignablePermissions(response.assignablePermissions || []);
+      setAssignableRoles(response.assignableRoles || []);
       setCanGrantAdminPackage(Boolean(response.canGrantAdminPackage));
     } catch (err: any) {
       setError(err?.message || "Không thể tải danh sách giảng viên");
       setLecturers([]);
+      setAssignableRoles([]);
     } finally {
       setLoading(false);
     }
@@ -83,12 +117,14 @@ export default function LecturerManagementPage() {
 
   const openEditor = (lecturer: LecturerListItem) => {
     setSelectedLecturer(lecturer);
-    setDraftPermissions(lecturer.permissions || []);
+    setDraftPermissions(lecturer.individualPermissions || lecturer.permissions || []);
+    setDraftRoleId(lecturer.lecturerRole?.id || null);
   };
 
   const closeEditor = () => {
     setSelectedLecturer(null);
     setDraftPermissions([]);
+    setDraftRoleId(null);
   };
 
   const togglePermission = (permission: LecturerPermission) => {
@@ -105,12 +141,36 @@ export default function LecturerManagementPage() {
   const savePermissions = async () => {
     if (!selectedLecturer) return;
 
+    const currentRoleId = selectedLecturer.lecturerRole?.id || null;
+    const currentIndividualPermissions = (
+      selectedLecturer.individualPermissions || []
+    ).slice().sort();
+    const nextIndividualPermissions = draftPermissions.slice().sort();
+    const roleChanged = currentRoleId !== draftRoleId;
+    const permissionChanged =
+      currentIndividualPermissions.length !== nextIndividualPermissions.length ||
+      currentIndividualPermissions.some((item, index) => item !== nextIndividualPermissions[index]);
+
+    if (!roleChanged && !permissionChanged) {
+      closeEditor();
+      return;
+    }
+
     try {
       setSaving(true);
       setError(null);
-      await usersApi.updateLecturerPermissions(selectedLecturer.id, {
-        permissions: draftPermissions,
-      });
+
+      if (roleChanged) {
+        await usersApi.assignLecturerRole(selectedLecturer.id, {
+          roleId: draftRoleId,
+        });
+      }
+
+      if (permissionChanged) {
+        await usersApi.updateLecturerPermissions(selectedLecturer.id, {
+          permissions: draftPermissions,
+        });
+      }
 
       await loadLecturers();
       closeEditor();
@@ -196,7 +256,7 @@ export default function LecturerManagementPage() {
             <div>
               <h1 className="ui-page-title">Quản lý giảng viên</h1>
               <p className="ui-page-subtitle">
-                Cấp quyền lẻ cho từng giảng viên và quản lý quyền admin giảng viên theo phân cấp.
+                Gán vai trò cho giảng viên và cấp quyền lẻ bổ sung theo nhu cầu thực tế.
               </p>
 
               <div className="mt-3 flex flex-wrap items-center gap-2">
@@ -213,6 +273,12 @@ export default function LecturerManagementPage() {
                   className="inline-flex items-center rounded-full bg-navy-600 px-3 py-1.5 text-xs font-bold text-white"
                 >
                   Quản lý giảng viên
+                </Link>
+                <Link
+                  href="/admin/roles"
+                  className="inline-flex items-center rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-50"
+                >
+                  Danh mục vai trò
                 </Link>
               </div>
             </div>
@@ -315,6 +381,7 @@ export default function LecturerManagementPage() {
                 <thead className="bg-slate-50">
                   <tr>
                     <th className="px-3 py-2 font-semibold text-slate-700">Giảng viên</th>
+                    <th className="px-3 py-2 font-semibold text-slate-700">Vai trò</th>
                     <th className="px-3 py-2 font-semibold text-slate-700">Quyền hiện có</th>
                     <th className="px-3 py-2 font-semibold text-slate-700 text-right">Thao tác</th>
                   </tr>
@@ -325,6 +392,22 @@ export default function LecturerManagementPage() {
                       <td className="px-3 py-2">
                         <p className="font-semibold text-slate-900">{lecturer.name || "Chưa cập nhật"}</p>
                         <p className="text-xs text-slate-500">{lecturer.email}</p>
+                      </td>
+                      <td className="px-3 py-2">
+                        {lecturer.lecturerRole ? (
+                          <div className="inline-flex flex-col gap-1">
+                            <span className="inline-flex items-center rounded-full bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-700">
+                              {lecturer.lecturerRole.name}
+                            </span>
+                            <span className="text-xs text-slate-500">
+                              Priority {lecturer.lecturerRole.priority}
+                            </span>
+                          </div>
+                        ) : (
+                          <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-600">
+                            Chưa gán vai trò
+                          </span>
+                        )}
                       </td>
                       <td className="px-3 py-2">
                         <div className="flex flex-wrap gap-1.5">
@@ -377,6 +460,46 @@ export default function LecturerManagementPage() {
               </button>
             </div>
 
+            <div className="mb-4 rounded-lg border border-slate-200 bg-slate-50 p-3">
+              <p className="text-sm font-semibold text-slate-800">Vai trò mặc định</p>
+              <p className="mb-2 text-xs text-slate-600">
+                Mỗi giảng viên chỉ có một vai trò. Quyền hiệu lực = quyền từ vai trò + quyền gán lẻ.
+              </p>
+              <select
+                value={draftRoleId || ""}
+                onChange={(event) => setDraftRoleId(event.target.value || null)}
+                disabled={saving}
+                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm md:max-w-lg"
+              >
+                <option value="">Không gán vai trò</option>
+                {assignableRoles.map((role) => (
+                  <option key={role.id} value={role.id}>
+                    {role.name} ({role.code}) - Priority {role.priority}
+                  </option>
+                ))}
+              </select>
+
+              {selectedDraftRole && (
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  {selectedDraftRolePermissions.map((permission) => (
+                    <span
+                      key={`role-permission-${permission}`}
+                      className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800"
+                    >
+                      {PERMISSION_LABELS[permission]}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="mb-2">
+              <p className="text-sm font-semibold text-slate-800">Quyền gán lẻ</p>
+              <p className="text-xs text-slate-600">
+                Các quyền bên dưới chỉ là quyền bổ sung riêng cho giảng viên này.
+              </p>
+            </div>
+
             <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
               {PERMISSION_ORDER.map((permission) => {
                 const checked = permissionSet.has(permission);
@@ -426,7 +549,7 @@ export default function LecturerManagementPage() {
                 className="inline-flex items-center rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-60"
               >
                 {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-                Lưu quyền
+                Lưu thay đổi
               </button>
             </div>
           </div>

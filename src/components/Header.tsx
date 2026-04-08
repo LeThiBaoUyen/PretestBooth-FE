@@ -94,7 +94,7 @@ export default function Header() {
     ? {
       label: "Quản lý người dùng",
       href: userManagementHref,
-      activeMatches: ["/admin/student", "/admin/lecturers", "/admin/access-control"],
+      activeMatches: ["/admin/student", "/admin/lecturers", "/admin/access-control", "/admin/roles"],
     }
     : null;
 
