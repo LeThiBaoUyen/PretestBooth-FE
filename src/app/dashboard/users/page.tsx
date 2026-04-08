@@ -9,6 +9,8 @@ import {
   CircleAlert,
   CircleCheck,
   Download,
+  ChevronDown,
+  ChevronRight,
   FileSpreadsheet,
   FileDown,
   Pencil,
@@ -69,6 +71,30 @@ function getCohortFromStudentCode(studentCode?: string | null) {
   const prefix = getStudentCodePrefix(studentCode);
   if (prefix === null) return null;
   return prefix - COHORT_PREFIX_OFFSET;
+}
+
+function getCohortFromClassName(className?: string | null) {
+  const raw = String(className || "").trim();
+  if (!raw) return null;
+
+  const match = raw.match(/(\d{2})([A-Za-z])$/);
+  if (!match) return null;
+
+  const cohort = Number(match[1]);
+  if (!Number.isInteger(cohort) || cohort <= 0 || cohort > 99) return null;
+  return cohort;
+}
+
+function resolveStudentCohort(studentCode?: string | null, className?: string | null) {
+  const cohortFromClass = getCohortFromClassName(className);
+  if (cohortFromClass !== null) return cohortFromClass;
+  return getCohortFromStudentCode(studentCode);
+}
+
+function normalizeClassNameByCohort(className?: string | null, _cohort?: number | null) {
+  const raw = String(className || "").trim();
+  if (!raw) return "Chưa có lớp";
+  return raw;
 }
 
 function parseCohortValue(raw: string) {
@@ -191,11 +217,13 @@ export default function AdminUsersPage() {
 type AdminUsersPageContentProps = {
   initialClassFilter?: string;
   initialCohortFilter?: string | number;
+  tableOnly?: boolean;
 };
 
 export function AdminUsersPageContent({
   initialClassFilter = "",
   initialCohortFilter = "",
+  tableOnly = false,
 }: AdminUsersPageContentProps) {
   const { user } = useAuth();
 
@@ -225,6 +253,9 @@ export function AdminUsersPageContent({
   const [previewRows, setPreviewRows] = useState<PreviewRow[]>([]);
   const [previewError, setPreviewError] = useState<string | null>(null);
   const [importResult, setImportResult] = useState<ImportResult | null>(null);
+  const [expandedCohort, setExpandedCohort] = useState<number | null>(null);
+  const [expandedClassKey, setExpandedClassKey] = useState<string | null>(null);
+  const [newCohortInput, setNewCohortInput] = useState("");
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const studentFormRef = useRef<HTMLFormElement>(null);
@@ -286,6 +317,17 @@ export function AdminUsersPageContent({
   useEffect(() => {
     setCohortFilter(String(initialCohortFilter));
   }, [initialCohortFilter]);
+
+  useEffect(() => {
+    const initialCohort = parseCohortValue(String(initialCohortFilter));
+    if (!initialClassFilter || initialCohort === null) {
+      setExpandedClassKey(null);
+      return;
+    }
+
+    setExpandedCohort(initialCohort);
+    setExpandedClassKey(`${initialCohort}::${initialClassFilter}`);
+  }, [initialClassFilter, initialCohortFilter]);
 
   const handleToggleLock = async (id: string, currentlyLocked: boolean) => {
     if (!confirm(currentlyLocked ? "Mở khóa tài khoản này?" : "Khóa tài khoản này?")) return;
@@ -618,6 +660,193 @@ export function AdminUsersPageContent({
   if (!hasPermission(user, "MANAGE_STUDENTS")) return null;
 
   const safeUsers = Array.isArray(users) ? users : [];
+  const exactClassFilter = String(initialClassFilter || "").trim().toLowerCase();
+  const scopedUsers = exactClassFilter
+    ? safeUsers.filter(
+        (student) => String(student.className || "").trim().toLowerCase() === exactClassFilter,
+      )
+    : safeUsers;
+
+  const groupedByCohort = scopedUsers.reduce<
+    Array<{
+      cohort: number | null;
+      classes: Array<{
+        className: string;
+        displayClassName: string;
+        students: any[];
+        classKey: string;
+      }>;
+    }>
+  >((acc, student) => {
+    const cohort = resolveStudentCohort(student.studentCode, student.className);
+    const className = String(student.className || "").trim() || "Chưa có lớp";
+    const displayClassName = normalizeClassNameByCohort(className, cohort);
+    const cohortGroup = acc.find((item) => item.cohort === cohort);
+    const classKey = `${cohort ?? "none"}::${className}`;
+
+    if (!cohortGroup) {
+      acc.push({
+        cohort,
+        classes: [
+          {
+            className,
+            displayClassName,
+            students: [student],
+            classKey,
+          },
+        ],
+      });
+      return acc;
+    }
+
+    const classGroup = cohortGroup.classes.find((item) => item.className === className);
+    if (!classGroup) {
+      cohortGroup.classes.push({
+        className,
+        displayClassName,
+        students: [student],
+        classKey,
+      });
+      return acc;
+    }
+
+    classGroup.students.push(student);
+    return acc;
+  }, []);
+
+  const groupedByCohortMap = new Map<
+    number | null,
+    {
+      cohort: number | null;
+      classes: Array<{
+        className: string;
+        displayClassName: string;
+        students: any[];
+        classKey: string;
+      }>;
+    }
+  >();
+
+  for (const group of groupedByCohort) {
+    groupedByCohortMap.set(group.cohort, {
+      cohort: group.cohort,
+      classes: [...group.classes],
+    });
+  }
+
+  if (typeof window !== "undefined") {
+    const cohortsToMerge = new Set<number>();
+
+    for (const group of groupedByCohort) {
+      if (group.cohort !== null) {
+        cohortsToMerge.add(group.cohort);
+      }
+    }
+
+    const selectedCohort = parseCohortValue(String(initialCohortFilter || ""));
+    if (selectedCohort !== null) {
+      cohortsToMerge.add(selectedCohort);
+    }
+
+    for (let i = 0; i < window.localStorage.length; i++) {
+      const key = window.localStorage.key(i);
+      if (!key) continue;
+
+      const match = key.match(/^admin-student-custom-classes-(\d{1,2})$/);
+      if (!match) continue;
+
+      const cohort = Number(match[1]);
+      if (Number.isInteger(cohort) && cohort > 0 && cohort <= 99) {
+        cohortsToMerge.add(cohort);
+      }
+    }
+
+    for (const cohort of cohortsToMerge) {
+      const storageKey = `admin-student-custom-classes-${cohort}`;
+      const raw = window.localStorage.getItem(storageKey);
+      if (!raw) continue;
+
+      let customClasses: string[] = [];
+      try {
+        const parsed = JSON.parse(raw) as unknown;
+        customClasses = Array.isArray(parsed)
+          ? parsed.map((item) => String(item || "").trim()).filter(Boolean)
+          : [];
+      } catch {
+        customClasses = [];
+      }
+
+      if (exactClassFilter) {
+        customClasses = customClasses.filter(
+          (item) => item.trim().toLowerCase() === exactClassFilter,
+        );
+      }
+
+      const cohortGroup =
+        groupedByCohortMap.get(cohort) ||
+        {
+          cohort,
+          classes: [],
+        };
+
+      for (const className of customClasses) {
+        if (cohortGroup.classes.some((item) => item.className === className)) {
+          continue;
+        }
+
+        cohortGroup.classes.push({
+          className,
+          displayClassName: normalizeClassNameByCohort(className, cohort),
+          students: [],
+          classKey: `${cohort}::${className}`,
+        });
+      }
+
+      groupedByCohortMap.set(cohort, cohortGroup);
+    }
+  }
+
+  const sortedGroupedByCohort = [...groupedByCohortMap.values()]
+    .map((group) => ({
+      ...group,
+      classes: [...group.classes].sort((left, right) =>
+        left.displayClassName.localeCompare(right.displayClassName, "vi"),
+      ),
+    }))
+    .sort((left, right) => {
+    if (left.cohort === null && right.cohort === null) return 0;
+    if (left.cohort === null) return 1;
+    if (right.cohort === null) return -1;
+    return left.cohort - right.cohort;
+    });
+
+  const displayedTotal = exactClassFilter ? scopedUsers.length : total;
+  const isClassTableOnlyMode = tableOnly && exactClassFilter.length > 0;
+
+  const totalPages = Math.max(1, Math.ceil(total / 12));
+
+  const handleToggleClass = (cohort: number | null, classKey: string) => {
+    setExpandedCohort(cohort);
+    setExpandedClassKey((current) => (current === classKey ? null : classKey));
+  };
+
+  const handleAddCohort = () => {
+    if (typeof window === "undefined") return;
+
+    const cohort = parseCohortValue(newCohortInput);
+    if (cohort === null) {
+      alert("Vui lòng nhập khóa hợp lệ (1-99)");
+      return;
+    }
+
+    const storageKey = `admin-student-custom-classes-${cohort}`;
+    if (!window.localStorage.getItem(storageKey)) {
+      window.localStorage.setItem(storageKey, JSON.stringify([]));
+    }
+
+    setExpandedCohort(cohort);
+    setNewCohortInput("");
+  };
   const canManageLecturers = hasPermission(user, "LECTURER_ADMIN");
 
   return (
@@ -943,16 +1172,46 @@ export function AdminUsersPageContent({
             <option value="LOCKED">Đã khóa</option>
           </select>
           <div className="ml-4 text-sm text-gray-500 font-medium">
-            Tổng cộng: {total} sinh viên
+            Tổng cộng: {displayedTotal} sinh viên
           </div>
         </div>
 
+        {!initialClassFilter && (
+          <div className="px-4 py-3 border-b border-gray-100 bg-white">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+              <input
+                type="number"
+                min={1}
+                max={99}
+                placeholder="Nhập khóa mới (VD: 19)"
+                className="w-full sm:w-56 px-3 py-2 border border-gray-300 rounded-lg focus:ring-navy-500 focus:border-navy-500 text-sm"
+                value={newCohortInput}
+                onChange={(e) => setNewCohortInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    handleAddCohort();
+                  }
+                }}
+              />
+              <button
+                type="button"
+                onClick={handleAddCohort}
+                className="inline-flex items-center justify-center rounded-full border border-emerald-200 bg-emerald-50 px-4 py-2 text-xs font-bold text-emerald-700 hover:bg-emerald-100"
+              >
+                <Plus className="mr-1 h-3.5 w-3.5" />
+                Thêm khóa
+              </button>
+            </div>
+          </div>
+        )}
+
         {loading ? (
           <div className="text-center py-20 text-gray-500">Đang tải dữ liệu...</div>
-        ) : safeUsers.length === 0 ? (
+        ) : scopedUsers.length === 0 ? (
           <div className="text-center py-20 text-gray-500 bg-white">Không tìm thấy sinh viên nào.</div>
-        ) : (
-          <div className="overflow-x-auto">
+        ) : isClassTableOnlyMode ? (
+          <div className="overflow-x-auto bg-white">
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="bg-white border-b-2 border-gray-100">
@@ -966,7 +1225,7 @@ export function AdminUsersPageContent({
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50 bg-white">
-                {safeUsers.map((student) => (
+                {scopedUsers.map((student) => (
                   <tr key={student.id} className="hover:bg-gray-50 transition">
                     <td className="py-4 px-6">
                       <div className="font-bold text-gray-900">{student.name || "Chưa cập nhật"}</div>
@@ -974,11 +1233,16 @@ export function AdminUsersPageContent({
                     </td>
                     <td className="py-4 px-6 font-medium text-navy-700">{student.studentCode || "--"}</td>
                     <td className="py-4 px-6 text-gray-700">
-                      {getCohortFromStudentCode(student.studentCode) !== null
-                        ? `Khóa ${getCohortFromStudentCode(student.studentCode)}`
+                      {resolveStudentCohort(student.studentCode, student.className) !== null
+                        ? `Khóa ${resolveStudentCohort(student.studentCode, student.className)}`
                         : "--"}
                     </td>
-                    <td className="py-4 px-6 text-gray-700">{student.className || "--"}</td>
+                    <td className="py-4 px-6 text-gray-700">
+                      {normalizeClassNameByCohort(
+                        student.className,
+                        resolveStudentCohort(student.studentCode, student.className),
+                      )}
+                    </td>
                     <td className="py-4 px-6">
                       <span className="font-bold text-yellow-600">{student.totalPoints || 0}</span>
                     </td>
@@ -1008,22 +1272,20 @@ export function AdminUsersPageContent({
                           Sửa
                         </button>
                         <button
-                          onClick={() => handleToggleLock(student.id, student.isLocked)}
-                          className={`inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-bold transition ${
+                          onClick={() => handleToggleLock(student.id, Boolean(student.isLocked))}
+                          className={`inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-bold transition border ${
                             student.isLocked
-                              ? "bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200"
-                              : "bg-red-50 text-red-700 hover:bg-red-100 border border-red-200"
+                              ? "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
+                              : "border-red-200 bg-red-50 text-red-700 hover:bg-red-100"
                           }`}
                         >
                           {student.isLocked ? (
                             <>
-                              <UserCheck className="w-4 h-4 mr-1" />
-                              Mở khóa
+                              <UserCheck className="w-4 h-4 mr-1" /> Mở
                             </>
                           ) : (
                             <>
-                              <UserX className="w-4 h-4 mr-1" />
-                              Khóa
+                              <UserX className="w-4 h-4 mr-1" /> Khóa
                             </>
                           )}
                         </button>
@@ -1041,25 +1303,224 @@ export function AdminUsersPageContent({
               </tbody>
             </table>
           </div>
-        )}
+        ) : (
+          <div className="space-y-3 bg-white p-3 sm:p-4">
+            {sortedGroupedByCohort.map((cohortGroup) => {
+              const isCohortOpen = expandedCohort === cohortGroup.cohort;
 
-        {total > 12 && (
-          <div className="p-4 border-t border-gray-100 flex justify-center gap-2 bg-gray-50">
-            {Array.from({ length: Math.ceil(total / 12) }, (_, i) => i + 1).map((p) => (
-              <button
-                key={p}
-                className={`px-3 py-1 rounded font-bold text-sm ${
-                  p === page
-                    ? "bg-navy-600 text-white"
-                    : "bg-white text-navy-600 border border-navy-200 hover:bg-navy-50"
-                }`}
-                onClick={() => setPage(p)}
-              >
-                {p}
-              </button>
-            ))}
+              return (
+                <div
+                  key={cohortGroup.cohort === null ? "none" : `cohort-${cohortGroup.cohort}`}
+                  className="rounded-2xl border border-gray-200 bg-gray-50/60 overflow-hidden"
+                >
+                  <div className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left transition hover:bg-gray-100">
+                    <button
+                      type="button"
+                      onClick={() => setExpandedCohort(isCohortOpen ? null : cohortGroup.cohort)}
+                      className="flex flex-1 items-center justify-between gap-4 text-left"
+                    >
+                      <div>
+                        <div className="text-sm font-bold text-gray-900">
+                          {cohortGroup.cohort !== null ? `Khóa ${cohortGroup.cohort}` : "Không xác định khóa"}
+                        </div>
+                        <div className="text-xs text-gray-600">
+                          {cohortGroup.classes.length} lớp
+                        </div>
+                      </div>
+                      {isCohortOpen ? (
+                        <ChevronDown className="h-4 w-4 text-gray-500" />
+                      ) : (
+                        <ChevronRight className="h-4 w-4 text-gray-500" />
+                      )}
+                    </button>
+
+                    {cohortGroup.cohort !== null && (
+                      <Link
+                        href={`/admin/student/cohort/${cohortGroup.cohort}`}
+                        className="inline-flex shrink-0 items-center rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-700 hover:bg-emerald-100"
+                      >
+                        <Plus className="mr-1 h-3.5 w-3.5" />
+                        Thêm lớp
+                      </Link>
+                    )}
+                  </div>
+
+                  {isCohortOpen && (
+                    <div className="border-t border-gray-200 bg-white p-3 sm:p-4 space-y-2">
+                      {cohortGroup.classes.map((classGroup) => {
+                        const isClassOpen = expandedClassKey === classGroup.classKey;
+                        const shouldNavigateToClassPage = !initialClassFilter && cohortGroup.cohort !== null;
+
+                        if (shouldNavigateToClassPage) {
+                          return (
+                            <Link
+                              key={classGroup.classKey}
+                              href={`/admin/student/cohort/${cohortGroup.cohort}/class/${encodeURIComponent(classGroup.className)}`}
+                              className="flex items-center justify-between gap-4 rounded-xl border border-gray-200 bg-gray-50/70 px-4 py-3 text-left transition hover:bg-gray-100"
+                            >
+                              <div>
+                                <div className="text-sm font-semibold text-gray-900">{classGroup.displayClassName}</div>
+                                <div className="text-xs text-gray-600">{classGroup.students.length} sinh viên</div>
+                              </div>
+                              <ChevronRight className="h-4 w-4 text-gray-500" />
+                            </Link>
+                          );
+                        }
+
+                        return (
+                          <div key={classGroup.classKey} className="rounded-xl border border-gray-200 bg-gray-50/70 overflow-hidden">
+                            <button
+                              type="button"
+                              onClick={() => handleToggleClass(cohortGroup.cohort, classGroup.classKey)}
+                              className="flex w-full items-center justify-between gap-4 px-4 py-3 text-left transition hover:bg-gray-100"
+                            >
+                              <div>
+                                <div className="text-sm font-semibold text-gray-900">{classGroup.displayClassName}</div>
+                                <div className="text-xs text-gray-600">{classGroup.students.length} sinh viên</div>
+                              </div>
+                              {isClassOpen ? (
+                                <ChevronDown className="h-4 w-4 text-gray-500" />
+                              ) : (
+                                <ChevronRight className="h-4 w-4 text-gray-500" />
+                              )}
+                            </button>
+
+                            {isClassOpen && (
+                              <div className="border-t border-gray-200 bg-white overflow-x-auto">
+                                <table className="w-full text-left border-collapse">
+                                  <thead>
+                                    <tr className="bg-white border-b-2 border-gray-100">
+                                      <th className="py-3 px-6 font-semibold text-gray-500 text-sm">Sinh viên</th>
+                                      <th className="py-3 px-6 font-semibold text-gray-500 text-sm">MSSV</th>
+                                      <th className="py-3 px-6 font-semibold text-gray-500 text-sm">Khóa</th>
+                                      <th className="py-3 px-6 font-semibold text-gray-500 text-sm">Lớp học phần</th>
+                                      <th className="py-3 px-6 font-semibold text-gray-500 text-sm">Điểm tích lũy</th>
+                                      <th className="py-3 px-6 font-semibold text-gray-500 text-sm">Trạng thái</th>
+                                      <th className="py-3 px-6 font-semibold text-gray-500 text-sm text-right">Thao tác</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody className="divide-y divide-gray-50 bg-white">
+                                    {classGroup.students.map((student) => (
+                                      <tr key={student.id} className="hover:bg-gray-50 transition">
+                                        <td className="py-4 px-6">
+                                          <div className="font-bold text-gray-900">{student.name || "Chưa cập nhật"}</div>
+                                          <div className="text-xs text-gray-500">{student.email}</div>
+                                        </td>
+                                        <td className="py-4 px-6 font-medium text-navy-700">{student.studentCode || "--"}</td>
+                                        <td className="py-4 px-6 text-gray-700">
+                                          {resolveStudentCohort(student.studentCode, student.className) !== null
+                                            ? `Khóa ${resolveStudentCohort(student.studentCode, student.className)}`
+                                            : "--"}
+                                        </td>
+                                        <td className="py-4 px-6 text-gray-700">
+                                          {(() => {
+                                            const rowCohort = resolveStudentCohort(student.studentCode, student.className);
+                                            const className = String(student.className || "").trim();
+
+                                            if (!className || className === "Chưa có lớp" || rowCohort === null) {
+                                              return normalizeClassNameByCohort(student.className, rowCohort);
+                                            }
+
+                                            return (
+                                              <Link
+                                                href={`/admin/student/cohort/${rowCohort}/class/${encodeURIComponent(className)}`}
+                                                className="font-semibold text-navy-700 hover:underline"
+                                              >
+                                                {normalizeClassNameByCohort(className, rowCohort)}
+                                              </Link>
+                                            );
+                                          })()}
+                                        </td>
+                                        <td className="py-4 px-6">
+                                          <span className="font-bold text-yellow-600">{student.totalPoints || 0}</span>
+                                        </td>
+                                        <td className="py-4 px-6">
+                                          {student.isLocked ? (
+                                            <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-red-100 text-red-800 border border-red-200">
+                                              <AlertCircle className="w-3 h-3 mr-1" />
+                                              Đã khóa
+                                            </span>
+                                          ) : (
+                                            <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                                              <CheckCircle className="w-3 h-3 mr-1" />
+                                              Hoạt động
+                                            </span>
+                                          )}
+                                          {student.isLocked && student.lockedReason && (
+                                            <p className="text-[10px] text-red-500 mt-1">{student.lockedReason}</p>
+                                          )}
+                                        </td>
+                                        <td className="py-4 px-6 text-right">
+                                          <div className="inline-flex items-center gap-2">
+                                            <button
+                                              onClick={() => handleEditStudent(student)}
+                                              className="inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-bold transition border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                                            >
+                                              <Pencil className="w-4 h-4 mr-1" />
+                                              Sửa
+                                            </button>
+                                            <button
+                                              onClick={() => handleToggleLock(student.id, student.isLocked)}
+                                              className={`inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-bold transition ${
+                                                student.isLocked
+                                                  ? "bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200"
+                                                  : "bg-red-50 text-red-700 hover:bg-red-100 border border-red-200"
+                                              }`}
+                                            >
+                                              {student.isLocked ? (
+                                                <>
+                                                  <UserCheck className="w-4 h-4 mr-1" />
+                                                  Mở khóa
+                                                </>
+                                              ) : (
+                                                <>
+                                                  <UserX className="w-4 h-4 mr-1" />
+                                                  Khóa
+                                                </>
+                                              )}
+                                            </button>
+                                            <button
+                                              onClick={() => handleDeleteStudent(student)}
+                                              className="inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-bold transition border border-red-200 bg-red-50 text-red-700 hover:bg-red-100"
+                                            >
+                                              <Trash2 className="w-4 h-4 mr-1" />
+                                              Xóa
+                                            </button>
+                                          </div>
+                                        </td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         )}
+
+        <div className="p-4 border-t border-gray-100 flex flex-wrap justify-center gap-2 bg-gray-50">
+          {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
+            <button
+              key={p}
+              className={`px-3 py-1 rounded font-bold text-sm ${
+                p === page
+                  ? "bg-navy-600 text-white"
+                  : "bg-white text-navy-600 border border-navy-200 hover:bg-navy-50"
+              }`}
+              onClick={() => setPage(p)}
+              disabled={p === page && totalPages === 1}
+            >
+              {p}
+            </button>
+          ))}
+        </div>
       </div>
     </div>
   );
