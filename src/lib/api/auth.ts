@@ -26,10 +26,8 @@ import type {
   ApiError,
 } from "./types";
 import { httpClient } from "./httpClient";
-import { boothSessionManager } from "../auth/boothSession";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
-const BOOTH_CLIENT_HEADER = "x-booth-client-id";
 
 class ApiClient {
   private baseURL: string;
@@ -73,17 +71,6 @@ class ApiClient {
       }
       throw new Error("An unexpected error occurred");
     }
-  }
-
-  private getBoothClientHeaders(): Record<string, string> {
-    const boothClientId = boothSessionManager.ensureClientId();
-    if (!boothClientId) {
-      return {};
-    }
-
-    return {
-      [BOOTH_CLIENT_HEADER]: boothClientId,
-    };
   }
 
   async login(credentials: LoginRequest): Promise<LoginResponse> {
@@ -165,7 +152,6 @@ class ApiClient {
   async boothActivate(data: BoothActivateRequest): Promise<BoothActivateResponse> {
     return this.request<BoothActivateResponse>("/api/auth/booth-activate", {
       method: "POST",
-      headers: this.getBoothClientHeaders(),
       body: JSON.stringify(data),
     });
   }
@@ -173,7 +159,6 @@ class ApiClient {
   async boothLogin(data: BoothLoginRequest): Promise<BoothLoginResponse> {
     return this.request<BoothLoginResponse>("/api/auth/booth-login", {
       method: "POST",
-      headers: this.getBoothClientHeaders(),
       body: JSON.stringify(data),
     });
   }
@@ -184,14 +169,11 @@ class ApiClient {
   ): Promise<{ message: string }> {
     return this.request<{ message: string }>("/api/auth/booth-logout", {
       method: "POST",
-      headers: {
-        ...this.getBoothClientHeaders(),
-        ...(accessToken
-          ? {
-              Authorization: `Bearer ${accessToken}`,
-            }
-          : {}),
-      },
+      headers: accessToken
+        ? {
+            Authorization: `Bearer ${accessToken}`,
+          }
+        : undefined,
       body: JSON.stringify(data),
     });
   }
@@ -202,10 +184,7 @@ class ApiClient {
     const encodedToken = encodeURIComponent(boothSessionToken);
     return this.request<BoothSessionStatusResponse>(
       `/api/auth/booth-session?boothSessionToken=${encodedToken}`,
-      {
-        method: "GET",
-        headers: this.getBoothClientHeaders(),
-      },
+      { method: "GET" },
     );
   }
 

@@ -163,8 +163,8 @@ export default function BoothSchedulePage() {
   const fetchBookingWindow = async () => {
     try {
       const policy = await boothPoliciesApi.getBoothPolicyConfig();
-      const min = Number(policy?.bookingMinDaysInAdvance);
-      const max = Number(policy?.bookingMaxDaysInAdvance);
+      const min = Number(policy?.config?.bookingMinDaysInAdvance);
+      const max = Number(policy?.config?.bookingMaxDaysInAdvance);
 
       if (Number.isInteger(min) && Number.isInteger(max)) {
         setBookingWindowDays({ min, max });

@@ -782,7 +782,7 @@ export default function ExamSelection({
               checked={examType === "PRACTICE"}
               onChange={() => setExamType("PRACTICE")}
             />
-            🏋️ Đề Luyện Tập
+            Đề Luyện Tập
           </label>
           <label
             className={`cursor-pointer rounded-lg border px-3 py-2 text-sm transition ${
@@ -798,7 +798,7 @@ export default function ExamSelection({
               checked={examType === "EXAM"}
               onChange={() => setExamType("EXAM")}
             />
-            📋 Đề Thi Chính Thức
+            Đề Thi Chính Thức
           </label>
         </div>
         <p className="mt-2 text-xs text-navy-500">

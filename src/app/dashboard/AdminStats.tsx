@@ -65,7 +65,7 @@ export default function AdminStatsDashboard() {
   if (!stats) return null;
 
   return (
-    <div className="py-8">
+    <div className="pt-2 pb-8">
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-navy-600">Tổng quan Hệ thống Quản trị</h1>
         <p className="text-gray-600 mt-2">Dữ liệu thời gian thực tình hình hoạt động của Booths và sinh viên.</p>

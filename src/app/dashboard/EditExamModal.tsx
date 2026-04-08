@@ -263,7 +263,7 @@ export default function EditExamModal({
                 checked={examType === "PRACTICE"}
                 onChange={() => setExamType("PRACTICE")}
               />
-              🏋️ Luyện Tập
+              Luyện Tập
             </label>
             <label
               className={`cursor-pointer rounded-lg border px-3 py-2 text-xs transition text-center ${
@@ -279,7 +279,7 @@ export default function EditExamModal({
                 checked={examType === "EXAM"}
                 onChange={() => setExamType("EXAM")}
               />
-              📋 Thi Chính Thức
+              Thi Chính Thức
             </label>
           </div>
         </div>

@@ -198,6 +198,28 @@ class QuestionsApiClient {
     });
   }
 
+  async uploadQuestionImage(file: File, accessToken: string): Promise<string> {
+    const formData = new FormData();
+    formData.append("file", file);
+
+    const response = await fetch(`${this.baseURL}/api/questions/upload-image`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${accessToken}` },
+      body: formData,
+    });
+
+    const jsonResponse = await response.json();
+    if (!response.ok) {
+      throw new Error(
+        Array.isArray(jsonResponse.message)
+          ? jsonResponse.message.join(", ")
+          : jsonResponse.message || "Upload ảnh thất bại",
+      );
+    }
+
+    return jsonResponse?.data?.imageUrl || jsonResponse?.imageUrl;
+  }
+
   async updateQuestion(
     id: string,
     data: UpdateQuestionRequest,
