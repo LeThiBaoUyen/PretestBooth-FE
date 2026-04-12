@@ -1453,6 +1453,7 @@ export interface CheckinThresholdConfig {
 export interface BoothPolicyConfig {
   bookingMinDaysInAdvance: number;
   bookingMaxDaysInAdvance: number;
+  bookingCancellationCutoffHours: number;
   walkInPracticeEnabled: boolean;
   warnBeforeNextExamMinutes: number;
   forceLogoutBeforeNextExamMinutes: number;

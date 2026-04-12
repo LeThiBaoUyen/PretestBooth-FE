@@ -31,6 +31,7 @@ const VIETNAM_OFFSET_MS = 7 * 60 * 60 * 1000;
 const DEFAULT_BOOKING_POLICY: BoothPolicyConfig = {
   bookingMinDaysInAdvance: 7,
   bookingMaxDaysInAdvance: 30,
+  bookingCancellationCutoffHours: 12,
   walkInPracticeEnabled: true,
   warnBeforeNextExamMinutes: 15,
   forceLogoutBeforeNextExamMinutes: 5,

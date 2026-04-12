@@ -12,22 +12,114 @@ import {
 } from "lucide-react";
 
 import { useAuth } from "@/lib/hooks";
+import { bookingsApi } from "@/lib/api/bookings";
+import { boothPoliciesApi } from "@/lib/api/boothPolicies";
 import { dashboardApi } from "@/lib/api/dashboard";
-import type { StudentStats } from "@/lib/api/types";
+import type { Booking, StudentStats } from "@/lib/api/types";
 import Link from "next/link";
 
 export default function StudentStatsDashboard() {
   const { user } = useAuth();
   const [stats, setStats] = useState<StudentStats | null>(null);
   const [loading, setLoading] = useState(true);
+  const [cancelingBookingId, setCancelingBookingId] = useState<string | null>(null);
+  const [bookingCancellationCutoffHours, setBookingCancellationCutoffHours] = useState(12);
+  const [bookingActionError, setBookingActionError] = useState<string | null>(null);
+
+  const loadStudentStats = async () => {
+    const data = await dashboardApi.getStudentStats();
+    setStats(data);
+  };
+
+  const getCancellationState = (booking: Booking) => {
+    if (!["PENDING", "CONFIRMED"].includes(booking.status)) {
+      return {
+        canCancel: false,
+        reason: "Chỉ có thể hủy lịch ở trạng thái chờ hoặc đã xác nhận.",
+      };
+    }
+
+    const startTime = new Date(booking.startTime);
+    if (Number.isNaN(startTime.getTime())) {
+      return {
+        canCancel: false,
+        reason: "Không xác định được thời gian bắt đầu để kiểm tra hạn hủy.",
+      };
+    }
+
+    const deadline = new Date(
+      startTime.getTime() - bookingCancellationCutoffHours * 60 * 60 * 1000,
+    );
+    const now = new Date();
+
+    if (now > deadline) {
+      return {
+        canCancel: false,
+        reason: `Đã quá hạn hủy. Bạn cần hủy trước ${bookingCancellationCutoffHours} giờ so với giờ bắt đầu.`,
+      };
+    }
+
+    return {
+      canCancel: true,
+      reason: "",
+    };
+  };
+
+  const handleCancelBooking = async (booking: Booking) => {
+    const confirmed = window.confirm(
+      `Bạn có chắc muốn hủy lịch ${booking.booth?.name || "Booth"} lúc ${format(new Date(booking.startTime), "HH:mm dd/MM/yyyy", { locale: vi })}?`,
+    );
+
+    if (!confirmed) return;
+
+    try {
+      setCancelingBookingId(booking.id);
+      setBookingActionError(null);
+      await bookingsApi.cancelBooking(booking.id);
+      await loadStudentStats();
+    } catch (err: unknown) {
+      setBookingActionError(err instanceof Error ? err.message : "Không thể hủy lịch booth");
+    } finally {
+      setCancelingBookingId(null);
+    }
+  };
 
   useEffect(() => {
-    if (user && user.role === "STUDENT") {
-      dashboardApi.getStudentStats()
-        .then(setStats)
-        .catch(console.error)
-        .finally(() => setLoading(false));
-    }
+    if (!user || user.role !== "STUDENT") return;
+
+    let isMounted = true;
+
+    const loadDashboardData = async () => {
+      try {
+        setLoading(true);
+        const [studentStats, boothPolicy] = await Promise.all([
+          dashboardApi.getStudentStats(),
+          boothPoliciesApi.getBoothPolicyConfig().catch(() => null),
+        ]);
+
+        if (!isMounted) return;
+
+        setStats(studentStats);
+        setBookingCancellationCutoffHours(
+          boothPolicy?.config?.bookingCancellationCutoffHours ?? 12,
+        );
+      } catch (err) {
+        console.error(err);
+        if (isMounted) {
+          setStats(null);
+        }
+      } finally {
+        if (isMounted) {
+          setLoading(false);
+        }
+      }
+    };
+
+    void loadDashboardData();
+
+    return () => {
+      isMounted = false;
+    };
   }, [user]);
 
   if (!user || user.role !== "STUDENT") return null;
@@ -108,10 +200,22 @@ export default function StudentStatsDashboard() {
           </div>
         ) : (
           <div className="divide-y divide-gray-100">
+            {bookingActionError && (
+              <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                {bookingActionError}
+              </div>
+            )}
             {stats.upcomingBookings.map((booking) => {
               const dateObj = new Date(booking.date);
               const startTimeObj = new Date(booking.startTime);
               const endTimeObj = new Date(booking.endTime);
+              const cancellationState = getCancellationState(booking);
+              const statusLabel =
+                booking.status === "CONFIRMED"
+                  ? "Đã xác nhận"
+                  : booking.status === "PENDING"
+                    ? "Chờ xác nhận"
+                    : booking.status;
               
               return (
                 <div key={booking.id} className="py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -133,14 +237,29 @@ export default function StudentStatsDashboard() {
                       </p>
                     </div>
                   </div>
-                  <div>
+                  <div className="flex flex-col items-start gap-2 sm:items-end">
                     <span className={`px-3 py-1 text-xs font-semibold rounded-full ${
                       booking.status === "CONFIRMED" ? "bg-emerald-100 text-emerald-700" :
                       booking.status === "PENDING" ? "bg-amber-100 text-amber-700" :
                       "bg-gray-100 text-gray-700"
                     }`}>
-                      {booking.status === "CONFIRMED" ? "Đã xác nhận" : booking.status}
+                      {statusLabel}
                     </span>
+
+                    <button
+                      type="button"
+                      onClick={() => handleCancelBooking(booking)}
+                      disabled={cancelingBookingId === booking.id || !cancellationState.canCancel}
+                      className="rounded-lg border border-red-200 px-3 py-1.5 text-xs font-semibold text-red-700 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {cancelingBookingId === booking.id ? "Đang hủy..." : "Hủy lịch"}
+                    </button>
+
+                    {!cancellationState.canCancel && (
+                      <p className="max-w-xs text-left text-xs text-amber-700 sm:text-right">
+                        {cancellationState.reason}
+                      </p>
+                    )}
                   </div>
                 </div>
               );

@@ -34,6 +34,7 @@ interface DurationFormData {
 interface BoothPolicyFormData {
   bookingMinDaysInAdvance: string;
   bookingMaxDaysInAdvance: string;
+  bookingCancellationCutoffHours: string;
   walkInPracticeEnabled: boolean;
   warnBeforeNextExamMinutes: string;
   forceLogoutBeforeNextExamMinutes: string;
@@ -50,6 +51,7 @@ const emptyDurationForm: DurationFormData = {
 const emptyBoothPolicyForm: BoothPolicyFormData = {
   bookingMinDaysInAdvance: "7",
   bookingMaxDaysInAdvance: "30",
+  bookingCancellationCutoffHours: "12",
   walkInPracticeEnabled: true,
   warnBeforeNextExamMinutes: "15",
   forceLogoutBeforeNextExamMinutes: "5",
@@ -131,6 +133,7 @@ export default function AdminSettingsPage() {
     setBoothPolicyForm({
       bookingMinDaysInAdvance: String(config.bookingMinDaysInAdvance),
       bookingMaxDaysInAdvance: String(config.bookingMaxDaysInAdvance),
+      bookingCancellationCutoffHours: String(config.bookingCancellationCutoffHours),
       walkInPracticeEnabled: config.walkInPracticeEnabled,
       warnBeforeNextExamMinutes: String(config.warnBeforeNextExamMinutes),
       forceLogoutBeforeNextExamMinutes: String(config.forceLogoutBeforeNextExamMinutes),
@@ -398,6 +401,7 @@ export default function AdminSettingsPage() {
 
     const bookingMinDaysInAdvance = Number(boothPolicyForm.bookingMinDaysInAdvance);
     const bookingMaxDaysInAdvance = Number(boothPolicyForm.bookingMaxDaysInAdvance);
+    const bookingCancellationCutoffHours = Number(boothPolicyForm.bookingCancellationCutoffHours);
     const warnBeforeNextExamMinutes = Number(boothPolicyForm.warnBeforeNextExamMinutes);
     const forceLogoutBeforeNextExamMinutes = Number(boothPolicyForm.forceLogoutBeforeNextExamMinutes);
     const noShowGraceMinutes = Number(boothPolicyForm.noShowGraceMinutes);
@@ -414,6 +418,15 @@ export default function AdminSettingsPage() {
 
     if (bookingMaxDaysInAdvance < bookingMinDaysInAdvance) {
       setError("Số ngày đặt trước tối đa phải >= số ngày đặt trước tối thiểu");
+      return;
+    }
+
+    if (
+      !Number.isInteger(bookingCancellationCutoffHours) ||
+      bookingCancellationCutoffHours < 0 ||
+      bookingCancellationCutoffHours > 720
+    ) {
+      setError("Giờ hủy trước phiên bắt đầu phải là số nguyên trong khoảng 0 - 720");
       return;
     }
 
@@ -447,6 +460,7 @@ export default function AdminSettingsPage() {
       const saved = await boothPoliciesApi.updateBoothPolicyConfig({
         bookingMinDaysInAdvance,
         bookingMaxDaysInAdvance,
+        bookingCancellationCutoffHours,
         walkInPracticeEnabled: boothPolicyForm.walkInPracticeEnabled,
         warnBeforeNextExamMinutes,
         forceLogoutBeforeNextExamMinutes,
@@ -712,7 +726,7 @@ export default function AdminSettingsPage() {
               </div>
             ) : (
               <form onSubmit={saveBoothPolicy} className="space-y-4">
-                <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+                <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
                   <label className="space-y-1">
                     <span className="text-xs font-semibold text-gray-600">Đặt lịch trước tối thiểu (ngày)</span>
                     <input
@@ -742,6 +756,25 @@ export default function AdminSettingsPage() {
                         setBoothPolicyForm((prev) => ({
                           ...prev,
                           bookingMaxDaysInAdvance: e.target.value,
+                        }))
+                      }
+                      disabled={boothPolicySubmitting}
+                      className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none disabled:bg-gray-100"
+                    />
+                  </label>
+
+                  <label className="space-y-1">
+                    <span className="text-xs font-semibold text-gray-600">Hủy lịch trước giờ bắt đầu (giờ)</span>
+                    <input
+                      type="number"
+                      min={0}
+                      max={720}
+                      step={1}
+                      value={boothPolicyForm.bookingCancellationCutoffHours}
+                      onChange={(e) =>
+                        setBoothPolicyForm((prev) => ({
+                          ...prev,
+                          bookingCancellationCutoffHours: e.target.value,
                         }))
                       }
                       disabled={boothPolicySubmitting}
