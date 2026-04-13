@@ -86,14 +86,15 @@ export default function ExamSessionDetailPage() {
   const params = useParams();
   const sessionId = params.sessionId as string;
   const { accessToken, user } = useAuth();
+  const hasSessionId = Boolean(sessionId);
 
   const { data: result, isLoading, isError, error } = useQuery({
     queryKey: ["exam-session-result", sessionId],
-    queryFn: () => examsApiClient.getResults(sessionId, accessToken!),
-    enabled: !!accessToken && !!sessionId,
+    queryFn: () => examsApiClient.getResults(sessionId, accessToken || ""),
+    enabled: hasSessionId,
   });
 
-  if (isLoading) {
+  if (!hasSessionId || isLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-100 flex items-center justify-center">
         <div className="text-xl text-gray-600">Đang tải...</div>
