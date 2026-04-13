@@ -31,7 +31,7 @@ const navItems: NavItem[] = [
     label: "Quản lý Booth",
     href: "/admin/booths",
     permissions: ["MANAGE_BOOTHS"],
-    activeMatches: ["/admin/booths/schedule", "/admin/monitoring"],
+    activeMatches: ["/admin/booths/schedule", "/admin/booths/monitoring"],
   },
 ];
 

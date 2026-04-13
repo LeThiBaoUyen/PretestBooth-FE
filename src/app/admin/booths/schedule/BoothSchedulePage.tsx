@@ -615,7 +615,7 @@ export default function BoothSchedulePage() {
                 Lịch trình Booth
               </Link>
               <Link
-                href="/admin/monitoring"
+                href="/admin/booths/monitoring"
                 className="rounded-full px-3 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-50"
               >
                 Giám sát realtime

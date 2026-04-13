@@ -378,7 +378,7 @@ export default function AdminMonitoringPage() {
                   Lịch trình Booth
                 </Link>
                 <Link
-                  href="/admin/monitoring"
+                  href="/admin/booths/monitoring"
                   className="rounded-full bg-navy-600 px-3 py-1.5 text-xs font-bold text-white"
                 >
                   Giám sát realtime

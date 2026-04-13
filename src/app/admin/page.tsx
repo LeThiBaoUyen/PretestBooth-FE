@@ -40,7 +40,7 @@ export default function AdminHomePage() {
               Danh mục vai trò giảng viên
             </Link>
             <Link
-              href="/admin/monitoring"
+              href="/admin/booths/monitoring"
               className="rounded-xl border border-slate-200 bg-slate-50 p-4 font-semibold text-slate-800 transition hover:border-navy-200 hover:bg-white"
             >
               Giám sát phiên thi/booth
