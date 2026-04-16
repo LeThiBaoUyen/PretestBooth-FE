@@ -556,22 +556,22 @@ export default function QuestionsLibrary() {
           <p className="text-gray-600">Quản lý câu hỏi trắc nghiệm, nhiều đáp án và tự luận ngắn</p>
         </div>
         {isAuthorized && (
-          <div className="flex items-center space-x-3">
+          <div className="shrink-0 flex items-center gap-2">
             <button
               onClick={handleDownloadTemplate}
-              className="px-4 py-2 bg-white border border-slate-200 text-slate-700 rounded-lg hover:bg-slate-50 transition font-medium text-sm flex items-center gap-2 shadow-sm"
+              className="inline-flex w-32 min-h-[34px] items-center justify-center gap-1 rounded-lg border border-slate-200 bg-white px-2 py-1 text-center text-[12px] font-medium leading-none text-slate-700 shadow-sm transition hover:bg-slate-50 whitespace-nowrap"
             >
               <Download className="w-4 h-4" /> Tải mẫu CSV
             </button>
             <Link
               href="/question-bank/categories"
-              className="px-4 py-2 bg-white border border-slate-200 text-slate-700 rounded-lg hover:bg-slate-50 transition font-medium text-sm"
+              className="inline-flex w-32 min-h-[34px] items-center justify-center rounded-lg border border-slate-200 bg-white px-2 py-1 text-center text-[12px] font-medium leading-none text-slate-700 transition hover:bg-slate-50 whitespace-nowrap"
             >
               Subject/Topic
             </Link>
             <Link
               href="/question-bank/review"
-              className="px-4 py-2 bg-amber-50 border border-amber-200 text-amber-700 rounded-lg hover:bg-amber-100 transition font-medium text-sm"
+              className="inline-flex w-32 min-h-[34px] items-center justify-center rounded-lg border border-amber-200 bg-amber-50 px-2 py-1 text-center text-[12px] font-medium leading-none text-amber-700 transition hover:bg-amber-100 whitespace-nowrap"
             >
               Review theo quý
             </Link>
@@ -585,7 +585,7 @@ export default function QuestionsLibrary() {
             <button
               onClick={() => fileInputRef.current?.click()}
               disabled={isUploading || isParsingFile}
-              className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition font-medium text-sm flex items-center gap-2 shadow-sm disabled:opacity-50"
+              className="inline-flex w-32 min-h-[34px] items-center justify-center gap-1 rounded-lg bg-emerald-600 px-2 py-1 text-center text-[12px] font-medium leading-none text-white shadow-sm transition hover:bg-emerald-700 disabled:opacity-50 whitespace-nowrap"
             >
               {isParsingFile ? (
                 <span className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></span>
@@ -605,14 +605,14 @@ export default function QuestionsLibrary() {
             <button
               onClick={() => imageInputRef.current?.click()}
               disabled={isUploading || isParsingFile}
-              className="px-4 py-2 bg-sky-600 text-white rounded-lg hover:bg-sky-700 transition font-medium text-sm flex items-center gap-2 shadow-sm disabled:opacity-50"
+              className="inline-flex w-32 min-h-[34px] items-center justify-center gap-1 rounded-lg bg-sky-600 px-2 py-1 text-center text-[12px] font-medium leading-none text-white shadow-sm transition hover:bg-sky-700 disabled:opacity-50 whitespace-nowrap"
             >
               <Upload className="w-4 h-4" />
               Chọn ảnh import
             </button>
             <Link
               href="/question-bank/questions/create"
-              className="px-5 py-2.5 bg-navy-600 text-white rounded-lg hover:bg-navy-700 transition font-medium text-sm flex items-center gap-2 shadow-sm"
+              className="inline-flex w-32 min-h-[34px] items-center justify-center gap-1 rounded-lg bg-navy-600 px-2 py-1 text-center text-[12px] font-medium leading-none text-white shadow-sm transition hover:bg-navy-700 whitespace-nowrap"
             >
               + Tạo câu hỏi
             </Link>

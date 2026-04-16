@@ -211,14 +211,14 @@ export default function Header() {
           </Link>
 
           {/* Desktop Navigation */}
-          <nav className="hidden lg:flex items-center gap-2">
+          <nav className="hidden lg:flex items-center gap-1.5">
             {visibleNavItems.map((item) => {
               const active = isNavItemActive(pathname, item);
               return (
                 <Link
                   key={item.href}
                   href={item.href}
-                  className={`rounded-lg px-3 py-2 text-sm font-semibold transition ${
+                  className={`inline-flex min-h-[44px] items-center justify-center whitespace-nowrap rounded-lg px-2.5 py-2 text-center text-sm font-semibold leading-tight transition ${
                     active
                       ? "bg-navy-600 text-white"
                       : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
