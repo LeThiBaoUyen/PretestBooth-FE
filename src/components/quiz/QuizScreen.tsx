@@ -172,6 +172,41 @@ const QuizScreen = () => {
     setShowConfirm(false);
 
     try {
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+        saveTimeoutRef.current = null;
+      }
+
+      if (codeSaveTimeoutRef.current) {
+        clearTimeout(codeSaveTimeoutRef.current);
+        codeSaveTimeoutRef.current = null;
+      }
+
+      const flushPromises = Object.entries(answerMap).map(([examItemId, value]) => {
+        const item = items.find((candidate) => candidate.id === examItemId);
+        const fallbackLanguage =
+          value.language ||
+          Object.keys(item?.problem?.starterCode || {})[0] ||
+          null;
+
+        return examsApiClient.saveAnswer(
+          sessionId,
+          {
+            examItemId,
+            selectedChoiceIds: value.selectedChoiceIds || [],
+            textAnswer: value.textAnswer || null,
+            sourceCode: value.sourceCode || null,
+            language: fallbackLanguage,
+            languageVersion: value.languageVersion || (fallbackLanguage ? "*" : null),
+          },
+          token,
+        );
+      });
+
+      if (flushPromises.length > 0) {
+        await Promise.allSettled(flushPromises);
+      }
+
       const res = await examsApiClient.submitSession(sessionId, token);
       setResult(res);
       setShowResult(true);
@@ -181,7 +216,7 @@ const QuizScreen = () => {
       submittingRef.current = false;
       setSubmitting(false);
     }
-  }, [sessionId, accessToken]);
+  }, [sessionId, accessToken, answerMap, items]);
 
   useEffect(() => {
     const sid = sessionId ?? "";
@@ -215,10 +250,20 @@ const QuizScreen = () => {
           if (!item.problem) continue;
 
           const existing = initialAnswers[item.id];
-          if (existing?.sourceCode) continue;
-
           const langs = Object.keys(item.problem.starterCode || {});
           const defaultLang = langs[0] || "python";
+
+          if (existing?.sourceCode) {
+            initialAnswers[item.id] = {
+              selectedChoiceIds: existing.selectedChoiceIds || [],
+              textAnswer: existing.textAnswer || null,
+              language: existing.language || defaultLang,
+              languageVersion: existing.languageVersion || "*",
+              sourceCode: existing.sourceCode,
+            };
+            continue;
+          }
+
           initialAnswers[item.id] = {
             selectedChoiceIds: existing?.selectedChoiceIds || [],
             textAnswer: existing?.textAnswer || null,
@@ -499,15 +544,20 @@ const QuizScreen = () => {
   const handleCodeChange = (value: string | undefined) => {
     if (!currentItem?.problem) return;
 
+    const fallbackLanguage =
+      Object.keys(currentItem.problem.starterCode || {})[0] || "python";
+
     const prev = answerMap[currentItem.id] || {
       selectedChoiceIds: [],
       textAnswer: null,
-      language: "python",
+      language: fallbackLanguage,
       languageVersion: "*",
     };
 
     const nextValue: AnswerValue = {
       ...prev,
+      language: prev.language || fallbackLanguage,
+      languageVersion: prev.languageVersion || "*",
       sourceCode: value || "",
     };
 

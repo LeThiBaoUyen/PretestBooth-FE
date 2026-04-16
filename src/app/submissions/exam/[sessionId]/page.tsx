@@ -322,6 +322,7 @@ function ItemCard({ item, index }: { item: SessionResultItem; index: number }) {
   const isPending = item.isCorrect === null;
   const isWrong = item.isCorrect === false;
   const submission = item.submission;
+  const sourceCode = item.sourceCode?.trim() || "";
   const questionType = questionTypeLabel(item.questionType);
 
   return (
@@ -449,6 +450,18 @@ function ItemCard({ item, index }: { item: SessionResultItem; index: number }) {
 
       {item.section === "PROBLEM" && (
         <div className="mt-3 space-y-3 text-sm text-gray-700">
+          <div className="rounded-md border border-slate-200 bg-white p-3">
+            <p className="text-xs uppercase tracking-wide text-slate-500">Ngôn ngữ</p>
+            <p className="mt-1 font-semibold text-slate-900">{item.language || "(không xác định)"}</p>
+          </div>
+
+          <div className="rounded-md border border-slate-200 bg-slate-900 p-3">
+            <p className="mb-2 text-xs uppercase tracking-wide text-slate-300">Mã nguồn đã nộp</p>
+            <pre className="max-h-64 overflow-auto whitespace-pre-wrap text-xs text-slate-100">
+              {sourceCode || "Bạn chưa nộp mã nguồn cho mục này."}
+            </pre>
+          </div>
+
           {submission ? (
             <>
               <div
@@ -524,7 +537,9 @@ function ItemCard({ item, index }: { item: SessionResultItem; index: number }) {
             </>
           ) : (
             <p className="rounded-md border border-slate-200 bg-white p-3 text-slate-600">
-              Chưa có dữ liệu chấm code cho mục này.
+              {sourceCode
+                ? "Hệ thống chưa tạo dữ liệu chấm cho mục này. Vui lòng thử nộp lại hoặc liên hệ giảng viên."
+                : "Mục này không có mã nguồn được nộp nên không có dữ liệu chấm code."}
             </p>
           )}
         </div>

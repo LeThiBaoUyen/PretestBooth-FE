@@ -7,11 +7,32 @@ import { useAuth } from "@/lib/hooks";
 import { practiceApi } from "@/lib/api/practice";
 import type {
   PracticeSession,
+  PracticeSessionAnswer,
   SessionTerminatedEvent,
   SessionTimerAdjustedEvent,
 } from "@/lib/api/types";
 import Editor from "@monaco-editor/react";
 import { realtimeClient } from "@/lib/realtime/socketClient";
+
+function getLatestAnswer(item: any): PracticeSessionAnswer | null {
+  if (!item?.answers) return null;
+  if (Array.isArray(item.answers)) {
+    return (item.answers[0] as PracticeSessionAnswer) || null;
+  }
+  return item.answers as PracticeSessionAnswer;
+}
+
+function submissionStatusLabel(status?: string | null) {
+  if (!status) return "Chưa có kết quả";
+  if (status === "ACCEPTED") return "Đạt";
+  if (status === "WRONG_ANSWER") return "Sai kết quả";
+  if (status === "COMPILE_ERROR") return "Lỗi biên dịch";
+  if (status === "RUNTIME_ERROR") return "Lỗi runtime";
+  if (status === "TIME_LIMIT_EXCEEDED") return "Quá thời gian";
+  if (status === "MEMORY_LIMIT_EXCEEDED") return "Quá bộ nhớ";
+  if (status === "PENDING") return "Đang chấm";
+  return status;
+}
 
 export default function PracticeExecutionPage() {
   const { id } = useParams() as { id: string };
@@ -45,15 +66,17 @@ export default function PracticeExecutionPage() {
         // Populate existing answers
         const ans: Record<string, any> = {};
         data.items?.forEach(item => {
-          if (item.answers && item.answers.length > 0) {
-            const lastAns = item.answers[0];
-            if (item.question?.questionType === "SINGLE_CHOICE" || item.question?.questionType === "MULTIPLE_CHOICE") {
-              ans[item.id] = lastAns.selectedChoiceIds || [];
-            } else if (item.question?.questionType === "SHORT_ANSWER") {
-              ans[item.id] = lastAns.textAnswer || "";
-            } else if (item.problem) {
-              ans[item.id] = { sourceCode: lastAns.sourceCode || "", language: lastAns.language || "javascript" };
-            }
+          const lastAns = getLatestAnswer(item);
+          if (!lastAns) {
+            return;
+          }
+
+          if (item.question?.questionType === "SINGLE_CHOICE" || item.question?.questionType === "MULTIPLE_CHOICE") {
+            ans[item.id] = lastAns.selectedChoiceIds || [];
+          } else if (item.question?.questionType === "SHORT_ANSWER") {
+            ans[item.id] = lastAns.textAnswer || "";
+          } else if (item.problem) {
+            ans[item.id] = { sourceCode: lastAns.sourceCode || "", language: lastAns.language || "javascript" };
           }
         });
         setAnswers(ans);
@@ -164,34 +187,191 @@ export default function PracticeExecutionPage() {
   const currentItem = session.items?.[currentIndex];
   
   if (sessionCompleted) {
+    const sessionItems = session.items || [];
+
     return (
-      <div className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-100 flex items-center justify-center p-4">
-        <div className="bg-white rounded-3xl shadow-xl max-w-lg w-full p-8 text-center border border-gray-100">
-          <div className="bg-emerald-100 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6">
-            <CheckCircle2 className="w-10 h-10 text-emerald-600" />
-          </div>
-          <h1 className="text-3xl font-extrabold text-navy-800 mb-2">Hoàn Thành!</h1>
-          <p className="text-gray-500 mb-6">Bạn đã hoàn thành phiên luyện tập này.</p>
-          
-          <div className="bg-gray-50 rounded-2xl p-6 mb-8 border border-gray-100">
-            <p className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-1">Kết quả</p>
-            <div className="text-4xl font-black text-navy-600">
-              {session.score !== null ? session.score : "?"} <span className="text-xl text-gray-400">/ {session.maxScore}</span>
+      <div className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-100 p-4 md:p-8">
+        <div className="mx-auto max-w-5xl">
+          <div className="bg-white rounded-3xl shadow-xl max-w-lg w-full p-8 text-center border border-gray-100 mx-auto">
+            <div className="bg-emerald-100 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6">
+              <CheckCircle2 className="w-10 h-10 text-emerald-600" />
             </div>
-            {session.score !== null && (
-              <p className="text-emerald-600 font-bold mt-3 text-sm flex items-center justify-center">
-                +5 Điểm Khen thưởng
-              </p>
-            )}
+            <h1 className="text-3xl font-extrabold text-navy-800 mb-2">Hoàn Thành!</h1>
+            <p className="text-gray-500 mb-6">Bạn đã hoàn thành phiên luyện tập này.</p>
+
+            <div className="bg-gray-50 rounded-2xl p-6 mb-8 border border-gray-100">
+              <p className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-1">Kết quả</p>
+              <div className="text-4xl font-black text-navy-600">
+                {session.score !== null ? session.score : "?"} <span className="text-xl text-gray-400">/ {session.maxScore}</span>
+              </div>
+              {session.score !== null && (
+                <p className="text-emerald-600 font-bold mt-3 text-sm flex items-center justify-center">
+                  +5 Điểm Khen thưởng
+                </p>
+              )}
+            </div>
+
+            <button
+              onClick={() => router.push("/dashboard")}
+              className="w-full py-4 bg-navy-600 hover:bg-navy-700 text-white rounded-xl font-bold transition shadow-lg shadow-navy-200"
+            >
+              Quay về Tổng quan
+            </button>
           </div>
-          
-          <button 
-            onClick={() => router.push("/dashboard")}
-            className="w-full py-4 bg-navy-600 hover:bg-navy-700 text-white rounded-xl font-bold transition shadow-lg shadow-navy-200"
-          >
-            Quay về Tổng quan
-          </button>
-        </div>
+
+          {sessionItems.length > 0 && (
+            <div className="mt-8 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm md:p-8">
+              <h2 className="text-2xl font-bold text-slate-900">Xem lại bài làm</h2>
+              <p className="mt-1 text-sm text-slate-600">
+                Bao gồm chi tiết câu hỏi và phần lập trình đã nộp.
+              </p>
+
+              <div className="mt-6 space-y-4">
+                {sessionItems.map((item, idx) => {
+                  const answer = getLatestAnswer(item);
+                  const selectedChoiceIds = answer?.selectedChoiceIds || [];
+                  const correctnessBadge =
+                    answer?.isCorrect === true
+                      ? "bg-emerald-100 text-emerald-800"
+                      : answer?.isCorrect === false
+                        ? "bg-rose-100 text-rose-800"
+                        : "bg-amber-100 text-amber-800";
+                  const correctnessLabel =
+                    answer?.isCorrect === true
+                      ? "Đạt"
+                      : answer?.isCorrect === false
+                        ? "Chưa đạt"
+                        : "Chưa chấm";
+
+                  return (
+                    <div
+                      key={item.id}
+                      className="rounded-2xl border border-slate-200 bg-slate-50 p-4"
+                    >
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <div className="flex items-center gap-2">
+                          <span className="rounded-full bg-slate-900 px-2.5 py-1 text-xs font-semibold text-white">
+                            Câu {idx + 1}
+                          </span>
+                          <span
+                            className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
+                              item.problem ? "bg-orange-100 text-orange-800" : "bg-blue-100 text-blue-800"
+                            }`}
+                          >
+                            {item.problem ? "Bài lập trình" : "Câu hỏi"}
+                          </span>
+                        </div>
+
+                        <div className="flex items-center gap-2 text-sm">
+                          <span className="font-semibold text-slate-700">
+                            {answer?.score ?? 0}/{item.points} điểm
+                          </span>
+                          <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${correctnessBadge}`}>
+                            {correctnessLabel}
+                          </span>
+                        </div>
+                      </div>
+
+                      {item.question && (
+                        <div className="mt-3 rounded-xl border border-slate-200 bg-white p-3">
+                          <p className="font-semibold text-slate-900">{item.question.content}</p>
+
+                          {item.question.questionType === "SHORT_ANSWER" ? (
+                            <p className="mt-2 text-sm text-slate-700">
+                              Trả lời: {answer?.textAnswer?.trim() || "(chưa trả lời)"}
+                            </p>
+                          ) : (
+                            <div className="mt-2 space-y-1 text-sm text-slate-700">
+                              {selectedChoiceIds.length > 0 ? (
+                                item.question.choices
+                                  ?.filter((choice) => selectedChoiceIds.includes(choice.id))
+                                  .map((choice) => (
+                                    <p key={choice.id}>- {choice.content}</p>
+                                  ))
+                              ) : (
+                                <p>(chưa chọn đáp án)</p>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {item.problem && (
+                        <div className="mt-3 space-y-3">
+                          <div className="rounded-xl border border-slate-200 bg-white p-3">
+                            <p className="font-semibold text-slate-900">{item.problem.title}</p>
+                            <p className="mt-1 text-sm text-slate-600">
+                              Ngôn ngữ: {answer?.language || "javascript"}
+                            </p>
+                          </div>
+
+                          <div className="rounded-xl border border-slate-200 bg-slate-950 p-3">
+                            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-300">
+                              Mã nguồn đã nộp
+                            </p>
+                            <pre className="max-h-72 overflow-auto whitespace-pre-wrap text-xs text-slate-100">
+                              {answer?.sourceCode?.trim() || "Chưa có mã nguồn được nộp."}
+                            </pre>
+                          </div>
+
+                          {answer?.submission && (
+                            <div className="rounded-xl border border-slate-200 bg-white p-3">
+                              <p className="text-sm font-semibold text-slate-900">
+                                Trạng thái chấm: {submissionStatusLabel(answer.submission.status)}
+                              </p>
+                              <p className="mt-1 text-sm text-slate-600">
+                                Testcase: {answer.submission.passedTestCases}/{answer.submission.totalTestCases}
+                              </p>
+
+                              {answer.submission.compileOutput && (
+                                <pre className="mt-2 max-h-40 overflow-auto whitespace-pre-wrap rounded-md bg-rose-50 p-2 text-xs text-rose-700">
+                                  {answer.submission.compileOutput}
+                                </pre>
+                              )}
+
+                              {answer.submission.errorMessage && (
+                                <pre className="mt-2 max-h-40 overflow-auto whitespace-pre-wrap rounded-md bg-rose-50 p-2 text-xs text-rose-700">
+                                  {answer.submission.errorMessage}
+                                </pre>
+                              )}
+
+                              {answer.submission.testCaseResults && answer.submission.testCaseResults.length > 0 && (
+                                <details className="mt-3 rounded-md border border-slate-200 bg-slate-50 p-2">
+                                  <summary className="cursor-pointer text-sm font-semibold text-slate-700">
+                                    Chi tiết testcase ({answer.submission.testCaseResults.length})
+                                  </summary>
+                                  <div className="mt-2 space-y-2">
+                                    {answer.submission.testCaseResults.map((tc, tcIdx) => (
+                                      <div
+                                        key={`${tc.testCaseId}-${tcIdx}`}
+                                        className={`rounded-md border p-2 text-xs ${
+                                          tc.passed
+                                            ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+                                            : "border-rose-200 bg-rose-50 text-rose-800"
+                                        }`}
+                                      >
+                                        <p className="font-semibold">
+                                          Case #{tc.order + 1} - {tc.passed ? "Passed" : "Failed"}
+                                        </p>
+                                        <p className="mt-1">Input: {tc.input}</p>
+                                        <p>Expected: {tc.expectedOutput}</p>
+                                        <p>Actual: {tc.actualOutput}</p>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </details>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+          </div>
       </div>
     );
   }

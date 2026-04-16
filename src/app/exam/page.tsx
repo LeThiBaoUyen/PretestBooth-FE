@@ -17,7 +17,7 @@ import {
   type ProblemExample,
 } from "@/components/exam";
 import { problemsApi } from "@/lib/api/problems";
-import { executionApi } from "@/lib/api/execution";
+import { executionApi, submissionsApi } from "@/lib/api/execution";
 import type { Problem as APIProblem, TestCase } from "@/lib/api/types";
 
 const LANGUAGE_MAP: Record<string, { language: string; version?: string }> = {
@@ -185,14 +185,11 @@ function ExamContent() {
         language,
       };
 
-      const response = await executionApi.submitCode({
+      const response = await submissionsApi.createSubmission({
         language: lang,
         version: version || "*",
-        source: code,
-        functionName: apiProblem.functionName,
-        inputTypes: apiProblem.inputTypes,
+        sourceCode: code,
         problemId: apiProblem.id,
-        runTimeout: apiProblem.timeLimit || 3000,
       });
 
       const results = response.testCaseResults.map((tc, idx) => ({

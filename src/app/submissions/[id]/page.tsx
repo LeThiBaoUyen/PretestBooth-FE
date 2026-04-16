@@ -59,6 +59,10 @@ export default function SubmissionDetailPage() {
     );
   }
 
+  const safeTestCaseResults: TestCaseResult[] = Array.isArray(submission.testCaseResults)
+    ? [...submission.testCaseResults]
+    : [];
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-100 py-8 px-4 sm:px-6 lg:px-8">
       <div className="max-w-7xl mx-auto">
@@ -176,10 +180,15 @@ export default function SubmissionDetailPage() {
           <h2 className="text-xl font-bold text-gray-900 mb-4">
             Kết quả test cases
           </h2>
-          <div className="space-y-4">
-            {submission.testCaseResults
-              .sort((a: TestCaseResult, b: TestCaseResult) => a.order - b.order)
-              .map((result: TestCaseResult, idx: number) => (
+          {safeTestCaseResults.length === 0 ? (
+            <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
+              Bài nộp này chưa có dữ liệu test case chi tiết.
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {safeTestCaseResults
+                .sort((a: TestCaseResult, b: TestCaseResult) => a.order - b.order)
+                .map((result: TestCaseResult, idx: number) => (
                 <div
                   key={result.testCaseId}
                   className={`border rounded-lg p-4 ${
@@ -261,8 +270,9 @@ export default function SubmissionDetailPage() {
                     </div>
                   )}
                 </div>
-              ))}
-          </div>
+                ))}
+            </div>
+          )}
         </div>
 
         {/* Source Code */}

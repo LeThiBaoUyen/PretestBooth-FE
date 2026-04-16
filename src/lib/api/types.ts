@@ -1024,6 +1024,9 @@ export interface SessionResultItem {
   submission?: SessionResultSubmission | null;
   selectedChoiceIds: string[];
   textAnswer: string | null;
+  sourceCode?: string | null;
+  language?: string | null;
+  languageVersion?: string | null;
 }
 
 export interface GradeSessionRequest {
@@ -1514,8 +1517,20 @@ export interface PracticeSessionAnswer {
   sourceCode: string | null;
   language: string | null;
   languageVersion: string | null;
+  submissionId: string | null;
   isCorrect: boolean | null;
   score: number | null;
+  submission?: {
+    id: string;
+    status: string;
+    passedTestCases: number;
+    failedTestCases: number;
+    totalTestCases: number;
+    executionTime: number | null;
+    compileOutput: string | null;
+    errorMessage: string | null;
+    testCaseResults: SessionResultTestCase[] | null;
+  } | null;
 }
 
 // Dashboard
