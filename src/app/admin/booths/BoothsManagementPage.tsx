@@ -467,12 +467,6 @@ export default function BoothsManagementPage() {
       setQuickActivatingBoothId(booth.id);
       setError(null);
 
-      if (booth.isSessionActive) {
-        await boothsApi.forceLogoutBooth(booth.id, {
-          reason: "Kích hoạt lại kiosk từ trang Quản lý Booth",
-        });
-      }
-
       const result = await boothsApi.generateActivationOtp(boothCode);
       await loadBooths();
 
@@ -484,7 +478,12 @@ export default function BoothsManagementPage() {
 
       router.push(`/booth-auth?${params.toString()}`);
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Không thể mở luồng kích hoạt nhanh");
+      const message = err instanceof Error ? err.message : "Không thể mở luồng kích hoạt nhanh";
+      if (message.toLowerCase().includes("phiên kiosk hoạt động")) {
+        setError("Booth đang được kích hoạt ở trình duyệt khác. Vui lòng đăng xuất kiosk hiện tại trước khi kích hoạt lại.");
+      } else {
+        setError(message);
+      }
     } finally {
       setQuickActivatingBoothId(null);
     }
