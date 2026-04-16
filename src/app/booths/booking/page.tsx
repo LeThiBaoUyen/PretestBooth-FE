@@ -27,7 +27,6 @@ import { kycApi } from "@/lib/api/kyc";
 import type { AvailableTimeSlot, BookingType, BoothPolicyConfig } from "@/lib/api/types";
 import { useRouter } from "next/navigation";
 
-const VIETNAM_OFFSET_MS = 7 * 60 * 60 * 1000;
 const DEFAULT_BOOKING_POLICY: BoothPolicyConfig = {
   bookingMinDaysInAdvance: 7,
   bookingMaxDaysInAdvance: 30,
@@ -269,14 +268,7 @@ export default function BookingPage() {
     for (const booking of myBookedRanges) {
       const bookingStart = new Date(booking.startTime).getTime();
       const bookingEnd = new Date(booking.endTime).getTime();
-      const overlaps =
-        hasOverlap(bookingStart, bookingEnd, slotStart, slotEnd) ||
-        hasOverlap(
-          bookingStart - VIETNAM_OFFSET_MS,
-          bookingEnd - VIETNAM_OFFSET_MS,
-          slotStart,
-          slotEnd,
-        );
+      const overlaps = hasOverlap(bookingStart, bookingEnd, slotStart, slotEnd);
 
       if (!overlaps) {
         continue;
