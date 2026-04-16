@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { FormInput, SubmitButton } from "@/components/FormComponents";
@@ -11,6 +11,8 @@ import { boothSessionManager } from "@/lib/auth/boothSession";
 
 export default function BoothAuthPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const handledForceSwitchRef = useRef(false);
   const [formData, setFormData] = useState({
     boothCode: "",
     otp: "",
@@ -19,10 +21,33 @@ export default function BoothAuthPage() {
   const [submitMessage, setSubmitMessage] = useState("");
 
   useEffect(() => {
+    const boothCodeParam = searchParams.get("boothCode") || "";
+    const otpParam = searchParams.get("otp") || "";
+
+    if (!boothCodeParam && !otpParam) {
+      return;
+    }
+
+    setFormData((prev) => ({
+      boothCode: prev.boothCode || boothCodeParam,
+      otp: prev.otp || otpParam,
+    }));
+  }, [searchParams]);
+
+  useEffect(() => {
+    const forceSwitch = searchParams.get("force") === "1";
+
     if (boothSessionManager.getToken() && boothSessionManager.getMeta()) {
+      if (forceSwitch && !handledForceSwitchRef.current) {
+        handledForceSwitchRef.current = true;
+        boothSessionManager.clear();
+        setSubmitMessage("Đã xóa phiên kiosk cũ trên trình duyệt này. Vui lòng nhập OTP để kích hoạt lại.");
+        return;
+      }
+
       router.replace("/login");
     }
-  }, [router]);
+  }, [router, searchParams]);
 
   const activateMutation = useMutation({
     mutationFn: () =>

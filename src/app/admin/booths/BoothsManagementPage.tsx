@@ -2,8 +2,10 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   ArrowRightLeft,
+  ArrowUpRight,
   KeyRound,
   Loader2,
   Pencil,
@@ -95,6 +97,7 @@ function formatDateTime(value?: string | Date | null) {
 }
 
 export default function BoothsManagementPage() {
+  const router = useRouter();
   const { user, userLoading } = useAuth();
   const [booths, setBooths] = useState<Booth[]>([]);
   const [loading, setLoading] = useState(true);
@@ -127,6 +130,7 @@ export default function BoothsManagementPage() {
     submitting: false,
   });
   const [realtimeMessage, setRealtimeMessage] = useState<string | null>(null);
+  const [quickActivatingBoothId, setQuickActivatingBoothId] = useState<string | null>(null);
 
   const selectedBooth = useMemo(
     () => booths.find((booth) => booth.id === selectedBoothId) ?? null,
@@ -442,6 +446,50 @@ export default function BoothsManagementPage() {
     }
   };
 
+  const activateBoothShortcut = async (booth: Booth) => {
+    if (!canManageBooths) {
+      setError("Bạn không có quyền thực hiện thao tác này");
+      return;
+    }
+
+    if (booth.status !== "ACTIVE") {
+      setError("Chỉ có thể kích hoạt kiosk khi booth đang ở trạng thái ACTIVE");
+      return;
+    }
+
+    const boothCode = (booth.code || booth.name || "").trim();
+    if (!boothCode) {
+      setError("Booth chưa có code hợp lệ để kích hoạt");
+      return;
+    }
+
+    try {
+      setQuickActivatingBoothId(booth.id);
+      setError(null);
+
+      if (booth.isSessionActive) {
+        await boothsApi.forceLogoutBooth(booth.id, {
+          reason: "Kích hoạt lại kiosk từ trang Quản lý Booth",
+        });
+      }
+
+      const result = await boothsApi.generateActivationOtp(boothCode);
+      await loadBooths();
+
+      const params = new URLSearchParams({
+        force: "1",
+        boothCode: result.boothCode,
+        otp: result.otp,
+      });
+
+      router.push(`/booth-auth?${params.toString()}`);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Không thể mở luồng kích hoạt nhanh");
+    } finally {
+      setQuickActivatingBoothId(null);
+    }
+  };
+
   if (userLoading || loading) {
     return (
       <div className="rounded-lg border border-gray-200 bg-white p-8 text-center">
@@ -670,6 +718,19 @@ export default function BoothsManagementPage() {
                           >
                             <ArrowRightLeft className="mr-1 h-3.5 w-3.5" />
                             Đổi trạng thái
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => activateBoothShortcut(booth)}
+                            disabled={quickActivatingBoothId === booth.id}
+                            className="inline-flex items-center rounded-lg border border-emerald-200 px-2.5 py-1.5 text-xs font-medium text-emerald-700 hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-60"
+                          >
+                            {quickActivatingBoothId === booth.id ? (
+                              <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />
+                            ) : (
+                              <ArrowUpRight className="mr-1 h-3.5 w-3.5" />
+                            )}
+                            Kích hoạt nhanh
                           </button>
                           <button
                             type="button"

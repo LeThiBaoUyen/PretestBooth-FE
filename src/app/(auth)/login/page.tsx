@@ -189,18 +189,6 @@ export default function LoginPage() {
                   <p className="font-semibold">
                     Booth đang active: {boothMeta.boothName} ({boothMeta.boothCode})
                   </p>
-                  <p className="mt-1 text-xs">
-                    Đăng nhập tại màn này sẽ dùng luồng kiosk và yêu cầu xác thực khuôn mặt trước khi check-in.
-                  </p>
-                  <p className="mt-1 text-xs">
-                    Nếu đăng nhập bằng tài khoản ADMIN, hệ thống sẽ chuyển sang đăng nhập quản trị để bạn có thể thoát booth.
-                  </p>
-                  <p className="mt-1 text-xs">
-                    Cần kích hoạt lại hoặc đổi booth?{" "}
-                    <Link href="/booth-auth" className="font-bold text-emerald-700 hover:text-emerald-900">
-                      Mở trang kích hoạt booth
-                    </Link>
-                  </p>
                 </div>
               )}
             </div>

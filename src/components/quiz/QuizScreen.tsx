@@ -245,25 +245,6 @@ const QuizScreen = () => {
           }
         }
       } catch (err: any) {
-        const status = err?.status;
-
-        if (status === 409) {
-          try {
-            const latestResult = await examsApiClient.getResults(sid, token);
-            setResult(latestResult);
-            setShowResult(true);
-            return;
-          } catch {
-            setError(err?.message || "Phiên thi không còn hợp lệ hoặc đã hết thời gian làm bài.");
-            return;
-          }
-        }
-
-        if (status === 401) {
-          setError("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.");
-          return;
-        }
-
         setError(err?.message || "Không thể tải phiên thi.");
       } finally {
         setLoading(false);

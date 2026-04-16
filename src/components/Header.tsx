@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import Image from "next/image";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { apiClient } from "@/lib/api/auth";
 import { boothSessionManager, type BoothSessionMeta } from "@/lib/auth/boothSession";
@@ -53,6 +53,7 @@ function isNavItemActive(pathname: string, item: NavItem) {
 export default function Header() {
   const [isOpen, setIsOpen] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement | null>(null);
   const pathname = usePathname();
   const router = useRouter();
   const { user, logout, accessToken } = useAuth();
@@ -66,6 +67,32 @@ export default function Header() {
     setBoothMeta(boothSessionManager.getMeta());
     setBoothToken(boothSessionManager.getToken());
   }, [pathname]);
+
+  useEffect(() => {
+    if (!dropdownOpen) return;
+
+    const handleOutsideClick = (event: MouseEvent) => {
+      const target = event.target as Node | null;
+      if (!target || !dropdownRef.current) return;
+      if (!dropdownRef.current.contains(target)) {
+        setDropdownOpen(false);
+      }
+    };
+
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setDropdownOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleOutsideClick);
+    document.addEventListener("keydown", handleEscape);
+
+    return () => {
+      document.removeEventListener("mousedown", handleOutsideClick);
+      document.removeEventListener("keydown", handleEscape);
+    };
+  }, [dropdownOpen]);
 
   const hideHeaderRoutes = [
     "/login",
@@ -206,7 +233,7 @@ export default function Header() {
           {/* Auth/User Info */}
           <div className="hidden md:flex items-center space-x-3">
             {userName ? (
-              <div className="relative">
+              <div className="relative" ref={dropdownRef}>
                 <button
                   onClick={() => setDropdownOpen(!dropdownOpen)}
                   className="flex items-center space-x-2 rounded-lg border border-slate-200 bg-white px-3 py-1.5 hover:bg-slate-50 transition"
