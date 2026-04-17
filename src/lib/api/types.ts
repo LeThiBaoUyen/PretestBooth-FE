@@ -1294,7 +1294,7 @@ export interface Booth {
 }
 
 // Bookings
-export type BookingStatus = "PENDING" | "CONFIRMED" | "CHECKED_IN" | "COMPLETED" | "CANCELLED" | "NO_SHOW";
+export type BookingStatus = "CONFIRM" | "CHECKED_IN" | "COMPLETED" | "CANCEL" | "ABSENT";
 export type BookingType = "PRACTICE" | "EXAM";
 
 export interface Booking {

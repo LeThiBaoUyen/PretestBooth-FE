@@ -59,19 +59,18 @@ function getBookingTypeLabel(type: BookingType) {
 }
 
 function getBookingStatusLabel(status: BookingStatus) {
-  if (status === "CONFIRMED") return "Đã xác nhận";
+  if (status === "CONFIRM") return "Đã xác nhận";
   if (status === "CHECKED_IN") return "Đang sử dụng";
   if (status === "COMPLETED") return "Đã xong";
-  if (status === "CANCELLED") return "Đã hủy";
-  if (status === "NO_SHOW") return "Vắng mặt";
-  return "Chờ xác nhận";
+  if (status === "CANCEL") return "Đã hủy";
+  return "Vắng mặt";
 }
 
 function getBookingStatusChipClass(status: BookingStatus) {
-  if (status === "PENDING") return "bg-slate-100 text-slate-700";
-  if (status === "CONFIRMED") return "bg-amber-100 text-amber-700";
+  if (status === "CONFIRM") return "bg-amber-100 text-amber-700";
   if (status === "CHECKED_IN") return "bg-blue-100 text-blue-700";
   if (status === "COMPLETED") return "bg-emerald-100 text-emerald-700";
+  if (status === "CANCEL") return "bg-rose-100 text-rose-700";
   return "bg-rose-100 text-rose-700";
 }
 
@@ -80,7 +79,7 @@ function getTimelineBookingClass(booking: Booking) {
     return "border-blue-300 bg-blue-500 text-white";
   }
 
-  if (booking.status === "CONFIRMED") {
+  if (booking.status === "CONFIRM") {
     return booking.type === "EXAM"
       ? "border-rose-300 bg-rose-500 text-white"
       : "border-cyan-300 bg-cyan-500 text-white";
@@ -88,10 +87,6 @@ function getTimelineBookingClass(booking: Booking) {
 
   if (booking.status === "COMPLETED") {
     return "border-emerald-300 bg-emerald-500 text-white";
-  }
-
-  if (booking.status === "PENDING") {
-    return "border-slate-300 bg-slate-500 text-white";
   }
 
   return "border-slate-300 bg-slate-300 text-slate-700";
@@ -369,17 +364,19 @@ export default function BoothSchedulePage() {
   }, [bookings, boothFilter, keyword]);
 
   const summary = useMemo(() => {
-    const pending = filteredBookings.filter((b) => b.status === "PENDING").length;
-    const confirmed = filteredBookings.filter((b) => b.status === "CONFIRMED").length;
+    const confirm = filteredBookings.filter((b) => b.status === "CONFIRM").length;
     const inUse = filteredBookings.filter((b) => b.status === "CHECKED_IN").length;
     const completed = filteredBookings.filter((b) => b.status === "COMPLETED").length;
+    const cancel = filteredBookings.filter((b) => b.status === "CANCEL").length;
+    const absent = filteredBookings.filter((b) => b.status === "ABSENT").length;
 
     return {
       total: filteredBookings.length,
-      pending,
-      confirmed,
+      confirm,
       inUse,
       completed,
+      cancel,
+      absent,
     };
   }, [filteredBookings]);
 
@@ -690,12 +687,11 @@ export default function BoothSchedulePage() {
             onChange={(e) => setStatusFilter(e.target.value as BookingStatus | "ALL")}
           >
             <option value="ALL">Tất cả trạng thái</option>
-            <option value="PENDING">Chờ xác nhận</option>
-            <option value="CONFIRMED">Đã xác nhận</option>
+            <option value="CONFIRM">Đã xác nhận</option>
             <option value="CHECKED_IN">Đang sử dụng</option>
             <option value="COMPLETED">Đã xong</option>
-            <option value="CANCELLED">Đã hủy</option>
-            <option value="NO_SHOW">Vắng mặt</option>
+            <option value="CANCEL">Đã hủy</option>
+            <option value="ABSENT">Vắng mặt</option>
           </select>
 
           <select
@@ -725,10 +721,11 @@ export default function BoothSchedulePage() {
         <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
           <div className="flex flex-wrap gap-2 text-xs font-semibold">
             <span className="rounded-full bg-navy-50 px-3 py-1 text-navy-700">Tổng: {summary.total}</span>
-            <span className="rounded-full bg-slate-100 px-3 py-1 text-slate-700">Chờ xác nhận: {summary.pending}</span>
-            <span className="rounded-full bg-amber-100 px-3 py-1 text-amber-700">Đã xác nhận: {summary.confirmed}</span>
+            <span className="rounded-full bg-amber-100 px-3 py-1 text-amber-700">Đã xác nhận: {summary.confirm}</span>
             <span className="rounded-full bg-blue-100 px-3 py-1 text-blue-700">Đang sử dụng: {summary.inUse}</span>
             <span className="rounded-full bg-emerald-100 px-3 py-1 text-emerald-700">Hoàn tất: {summary.completed}</span>
+            <span className="rounded-full bg-rose-100 px-3 py-1 text-rose-700">Đã hủy: {summary.cancel}</span>
+            <span className="rounded-full bg-orange-100 px-3 py-1 text-orange-700">Vắng mặt: {summary.absent}</span>
           </div>
 
           <button
@@ -894,7 +891,6 @@ export default function BoothSchedulePage() {
               <div className="mb-4 flex flex-wrap items-center gap-2 text-xs font-semibold">
                 <span className="rounded-full bg-blue-100 px-3 py-1 text-blue-700">Đang sử dụng</span>
                 <span className="rounded-full bg-amber-100 px-3 py-1 text-amber-700">Đã xác nhận</span>
-                <span className="rounded-full bg-slate-100 px-3 py-1 text-slate-700">Chờ xác nhận</span>
                 <span className="rounded-full bg-emerald-100 px-3 py-1 text-emerald-700">Hoàn tất</span>
                 <span className="rounded-full bg-rose-100 px-3 py-1 text-rose-700">Hủy / Vắng mặt</span>
               </div>

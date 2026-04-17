@@ -32,10 +32,10 @@ export default function StudentStatsDashboard() {
   };
 
   const getCancellationState = (booking: Booking) => {
-    if (!["PENDING", "CONFIRMED"].includes(booking.status)) {
+    if (booking.status !== "CONFIRM") {
       return {
         canCancel: false,
-        reason: "Chỉ có thể hủy lịch ở trạng thái chờ hoặc đã xác nhận.",
+        reason: "Chỉ có thể hủy lịch ở trạng thái đã xác nhận.",
       };
     }
 
@@ -211,10 +211,16 @@ export default function StudentStatsDashboard() {
               const endTimeObj = new Date(booking.endTime);
               const cancellationState = getCancellationState(booking);
               const statusLabel =
-                booking.status === "CONFIRMED"
+                booking.status === "CONFIRM"
                   ? "Đã xác nhận"
-                  : booking.status === "PENDING"
-                    ? "Chờ xác nhận"
+                  : booking.status === "CHECKED_IN"
+                    ? "Đã check-in"
+                    : booking.status === "COMPLETED"
+                      ? "Hoàn tất"
+                      : booking.status === "CANCEL"
+                        ? "Đã hủy"
+                        : booking.status === "ABSENT"
+                          ? "Vắng mặt"
                     : booking.status;
               
               return (
@@ -239,9 +245,15 @@ export default function StudentStatsDashboard() {
                   </div>
                   <div className="flex flex-col items-start gap-2 sm:items-end">
                     <span className={`px-3 py-1 text-xs font-semibold rounded-full ${
-                      booking.status === "CONFIRMED" ? "bg-emerald-100 text-emerald-700" :
-                      booking.status === "PENDING" ? "bg-amber-100 text-amber-700" :
-                      "bg-gray-100 text-gray-700"
+                      booking.status === "CONFIRM"
+                        ? "bg-emerald-100 text-emerald-700"
+                        : booking.status === "CHECKED_IN"
+                          ? "bg-blue-100 text-blue-700"
+                          : booking.status === "COMPLETED"
+                            ? "bg-slate-100 text-slate-700"
+                            : booking.status === "CANCEL"
+                              ? "bg-rose-100 text-rose-700"
+                              : "bg-amber-100 text-amber-700"
                     }`}>
                       {statusLabel}
                     </span>

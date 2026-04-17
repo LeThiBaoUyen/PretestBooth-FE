@@ -155,7 +155,7 @@ export default function BookingPage() {
 
         setSlots(Array.isArray(availability?.slots) ? availability.slots : []);
 
-        const activeStatuses = new Set(["PENDING", "CONFIRMED", "CHECKED_IN", "COMPLETED"]);
+        const activeStatuses = new Set(["CONFIRM", "CHECKED_IN", "COMPLETED"]);
         const myActiveBookings = myBookings
           .filter((booking) => activeStatuses.has(booking.status))
           .map((booking) => ({
