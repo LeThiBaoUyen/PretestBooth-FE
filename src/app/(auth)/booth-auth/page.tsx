@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { Suspense, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect } from "react";
@@ -9,7 +9,7 @@ import { FormInput, SubmitButton } from "@/components/FormComponents";
 import { apiClient } from "@/lib/api/auth";
 import { boothSessionManager } from "@/lib/auth/boothSession";
 
-export default function BoothAuthPage() {
+function BoothAuthPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const handledForceSwitchRef = useRef(false);
@@ -162,5 +162,13 @@ export default function BoothAuthPage() {
         </div>
       </main>
     </>
+  );
+}
+
+export default function BoothAuthPage() {
+  return (
+    <Suspense fallback={null}>
+      <BoothAuthPageContent />
+    </Suspense>
   );
 }

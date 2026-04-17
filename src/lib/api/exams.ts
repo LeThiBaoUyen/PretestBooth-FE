@@ -18,6 +18,8 @@ import type {
   PretestConfig,
   PretestStatus,
   UpsertPretestConfigRequest,
+  TestShortAnswerGradingRequest,
+  TestShortAnswerGradingResponse,
 } from "./types";
 import { httpClient } from "./httpClient";
 import { normalizePaginated } from "./response";
@@ -184,6 +186,13 @@ class ExamsApiClient {
     _accessToken: string,
   ): Promise<SessionResult> {
     return httpClient.patch<SessionResult>(`/api/exams/sessions/${sessionId}/grade`, data);
+  }
+
+  async testShortAnswerGrading(
+    data: TestShortAnswerGradingRequest,
+    _accessToken?: string,
+  ): Promise<TestShortAnswerGradingResponse> {
+    return httpClient.post<TestShortAnswerGradingResponse>("/api/exams/test-short-answer-grading", data);
   }
 
   async forceSubmitSessionByMonitor(

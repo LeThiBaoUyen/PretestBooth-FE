@@ -1037,6 +1037,23 @@ export interface GradeSessionRequest {
   }[];
 }
 
+export interface TestShortAnswerGradingRequest {
+  question: string;
+  referenceAnswer: string;
+  studentAnswer: string;
+  maxScore?: number;
+  explanation?: string;
+}
+
+export interface TestShortAnswerGradingResponse {
+  mode: string;
+  model: string;
+  aiConfigured: boolean;
+  score: number;
+  isCorrect: boolean;
+  rationale?: string;
+}
+
 // ==================== EXAM SESSIONS LIST ====================
 
 export interface ExamSessionListItem {
