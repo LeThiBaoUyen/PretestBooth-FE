@@ -702,6 +702,7 @@ export interface GenerateReviewSessionsResponse {
 
 export type ExamSection = "QUESTION" | "PROBLEM";
 export type ExamSessionStatus = "IN_PROGRESS" | "SUBMITTED" | "GRADED";
+export type ResultPublicationStatus = "PENDING_REVIEW" | "PUBLISHED";
 export type ExamVisibility = "PRIVATE" | "PUBLIC";
 
 export interface Exam {
@@ -996,6 +997,10 @@ export interface SessionResult {
   appliedPassingScoreAbsolute: number | null;
   passed: boolean | null;
   status: ExamSessionStatus;
+  resultPublicationStatus: ResultPublicationStatus;
+  resultPublishedAt: string | null;
+  resultLastUpdatedAt: string | null;
+  resultRevisionCount: number;
   startedAt: string;
   finishedAt: string | null;
   score: number | null;
@@ -1027,6 +1032,14 @@ export interface SessionResultItem {
   sourceCode?: string | null;
   language?: string | null;
   languageVersion?: string | null;
+  aiSuggestedIsCorrect?: boolean | null;
+  aiSuggestedScore?: number | null;
+  aiGradingRationale?: string | null;
+  manualIsCorrect?: boolean | null;
+  manualScore?: number | null;
+  reviewerFeedback?: string | null;
+  reviewedByUserId?: string | null;
+  reviewedAt?: string | null;
 }
 
 export interface GradeSessionRequest {
@@ -1034,6 +1047,7 @@ export interface GradeSessionRequest {
     examItemId: string;
     score: number;
     isCorrect: boolean;
+    feedback?: string;
   }[];
 }
 
@@ -1065,6 +1079,9 @@ export interface ExamSessionListItem {
   appliedPassingScoreAbsolute: number | null;
   passed: boolean | null;
   status: ExamSessionStatus;
+  resultPublicationStatus: ResultPublicationStatus;
+  resultPublishedAt: string | null;
+  resultRevisionCount: number;
   startedAt: string;
   finishedAt: string | null;
   score: number | null;

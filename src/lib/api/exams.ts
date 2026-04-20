@@ -188,6 +188,13 @@ class ExamsApiClient {
     return httpClient.patch<SessionResult>(`/api/exams/sessions/${sessionId}/grade`, data);
   }
 
+  async publishSessionResults(
+    sessionId: string,
+    _accessToken: string,
+  ): Promise<SessionResult> {
+    return httpClient.post<SessionResult>(`/api/exams/sessions/${sessionId}/publish-results`);
+  }
+
   async testShortAnswerGrading(
     data: TestShortAnswerGradingRequest,
     _accessToken?: string,

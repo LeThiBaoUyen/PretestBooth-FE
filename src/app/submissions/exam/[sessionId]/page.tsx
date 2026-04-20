@@ -1,14 +1,16 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useParams } from "next/navigation";
 import Link from "next/link";
+import { useEffect, useMemo, useState } from "react";
 import { examsApiClient } from "@/lib/api/exams";
 import { useAuth } from "@/lib/hooks";
 import type {
   SessionResultItem,
   ExamSessionStatus,
   QuestionType,
+  ResultPublicationStatus,
   SessionResultTestCase,
   SessionResultProctoringWarning,
 } from "@/lib/api/types";
@@ -23,6 +25,16 @@ const STATUS_LABELS: Record<ExamSessionStatus, string> = {
   IN_PROGRESS: "Đang làm",
   SUBMITTED: "Đã nộp",
   GRADED: "Đã chấm",
+};
+
+const PUBLICATION_STATUS_COLORS: Record<ResultPublicationStatus, string> = {
+  PENDING_REVIEW: "bg-amber-100 text-amber-800",
+  PUBLISHED: "bg-emerald-100 text-emerald-800",
+};
+
+const PUBLICATION_STATUS_LABELS: Record<ResultPublicationStatus, string> = {
+  PENDING_REVIEW: "Chờ duyệt công bố",
+  PUBLISHED: "Đã công bố",
 };
 
 const SUBMISSION_STATUS_LABELS: Record<string, string> = {
@@ -86,12 +98,76 @@ export default function ExamSessionDetailPage() {
   const params = useParams();
   const sessionId = params.sessionId as string;
   const { accessToken, user } = useAuth();
+  const queryClient = useQueryClient();
   const hasSessionId = Boolean(sessionId);
+  const canReviewResult = user?.role === "ADMIN" || user?.role === "LECTURER";
+  const [draftGrades, setDraftGrades] = useState<
+    Record<string, { score: string; isCorrect: boolean; feedback: string }>
+  >({});
 
   const { data: result, isLoading, isError, error } = useQuery({
     queryKey: ["exam-session-result", sessionId],
     queryFn: () => examsApiClient.getResults(sessionId, accessToken || ""),
     enabled: hasSessionId,
+  });
+
+  const shortAnswerItems = useMemo(
+    () =>
+      result?.items.filter(
+        (item) => item.section === "QUESTION" && item.questionType === "SHORT_ANSWER",
+      ) || [],
+    [result],
+  );
+
+  useEffect(() => {
+    if (!result || !canReviewResult) {
+      return;
+    }
+
+    const initialDrafts: Record<
+      string,
+      { score: string; isCorrect: boolean; feedback: string }
+    > = {};
+
+    for (const item of shortAnswerItems) {
+      initialDrafts[item.examItemId] = {
+        score: String(item.manualScore ?? item.score ?? 0),
+        isCorrect: item.manualIsCorrect ?? item.isCorrect ?? false,
+        feedback: item.reviewerFeedback || "",
+      };
+    }
+
+    setDraftGrades(initialDrafts);
+  }, [result, canReviewResult, shortAnswerItems]);
+
+  const gradeMutation = useMutation({
+    mutationFn: async (payload: {
+      examItemId: string;
+      score: number;
+      isCorrect: boolean;
+      feedback?: string;
+    }) =>
+      examsApiClient.gradeSession(
+        sessionId,
+        {
+          items: [payload],
+        },
+        accessToken || "",
+      ),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
+        queryKey: ["exam-session-result", sessionId],
+      });
+    },
+  });
+
+  const publishMutation = useMutation({
+    mutationFn: async () => examsApiClient.publishSessionResults(sessionId, accessToken || ""),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
+        queryKey: ["exam-session-result", sessionId],
+      });
+    },
   });
 
   if (!hasSessionId || isLoading) {
@@ -135,6 +211,32 @@ export default function ExamSessionDetailPage() {
   const proctoringWarnings = canViewProctoringWarnings ? (result.proctoringWarnings || []) : [];
   const questionItems = result.items.filter((i) => i.section === "QUESTION");
   const problemItems = result.items.filter((i) => i.section === "PROBLEM");
+  const publicationLabel =
+    PUBLICATION_STATUS_LABELS[result.resultPublicationStatus] || result.resultPublicationStatus;
+  const publicationClass =
+    PUBLICATION_STATUS_COLORS[result.resultPublicationStatus] || "bg-slate-100 text-slate-800";
+  const requiresPublishAction =
+    canReviewResult && result.resultPublicationStatus === "PENDING_REVIEW";
+
+  const saveShortAnswerGrade = (examItemId: string, maxPoints: number) => {
+    const draft = draftGrades[examItemId];
+    if (!draft) {
+      return;
+    }
+
+    const parsedScore = Number(draft.score);
+    if (!Number.isFinite(parsedScore) || parsedScore < 0 || parsedScore > maxPoints) {
+      alert(`Điểm phải nằm trong khoảng 0 đến ${maxPoints}`);
+      return;
+    }
+
+    gradeMutation.mutate({
+      examItemId,
+      score: parsedScore,
+      isCorrect: draft.isCorrect,
+      feedback: draft.feedback.trim() || undefined,
+    });
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-100 py-8 px-4 sm:px-6 lg:px-8">
@@ -143,6 +245,9 @@ export default function ExamSessionDetailPage() {
         <div className="mb-6">
           <div className="flex flex-wrap items-center gap-2">
             <h1 className="text-3xl font-bold text-gray-900">Kết quả bài thi</h1>
+            <span className={`rounded-full px-3 py-1 text-xs font-semibold ${publicationClass}`}>
+              {publicationLabel}
+            </span>
             {!canViewItemDetails && (
               <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-800">
                 Chỉ xem tổng quan
@@ -162,16 +267,33 @@ export default function ExamSessionDetailPage() {
                 Phiên thi: {result.id.slice(0, 8)}...
               </p>
             </div>
-            <span
-              className={`px-4 py-2 rounded-full text-sm font-medium ${
-                STATUS_COLORS[result.status as ExamSessionStatus] ||
-                "bg-gray-100 text-gray-800"
-              }`}
-            >
-              {STATUS_LABELS[result.status as ExamSessionStatus] ||
-                result.status}
-            </span>
+            <div className="flex items-center gap-2">
+              <span className={`px-4 py-2 rounded-full text-sm font-medium ${publicationClass}`}>
+                {publicationLabel}
+              </span>
+              <span
+                className={`px-4 py-2 rounded-full text-sm font-medium ${
+                  STATUS_COLORS[result.status as ExamSessionStatus] ||
+                  "bg-gray-100 text-gray-800"
+                }`}
+              >
+                {STATUS_LABELS[result.status as ExamSessionStatus] || result.status}
+              </span>
+            </div>
           </div>
+
+          {requiresPublishAction && (
+            <div className="mb-4 flex items-center justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => publishMutation.mutate()}
+                disabled={publishMutation.isPending}
+                className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-emerald-300"
+              >
+                {publishMutation.isPending ? "Đang công bố..." : "Công bố điểm cho sinh viên"}
+              </button>
+            </div>
+          )}
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
             <div className="bg-gray-50 rounded-lg p-4 text-center">
@@ -225,6 +347,30 @@ export default function ExamSessionDetailPage() {
             </div>
           </div>
         </div>
+
+        {result.resultPublicationStatus === "PENDING_REVIEW" && !canReviewResult && (
+          <div className="mb-6 rounded-lg border border-amber-200 bg-amber-50 p-4 text-amber-900">
+            <p className="font-semibold">Kết quả đang chờ giảng viên xác nhận</p>
+            <p className="mt-1 text-sm">
+              Điểm của bài thi này sẽ được công bố sau khi giảng viên kiểm duyệt phần tự luận ngắn.
+            </p>
+          </div>
+        )}
+
+        {result.resultPublicationStatus === "PUBLISHED" && result.resultPublishedAt && (
+          <div className="mb-6 rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-emerald-900">
+            <p className="font-semibold">Điểm đã được công bố</p>
+            <p className="mt-1 text-sm">
+              Công bố lúc: {new Date(result.resultPublishedAt).toLocaleString("vi-VN")}
+              {result.resultRevisionCount > 0 && (
+                <span>
+                  {" "}
+                  • Đã điều chỉnh {result.resultRevisionCount} lần sau công bố
+                </span>
+              )}
+            </p>
+          </div>
+        )}
 
         {canViewProctoringWarnings && (
           <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
@@ -282,6 +428,138 @@ export default function ExamSessionDetailPage() {
               {result.detailMessage ||
                 "Đề thi này chỉ cho phép xem điểm tổng quan, không hiển thị nội dung từng câu."}
             </p>
+          </div>
+        )}
+
+        {canReviewResult && shortAnswerItems.length > 0 && (
+          <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h2 className="text-xl font-bold text-gray-900">Duyệt câu tự luận ngắn</h2>
+                <p className="text-sm text-gray-500">
+                  Giảng viên/Quản trị viên có thể xác nhận hoặc chỉnh điểm câu AI chấm trước khi công bố.
+                </p>
+              </div>
+              {requiresPublishAction && (
+                <button
+                  type="button"
+                  onClick={() => publishMutation.mutate()}
+                  disabled={publishMutation.isPending}
+                  className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-emerald-300"
+                >
+                  {publishMutation.isPending ? "Đang công bố..." : "Công bố điểm"}
+                </button>
+              )}
+            </div>
+
+            <div className="space-y-4">
+              {shortAnswerItems.map((item, idx) => {
+                const draft = draftGrades[item.examItemId] || {
+                  score: String(item.manualScore ?? item.score ?? 0),
+                  isCorrect: item.manualIsCorrect ?? item.isCorrect ?? false,
+                  feedback: item.reviewerFeedback || "",
+                };
+
+                return (
+                  <div key={item.examItemId} className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+                    <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                      <p className="font-semibold text-slate-900">
+                        Câu {idx + 1}: {item.questionContent || "(không có nội dung)"}
+                      </p>
+                      <span className="text-sm text-slate-600">Tối đa {item.points} điểm</span>
+                    </div>
+
+                    <div className="mb-3 rounded-md border border-slate-200 bg-white p-3 text-sm">
+                      <p>
+                        <span className="font-semibold">Trả lời sinh viên:</span>{" "}
+                        {item.textAnswer?.trim() || "(không trả lời)"}
+                      </p>
+                      {item.correctAnswer && (
+                        <p className="mt-1 text-emerald-800">
+                          <span className="font-semibold">Đáp án tham chiếu:</span> {item.correctAnswer}
+                        </p>
+                      )}
+                      {(item.aiSuggestedScore !== null && item.aiSuggestedScore !== undefined) && (
+                        <p className="mt-1 text-indigo-700">
+                          <span className="font-semibold">AI gợi ý:</span> {item.aiSuggestedScore}/{item.points}
+                          {item.aiGradingRationale ? ` • ${item.aiGradingRationale}` : ""}
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                      <label className="flex flex-col text-sm text-slate-700">
+                        Điểm chấm tay
+                        <input
+                          type="number"
+                          min={0}
+                          max={item.points}
+                          step="0.01"
+                          value={draft.score}
+                          onChange={(event) =>
+                            setDraftGrades((prev) => ({
+                              ...prev,
+                              [item.examItemId]: {
+                                ...draft,
+                                score: event.target.value,
+                              },
+                            }))
+                          }
+                          className="mt-1 rounded-md border border-slate-300 px-3 py-2"
+                        />
+                      </label>
+
+                      <label className="flex items-center gap-2 text-sm text-slate-700 md:mt-6">
+                        <input
+                          type="checkbox"
+                          checked={draft.isCorrect}
+                          onChange={(event) =>
+                            setDraftGrades((prev) => ({
+                              ...prev,
+                              [item.examItemId]: {
+                                ...draft,
+                                isCorrect: event.target.checked,
+                              },
+                            }))
+                          }
+                        />
+                        Đánh dấu đúng
+                      </label>
+
+                      <div className="flex items-end">
+                        <button
+                          type="button"
+                          onClick={() => saveShortAnswerGrade(item.examItemId, item.points)}
+                          disabled={gradeMutation.isPending}
+                          className="w-full rounded-md bg-navy-600 px-3 py-2 text-sm font-semibold text-white hover:bg-navy-700 disabled:cursor-not-allowed disabled:bg-navy-300"
+                        >
+                          {gradeMutation.isPending ? "Đang lưu..." : "Lưu chấm điểm"}
+                        </button>
+                      </div>
+                    </div>
+
+                    <label className="mt-3 block text-sm text-slate-700">
+                      Nhận xét cho sinh viên
+                      <textarea
+                        value={draft.feedback}
+                        onChange={(event) =>
+                          setDraftGrades((prev) => ({
+                            ...prev,
+                            [item.examItemId]: {
+                              ...draft,
+                              feedback: event.target.value,
+                            },
+                          }))
+                        }
+                        rows={3}
+                        className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2"
+                        placeholder="Nhập nhận xét chấm điểm..."
+                      />
+                    </label>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         )}
 
@@ -390,6 +668,11 @@ function ItemCard({ item, index }: { item: SessionResultItem; index: number }) {
                 <p className="mt-1">
                   <span className="font-semibold text-green-700">Đáp án đúng:</span>{" "}
                   {item.correctAnswer}
+                </p>
+              )}
+              {item.reviewerFeedback && (
+                <p className="mt-1 text-indigo-800">
+                  <span className="font-semibold">Nhận xét giảng viên:</span> {item.reviewerFeedback}
                 </p>
               )}
             </div>
