@@ -20,6 +20,11 @@ export default function BoothCheckInPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [resultMessage, setResultMessage] = useState("");
+  const [attemptInfo, setAttemptInfo] = useState<{
+    attemptNumber?: number;
+    maxFailedAttemptsBeforeAllow?: number | null;
+    remainingAttempts?: number | null;
+  } | null>(null);
 
   const nextPath = useMemo(() => {
     if (bookingType === "PRACTICE") return "/practice";
@@ -52,22 +57,45 @@ export default function BoothCheckInPage() {
         verifierDeviceId: boothSessionManager.getMeta()?.boothCode,
       });
 
-      if (response.matched) {
+      setAttemptInfo({
+        attemptNumber: response.attemptNumber,
+        maxFailedAttemptsBeforeAllow: response.maxFailedAttemptsBeforeAllow,
+        remainingAttempts: response.remainingAttempts,
+      });
+
+      if (response.matched || response.fallbackApplied) {
         if (bookingType === "EXAM" || bookingType === "PRACTICE") {
           boothSessionManager.setBookingType(bookingType);
           boothSessionManager.setAccessMode("SCHEDULED");
         }
 
         if (bookingType === "EXAM" && accessToken) {
-          setResultMessage("Xác thực thành công. Đang mở bước khởi động trước bài thi...");
+          setResultMessage(
+            response.fallbackApplied
+              ? "Xác thực chưa đạt ngưỡng, nhưng hệ thống đã cho phép vào booth theo policy EXAM và lưu ảnh bằng chứng."
+              : "Xác thực thành công. Đang mở bước khởi động trước bài thi...",
+          );
           setTimeout(() => router.push("/exams/prepare"), 600);
         } else {
-          setResultMessage("Xác thực thành công. Đang chuyển vào phiên làm bài...");
+          setResultMessage(
+            response.fallbackApplied
+              ? "Xác thực chưa đạt ngưỡng, nhưng được phép vào booth theo policy."
+              : "Xác thực thành công. Đang chuyển vào phiên làm bài...",
+          );
           setTimeout(() => router.push(nextPath), 900);
         }
       } else {
+        const attemptsText =
+          response.attemptNumber && response.maxFailedAttemptsBeforeAllow
+            ? ` Lần ${response.attemptNumber}/${response.maxFailedAttemptsBeforeAllow}.`
+            : "";
+        const remainingText =
+          typeof response.remainingAttempts === "number"
+            ? ` Còn lại ${response.remainingAttempts} lần trước khi policy fallback áp dụng.`
+            : "";
+
         setError(
-          `Xác thực thất bại (similarity=${response.similarityScore.toFixed(4)}). Vui lòng thử lại.`,
+          `Xác thực thất bại (similarity=${response.similarityScore.toFixed(4)}).${attemptsText}${remainingText} Vui lòng thử lại.`,
         );
         resetAttempt();
       }
@@ -108,6 +136,15 @@ export default function BoothCheckInPage() {
             <p className="rounded-xl border border-cyan-200/40 bg-cyan-200/10 p-4 text-sm text-cyan-100">
               Nhìn thẳng camera, đảm bảo đủ sáng rồi bấm xác thực.
             </p>
+
+            {attemptInfo?.attemptNumber && (
+              <p className="text-sm text-slate-200">
+                Lần thử hiện tại: <span className="font-semibold">{attemptInfo.attemptNumber}</span>
+                {attemptInfo.maxFailedAttemptsBeforeAllow
+                  ? ` / ${attemptInfo.maxFailedAttemptsBeforeAllow}`
+                  : ""}
+              </p>
+            )}
 
             <button
               type="button"

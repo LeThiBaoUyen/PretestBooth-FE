@@ -1325,7 +1325,7 @@ export interface Booking {
   type: BookingType;
   checkedInAt: string | null;
   checkedOutAt: string | null;
-  checkinStatus?: "PENDING" | "PASSED" | "FAILED";
+  checkinStatus?: "PENDING" | "PASSED" | "FAILED" | "FAILED_BUT_ALLOWED";
   checkinSimilarityScore?: number | null;
   checkinThreshold?: number;
   checkinVerifiedAt?: string | null;
@@ -1440,8 +1440,9 @@ export interface LivenessPayload {
 
 export interface KycRegisterRequest {
   image: string;
+  studentCardImage: string;
   consentVersion: string;
-  liveness: LivenessPayload;
+  liveness?: LivenessPayload;
 }
 
 export interface KycRegisterResponse {
@@ -1451,11 +1452,17 @@ export interface KycRegisterResponse {
   embeddingModel: string;
   embeddingVersion: string;
   verifiedAt: string;
+  cardVerified: boolean;
+  cardFaceMatchScore: number;
+  cardThreshold: number;
+  studentCardImageUrl: string;
 }
 
 export interface KycStatusResponse {
   kycStatus: "NOT_STARTED" | "PENDING" | "VERIFIED" | "REJECTED";
   hasEmbedding: boolean;
+  cardVerified: boolean;
+  cardFaceMatchScore: number | null;
   kycRegisteredAt: string | null;
   kycVerifiedAt: string | null;
   kycLastAttemptAt: string | null;
@@ -1473,13 +1480,26 @@ export interface CheckinVerifyResponse {
   matched: boolean;
   similarityScore: number;
   threshold: number;
+  fallbackApplied?: boolean;
+  evidenceCaptured?: boolean;
+  attemptNumber?: number;
+  maxFailedAttemptsBeforeAllow?: number | null;
+  remainingAttempts?: number | null;
   reason?: string;
-  checkinStatus?: "PENDING" | "PASSED" | "FAILED";
+  checkinStatus?: "PENDING" | "PASSED" | "FAILED" | "FAILED_BUT_ALLOWED";
   bookingStatus?: BookingStatus;
   checkedInAt?: string | null;
 }
 
 export interface CheckinThresholdConfig {
+  key: string;
+  threshold: number;
+  source: "database" | "env" | "default";
+  updatedAt: string | null;
+  updatedByUserId?: string | null;
+}
+
+export interface KycCardThresholdConfig {
   key: string;
   threshold: number;
   source: "database" | "env" | "default";
@@ -1495,6 +1515,8 @@ export interface BoothPolicyConfig {
   warnBeforeNextExamMinutes: number;
   forceLogoutBeforeNextExamMinutes: number;
   noShowGraceMinutes: number;
+  enableExamFallbackAfterFailures: boolean;
+  maxFailedAttemptsBeforeAllow: number;
 }
 
 export interface BoothPolicyConfigResponse {
@@ -1508,6 +1530,10 @@ export interface BoothPolicyConfigResponse {
 export type UpdateBoothPolicyRequest = Partial<BoothPolicyConfig>;
 
 export interface UpdateCheckinThresholdRequest {
+  threshold: number;
+}
+
+export interface UpdateKycCardThresholdRequest {
   threshold: number;
 }
 

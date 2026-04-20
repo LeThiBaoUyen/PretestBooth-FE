@@ -2,8 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Save, ShieldAlert, Trash2, UserRound } from "lucide-react";
+import { RefreshCcw, Save, ShieldAlert, Trash2, UserRound } from "lucide-react";
 import { useAuth } from "@/lib/hooks";
+import { kycApi } from "@/lib/api/kyc";
 import { usersApi } from "@/lib/api/users";
 
 type ProfileForm = {
@@ -20,6 +21,7 @@ export default function DashboardProfilePage() {
   const [deleting, setDeleting] = useState(false);
   const [submitMessage, setSubmitMessage] = useState<string | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [kycStatus, setKycStatus] = useState<"NOT_STARTED" | "PENDING" | "VERIFIED" | "REJECTED" | null>(null);
   const [form, setForm] = useState<ProfileForm>({
     name: "",
     className: "",
@@ -48,6 +50,35 @@ export default function DashboardProfilePage() {
 
     fetchProfile();
   }, [user?.id]);
+
+  useEffect(() => {
+    const loadKycStatus = async () => {
+      if (!user || user.role !== "STUDENT") return;
+      try {
+        const status = await kycApi.getStatus();
+        setKycStatus(status.kycStatus);
+      } catch {
+        setKycStatus(null);
+      }
+    };
+
+    void loadKycStatus();
+  }, [user]);
+
+  const getKycStatusLabel = () => {
+    if (kycStatus === "VERIFIED") return "Đã xác minh";
+    if (kycStatus === "PENDING") return "Đang chờ xử lý";
+    if (kycStatus === "REJECTED") return "Cần xác thực lại";
+    if (kycStatus === "NOT_STARTED") return "Chưa xác thực";
+    return "Không xác định";
+  };
+
+  const getKycStatusClassName = () => {
+    if (kycStatus === "VERIFIED") return "bg-emerald-50 text-emerald-700 border-emerald-200";
+    if (kycStatus === "PENDING") return "bg-amber-50 text-amber-700 border-amber-200";
+    if (kycStatus === "REJECTED") return "bg-rose-50 text-rose-700 border-rose-200";
+    return "bg-slate-50 text-slate-700 border-slate-200";
+  };
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -195,6 +226,28 @@ export default function DashboardProfilePage() {
               </div>
             </div>
           </div>
+
+          {user.role === "STUDENT" && (
+            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+              <h2 className="text-lg font-bold text-slate-900">Xác thực KYC</h2>
+              <p className="mt-1 text-sm text-slate-600">
+                Bạn có thể chủ động xác thực lại khuôn mặt/thẻ sinh viên khi ảnh cũ không còn phù hợp.
+              </p>
+
+              <div className={`mt-3 inline-flex items-center rounded-lg border px-3 py-1.5 text-sm font-semibold ${getKycStatusClassName()}`}>
+                Trạng thái: {getKycStatusLabel()}
+              </div>
+
+              <button
+                type="button"
+                onClick={() => router.push("/dashboard/kyc")}
+                className="mt-4 inline-flex items-center rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50"
+              >
+                <RefreshCcw className="mr-2 h-4 w-4" />
+                Xác thực lại KYC
+              </button>
+            </div>
+          )}
 
           <div className="rounded-2xl border border-red-200 bg-red-50 p-5">
             <h2 className="inline-flex items-center gap-2 text-lg font-bold text-red-800">

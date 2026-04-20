@@ -35,6 +35,8 @@ const DEFAULT_BOOKING_POLICY: BoothPolicyConfig = {
   warnBeforeNextExamMinutes: 15,
   forceLogoutBeforeNextExamMinutes: 5,
   noShowGraceMinutes: 15,
+  enableExamFallbackAfterFailures: false,
+  maxFailedAttemptsBeforeAllow: 3,
 };
 
 function hasOverlap(startA: number, endA: number, startB: number, endB: number) {
@@ -64,6 +66,7 @@ export default function BookingPage() {
   const [loadingKyc, setLoadingKyc] = useState(true);
   const [kycStatus, setKycStatus] = useState<"NOT_STARTED" | "PENDING" | "VERIFIED" | "REJECTED">("NOT_STARTED");
   const [hasFaceEmbedding, setHasFaceEmbedding] = useState(false);
+  const [cardVerified, setCardVerified] = useState(false);
 
   useEffect(() => {
     const loadBookingPolicy = async () => {
@@ -218,9 +221,11 @@ export default function BookingPage() {
         const response = await kycApi.getStatus();
         setKycStatus(response.kycStatus);
         setHasFaceEmbedding(response.hasEmbedding);
+        setCardVerified(response.cardVerified);
       } catch {
         setKycStatus("NOT_STARTED");
         setHasFaceEmbedding(false);
+        setCardVerified(false);
       } finally {
         setLoadingKyc(false);
       }
@@ -229,7 +234,7 @@ export default function BookingPage() {
     fetchKycStatus();
   }, [user]);
 
-  const isKycVerified = kycStatus === "VERIFIED" && hasFaceEmbedding;
+  const isKycVerified = kycStatus === "VERIFIED" && hasFaceEmbedding && cardVerified;
   const safeSlots = Array.isArray(slots) ? slots : [];
   const safeDurationOptions = Array.isArray(durationOptions) ? durationOptions : [];
   const minSelectableDate = startOfDay(

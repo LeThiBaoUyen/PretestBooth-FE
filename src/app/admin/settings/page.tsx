@@ -7,6 +7,7 @@ import { bookingDurationsApi } from "@/lib/api/bookingDurations";
 import { boothPoliciesApi } from "@/lib/api/boothPolicies";
 import { checkinApi } from "@/lib/api/checkin";
 import { examsApiClient } from "@/lib/api/exams";
+import { kycApi } from "@/lib/api/kyc";
 import type {
   ExamListItem,
   BookingDurationOption,
@@ -14,6 +15,7 @@ import type {
   BoothPolicyConfig,
   BoothPolicyConfigResponse,
   CheckinThresholdConfig,
+  KycCardThresholdConfig,
   PretestAssignmentMode,
   PretestConfig,
   UpsertPretestConfigRequest,
@@ -39,6 +41,8 @@ interface BoothPolicyFormData {
   warnBeforeNextExamMinutes: string;
   forceLogoutBeforeNextExamMinutes: string;
   noShowGraceMinutes: string;
+  enableExamFallbackAfterFailures: boolean;
+  maxFailedAttemptsBeforeAllow: string;
 }
 
 const emptyDurationForm: DurationFormData = {
@@ -56,6 +60,8 @@ const emptyBoothPolicyForm: BoothPolicyFormData = {
   warnBeforeNextExamMinutes: "15",
   forceLogoutBeforeNextExamMinutes: "5",
   noShowGraceMinutes: "15",
+  enableExamFallbackAfterFailures: false,
+  maxFailedAttemptsBeforeAllow: "3",
 };
 
 function formatDateTime(value?: string | Date | null) {
@@ -86,6 +92,11 @@ export default function AdminSettingsPage() {
   const [thresholdInput, setThresholdInput] = useState("0.6");
   const [thresholdLoading, setThresholdLoading] = useState(true);
   const [thresholdSubmitting, setThresholdSubmitting] = useState(false);
+
+  const [kycCardThresholdConfig, setKycCardThresholdConfig] = useState<KycCardThresholdConfig | null>(null);
+  const [kycCardThresholdInput, setKycCardThresholdInput] = useState("0.75");
+  const [kycCardThresholdLoading, setKycCardThresholdLoading] = useState(true);
+  const [kycCardThresholdSubmitting, setKycCardThresholdSubmitting] = useState(false);
 
   const [boothPolicyConfig, setBoothPolicyConfig] = useState<BoothPolicyConfigResponse | null>(null);
   const [boothPolicyForm, setBoothPolicyForm] = useState<BoothPolicyFormData>(emptyBoothPolicyForm);
@@ -138,6 +149,8 @@ export default function AdminSettingsPage() {
       warnBeforeNextExamMinutes: String(config.warnBeforeNextExamMinutes),
       forceLogoutBeforeNextExamMinutes: String(config.forceLogoutBeforeNextExamMinutes),
       noShowGraceMinutes: String(config.noShowGraceMinutes),
+      enableExamFallbackAfterFailures: config.enableExamFallbackAfterFailures,
+      maxFailedAttemptsBeforeAllow: String(config.maxFailedAttemptsBeforeAllow),
     });
   };
 
@@ -166,6 +179,20 @@ export default function AdminSettingsPage() {
       setThresholdConfig(null);
     } finally {
       setThresholdLoading(false);
+    }
+  };
+
+  const loadKycCardThreshold = async () => {
+    try {
+      setKycCardThresholdLoading(true);
+      const threshold = await kycApi.getCardThreshold();
+      setKycCardThresholdConfig(threshold);
+      setKycCardThresholdInput(String(threshold.threshold));
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Không thể tải ngưỡng đối sánh thẻ sinh viên");
+      setKycCardThresholdConfig(null);
+    } finally {
+      setKycCardThresholdLoading(false);
     }
   };
 
@@ -271,6 +298,7 @@ export default function AdminSettingsPage() {
     if (canManageGeneralSettings) {
       void loadDurationOptions();
       void loadCheckinThreshold();
+      void loadKycCardThreshold();
       void loadBoothPolicy();
     }
 
@@ -391,6 +419,33 @@ export default function AdminSettingsPage() {
     }
   };
 
+  const saveKycCardThreshold = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+
+    if (!canManageGeneralSettings) {
+      setError("Bạn không có quyền thực hiện thao tác này");
+      return;
+    }
+
+    const threshold = Number(kycCardThresholdInput);
+    if (!Number.isFinite(threshold) || threshold < 0.5 || threshold > 0.99) {
+      setError("Ngưỡng đối sánh thẻ sinh viên phải nằm trong khoảng 0.5 - 0.99");
+      return;
+    }
+
+    try {
+      setKycCardThresholdSubmitting(true);
+      setError(null);
+      const saved = await kycApi.updateCardThreshold({ threshold });
+      setKycCardThresholdConfig(saved);
+      setKycCardThresholdInput(String(saved.threshold));
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Không thể cập nhật ngưỡng đối sánh thẻ sinh viên");
+    } finally {
+      setKycCardThresholdSubmitting(false);
+    }
+  };
+
   const saveBoothPolicy = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
@@ -405,6 +460,7 @@ export default function AdminSettingsPage() {
     const warnBeforeNextExamMinutes = Number(boothPolicyForm.warnBeforeNextExamMinutes);
     const forceLogoutBeforeNextExamMinutes = Number(boothPolicyForm.forceLogoutBeforeNextExamMinutes);
     const noShowGraceMinutes = Number(boothPolicyForm.noShowGraceMinutes);
+    const maxFailedAttemptsBeforeAllow = Number(boothPolicyForm.maxFailedAttemptsBeforeAllow);
 
     if (!Number.isInteger(bookingMinDaysInAdvance) || bookingMinDaysInAdvance < 0) {
       setError("Số ngày đặt trước tối thiểu phải là số nguyên >= 0");
@@ -453,6 +509,15 @@ export default function AdminSettingsPage() {
       return;
     }
 
+    if (
+      !Number.isInteger(maxFailedAttemptsBeforeAllow) ||
+      maxFailedAttemptsBeforeAllow < 1 ||
+      maxFailedAttemptsBeforeAllow > 10
+    ) {
+      setError("Số lần thất bại trước khi fallback phải là số nguyên trong khoảng 1 - 10");
+      return;
+    }
+
     try {
       setBoothPolicySubmitting(true);
       setError(null);
@@ -465,6 +530,8 @@ export default function AdminSettingsPage() {
         warnBeforeNextExamMinutes,
         forceLogoutBeforeNextExamMinutes,
         noShowGraceMinutes,
+        enableExamFallbackAfterFailures: boothPolicyForm.enableExamFallbackAfterFailures,
+        maxFailedAttemptsBeforeAllow,
       });
 
       setBoothPolicyConfig(saved);
@@ -705,6 +772,71 @@ export default function AdminSettingsPage() {
           <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
             <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
               <div>
+                <h2 className="text-lg font-semibold text-gray-900">Ngưỡng đối sánh thẻ sinh viên</h2>
+                <p className="text-sm text-gray-600">
+                  Áp dụng cho bước KYC giữa ảnh thẻ sinh viên và ảnh khuôn mặt live.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={loadKycCardThreshold}
+                className="inline-flex items-center rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
+              >
+                <RefreshCw className="mr-2 h-4 w-4" />
+                Làm mới ngưỡng
+              </button>
+            </div>
+
+            {kycCardThresholdLoading ? (
+              <div className="flex items-center gap-2 text-sm text-gray-600">
+                <Loader2 className="h-4 w-4 animate-spin" /> Đang tải ngưỡng đối sánh thẻ...
+              </div>
+            ) : (
+              <form onSubmit={saveKycCardThreshold} className="grid grid-cols-1 gap-3 md:grid-cols-5">
+                <input
+                  type="number"
+                  min={0.5}
+                  max={0.99}
+                  step={0.01}
+                  value={kycCardThresholdInput}
+                  onChange={(e) => setKycCardThresholdInput(e.target.value)}
+                  disabled={kycCardThresholdSubmitting}
+                  className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none disabled:bg-gray-100"
+                  placeholder="0.75"
+                />
+
+                <div className="md:col-span-3 rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-700">
+                  <p>
+                    Giá trị hiện tại:{" "}
+                    <span className="font-semibold">{kycCardThresholdConfig?.threshold ?? "-"}</span>
+                  </p>
+                  <p className="text-xs text-gray-500">
+                    Nguồn cấu hình: {kycCardThresholdConfig?.source ?? "-"} • Cập nhật lúc:{" "}
+                    {kycCardThresholdConfig?.updatedAt
+                      ? formatDateTime(kycCardThresholdConfig.updatedAt)
+                      : "-"}
+                  </p>
+                </div>
+
+                <div className="flex gap-2">
+                  <button
+                    type="submit"
+                    disabled={kycCardThresholdSubmitting}
+                    className="inline-flex items-center rounded-lg bg-navy-600 px-3 py-2 text-sm font-medium text-white hover:bg-navy-700 disabled:cursor-not-allowed disabled:bg-navy-300"
+                  >
+                    {kycCardThresholdSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    Lưu ngưỡng
+                  </button>
+                </div>
+              </form>
+            )}
+          </div>
+        )}
+
+        {canManageGeneralSettings && (
+          <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+              <div>
                 <h2 className="text-lg font-semibold text-gray-900">Booth Policy</h2>
                 <p className="text-sm text-gray-600">
                   Cấu hình chung cho cửa sổ đặt lịch và hành vi tận dụng booth đã kích hoạt.
@@ -852,7 +984,41 @@ export default function AdminSettingsPage() {
                       className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none disabled:bg-gray-100"
                     />
                   </label>
+
+                  <label className="space-y-1">
+                    <span className="text-xs font-semibold text-gray-600">Fallback sau số lần thất bại</span>
+                    <input
+                      type="number"
+                      min={1}
+                      max={10}
+                      step={1}
+                      value={boothPolicyForm.maxFailedAttemptsBeforeAllow}
+                      onChange={(e) =>
+                        setBoothPolicyForm((prev) => ({
+                          ...prev,
+                          maxFailedAttemptsBeforeAllow: e.target.value,
+                        }))
+                      }
+                      disabled={boothPolicySubmitting}
+                      className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none disabled:bg-gray-100"
+                    />
+                  </label>
                 </div>
+
+                <label className="inline-flex items-center gap-2 rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-700">
+                  <input
+                    type="checkbox"
+                    checked={boothPolicyForm.enableExamFallbackAfterFailures}
+                    onChange={(e) =>
+                      setBoothPolicyForm((prev) => ({
+                        ...prev,
+                        enableExamFallbackAfterFailures: e.target.checked,
+                      }))
+                    }
+                    disabled={boothPolicySubmitting}
+                  />
+                  Cho phép EXAM fallback vào booth sau khi vượt số lần xác thực thất bại
+                </label>
 
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <p className="text-xs text-gray-500">

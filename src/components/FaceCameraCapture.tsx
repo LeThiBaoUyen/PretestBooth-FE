@@ -56,7 +56,8 @@ export default function FaceCameraCapture({
             audio={false}
             ref={webcamRef}
             screenshotFormat="image/jpeg"
-            videoConstraints={{ facingMode: "user" }}
+            screenshotQuality={0.75}
+            videoConstraints={{ facingMode: "user", width: { ideal: 1280 }, height: { ideal: 720 } }}
             className="h-64 w-full object-cover"
           />
         )}

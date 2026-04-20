@@ -1,18 +1,47 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { type ChangeEvent, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
-import { CheckCircle2, ShieldAlert } from "lucide-react";
+import { CheckCircle2, Upload } from "lucide-react";
 import FaceCameraCapture from "@/components/FaceCameraCapture";
 import { kycApi } from "@/lib/api/kyc";
 import type { KycStatusResponse } from "@/lib/api/types";
 import { useAuth } from "@/lib/hooks/useAuth";
 
-const LIVENESS_ACTIONS: Array<"BLINK" | "SMILE"> = ["BLINK", "SMILE"];
+async function compressImageDataUrl(
+  inputDataUrl: string,
+  options?: { maxWidth?: number; maxHeight?: number; quality?: number },
+): Promise<string> {
+  const maxWidth = options?.maxWidth ?? 1280;
+  const maxHeight = options?.maxHeight ?? 1280;
+  const quality = options?.quality ?? 0.75;
 
-function getActionLabel(action: "BLINK" | "SMILE") {
-  return action === "BLINK" ? "Nháy mắt" : "Mỉm cười";
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+
+    img.onload = () => {
+      const ratio = Math.min(maxWidth / img.width, maxHeight / img.height, 1);
+      const width = Math.max(1, Math.round(img.width * ratio));
+      const height = Math.max(1, Math.round(img.height * ratio));
+
+      const canvas = document.createElement("canvas");
+      canvas.width = width;
+      canvas.height = height;
+
+      const ctx = canvas.getContext("2d");
+      if (!ctx) {
+        reject(new Error("Không thể xử lý ảnh."));
+        return;
+      }
+
+      ctx.drawImage(img, 0, 0, width, height);
+      resolve(canvas.toDataURL("image/jpeg", quality));
+    };
+
+    img.onerror = () => reject(new Error("Không thể đọc dữ liệu ảnh."));
+    img.src = inputDataUrl;
+  });
 }
 
 export default function KycPage() {
@@ -23,17 +52,12 @@ export default function KycPage() {
   const [status, setStatus] = useState<KycStatusResponse | null>(null);
   const [loadingStatus, setLoadingStatus] = useState(true);
   const [consentAccepted, setConsentAccepted] = useState(false);
-  const [livenessPassed, setLivenessPassed] = useState(false);
-  const [challengeAction, setChallengeAction] = useState<"BLINK" | "SMILE">("BLINK");
-  const [image, setImage] = useState<string | null>(null);
+  const [studentCardImage, setStudentCardImage] = useState<string | null>(null);
+  const [studentCardCaptureMode, setStudentCardCaptureMode] = useState<"camera" | "upload">("upload");
+  const [faceImage, setFaceImage] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState<string>("");
   const [error, setError] = useState<string>("");
-
-  useEffect(() => {
-    const randomAction = LIVENESS_ACTIONS[Math.floor(Math.random() * LIVENESS_ACTIONS.length)];
-    setChallengeAction(randomAction);
-  }, []);
 
   useEffect(() => {
     if (userLoading) return;
@@ -55,17 +79,47 @@ export default function KycPage() {
   }, [user, userLoading]);
 
   const alreadyVerified = useMemo(
-    () => status?.kycStatus === "VERIFIED" && status?.hasEmbedding,
+    () => status?.kycStatus === "VERIFIED" && status?.hasEmbedding && status?.cardVerified,
     [status],
   );
 
-  const resetChallenge = () => {
-    const randomAction = LIVENESS_ACTIONS[Math.floor(Math.random() * LIVENESS_ACTIONS.length)];
-    setChallengeAction(randomAction);
-    setLivenessPassed(false);
-    setImage(null);
+  const resetForm = () => {
+    setStudentCardImage(null);
+    setFaceImage(null);
     setMessage("");
     setError("");
+  };
+
+  const onSelectStudentCardFile = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      setError("Vui lòng chọn file ảnh hợp lệ cho thẻ sinh viên.");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = async () => {
+      const dataUrl = typeof reader.result === "string" ? reader.result : null;
+      if (!dataUrl) {
+        setError("Không thể đọc file ảnh thẻ sinh viên.");
+        return;
+      }
+
+      try {
+        const compressed = await compressImageDataUrl(dataUrl, {
+          maxWidth: 1280,
+          maxHeight: 1280,
+          quality: 0.75,
+        });
+        setStudentCardImage(compressed);
+        setError("");
+      } catch {
+        setError("Không thể xử lý file ảnh thẻ sinh viên.");
+      }
+    };
+    reader.readAsDataURL(file);
   };
 
   const submitKyc = async () => {
@@ -74,12 +128,12 @@ export default function KycPage() {
       return;
     }
 
-    if (!livenessPassed) {
-      setError("Vui lòng hoàn thành bước liveness trước khi gửi KYC.");
+    if (!studentCardImage) {
+      setError("Vui lòng cung cấp ảnh thẻ sinh viên (chụp hoặc upload) trước khi gửi KYC.");
       return;
     }
 
-    if (!image) {
+    if (!faceImage) {
       setError("Vui lòng chụp ảnh khuôn mặt trước khi gửi KYC.");
       return;
     }
@@ -87,14 +141,24 @@ export default function KycPage() {
     try {
       setSubmitting(true);
       setError("");
+
+      const [compressedFaceImage, compressedStudentCardImage] = await Promise.all([
+        compressImageDataUrl(faceImage, {
+          maxWidth: 960,
+          maxHeight: 960,
+          quality: 0.65,
+        }),
+        compressImageDataUrl(studentCardImage, {
+          maxWidth: 960,
+          maxHeight: 960,
+          quality: 0.65,
+        }),
+      ]);
+
       await kycApi.register({
-        image,
-        consentVersion: "v1.0",
-        liveness: {
-          action: challengeAction,
-          passed: true,
-          confidence: 0.95,
-        },
+        image: compressedFaceImage,
+        studentCardImage: compressedStudentCardImage,
+        consentVersion: "v2.0",
       });
 
       const nextStatus = await kycApi.getStatus();
@@ -152,18 +216,69 @@ export default function KycPage() {
           ) : (
             <section className="grid gap-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm lg:grid-cols-2">
               <div className="space-y-4">
-                <h2 className="text-lg font-semibold text-slate-900">Bước 1: Mock Liveness</h2>
-                <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
-                  <div className="flex items-start gap-2">
-                    <ShieldAlert className="mt-0.5 h-5 w-5" />
-                    <div>
-                      <p className="font-semibold">Yêu cầu thao tác: {getActionLabel(challengeAction)}</p>
-                      <p className="mt-1">Hoàn tất thao tác trước camera rồi nhấn xác nhận.</p>
-                    </div>
-                  </div>
+                <h2 className="text-lg font-semibold text-slate-900">Bước 1: Cung cấp ảnh thẻ sinh viên</h2>
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
+                  Tải ảnh thẻ sinh viên hoặc chụp trực tiếp bằng camera. Hệ thống sẽ đối sánh ảnh thẻ
+                  với ảnh khuôn mặt ở bước kế tiếp.
                 </div>
 
                 <div className="space-y-3 rounded-xl border border-slate-200 p-4">
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setStudentCardCaptureMode("upload")}
+                      className={`rounded-lg px-3 py-2 text-sm font-semibold ${
+                        studentCardCaptureMode === "upload"
+                          ? "bg-navy-600 text-white"
+                          : "border border-slate-300 text-slate-700 hover:bg-slate-50"
+                      }`}
+                    >
+                      Upload file
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setStudentCardCaptureMode("camera")}
+                      className={`rounded-lg px-3 py-2 text-sm font-semibold ${
+                        studentCardCaptureMode === "camera"
+                          ? "bg-navy-600 text-white"
+                          : "border border-slate-300 text-slate-700 hover:bg-slate-50"
+                      }`}
+                    >
+                      Chụp bằng camera
+                    </button>
+                  </div>
+
+                  {studentCardCaptureMode === "upload" ? (
+                    <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-dashed border-slate-300 px-3 py-3 text-sm text-slate-700 hover:bg-slate-50">
+                      <Upload className="h-4 w-4" />
+                      <span>Chọn ảnh thẻ sinh viên (JPG/PNG)</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={onSelectStudentCardFile}
+                        className="hidden"
+                        disabled={submitting}
+                      />
+                    </label>
+                  ) : (
+                    <FaceCameraCapture
+                      image={studentCardImage}
+                      onImageChange={setStudentCardImage}
+                      disabled={submitting}
+                      captureLabel="Chụp ảnh thẻ sinh viên"
+                    />
+                  )}
+
+                  {studentCardImage && studentCardCaptureMode === "upload" && (
+                    <div className="rounded-lg border border-slate-200 bg-white p-2">
+                      <img
+                        src={studentCardImage}
+                        alt="Student card preview"
+                        className="max-h-56 w-full rounded object-contain"
+                      />
+                    </div>
+                  )}
+
                   <label className="flex items-start gap-3 text-sm text-slate-700">
                     <input
                       type="checkbox"
@@ -176,23 +291,16 @@ export default function KycPage() {
                       và check-in booth.
                     </span>
                   </label>
-
-                  <button
-                    type="button"
-                    onClick={() => setLivenessPassed(true)}
-                    className="rounded-lg border border-navy-300 px-4 py-2 text-sm font-semibold text-navy-700 hover:bg-navy-50"
-                  >
-                    Tôi đã hoàn thành thao tác {getActionLabel(challengeAction)}
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={resetChallenge}
-                    className="ml-3 rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
-                  >
-                    Tạo thử thách mới
-                  </button>
                 </div>
+
+                <button
+                  type="button"
+                  onClick={resetForm}
+                  disabled={submitting}
+                  className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+                >
+                  Làm mới dữ liệu ảnh
+                </button>
 
                 <button
                   type="button"
@@ -219,8 +327,8 @@ export default function KycPage() {
               <div>
                 <h2 className="mb-3 text-lg font-semibold text-slate-900">Bước 2: Chụp khuôn mặt</h2>
                 <FaceCameraCapture
-                  image={image}
-                  onImageChange={setImage}
+                  image={faceImage}
+                  onImageChange={setFaceImage}
                   disabled={submitting}
                   captureLabel="Chụp ảnh KYC"
                 />
