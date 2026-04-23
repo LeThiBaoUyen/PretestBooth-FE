@@ -1,5 +1,11 @@
 import { httpClient } from "./httpClient";
-import type { Booth, BoothStatus, BoothStatusLog } from "./types";
+import type {
+  Booth,
+  BoothStatus,
+  BoothStatusLog,
+  TransferBoothBookingsRequest,
+  TransferBoothBookingsResponse,
+} from "./types";
 import type { GenerateBoothActivationOtpResponse } from "./types";
 import type { ForceBoothLogoutResponse, MonitorReasonRequest } from "./types";
 import { normalizeArray } from "./response";
@@ -42,6 +48,9 @@ export const boothsApi = {
 
   forceLogoutBooth: (id: string, data: MonitorReasonRequest) =>
     httpClient.post<ForceBoothLogoutResponse>(`/api/booths/${id}/force-logout`, data),
+
+  transferBoothBookings: (id: string, data: TransferBoothBookingsRequest) =>
+    httpClient.post<TransferBoothBookingsResponse>(`/api/booths/${id}/transfer-bookings`, data),
 
   deleteBooth: (id: string) => httpClient.delete<{ message: string }>(`/api/booths/${id}`),
 };

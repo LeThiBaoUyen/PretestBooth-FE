@@ -4,14 +4,17 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
+  AlertTriangle,
   ArrowRightLeft,
   ArrowUpRight,
+  CheckSquare,
   KeyRound,
   Loader2,
   Pencil,
   Plus,
   RefreshCw,
   Save,
+  Square,
   Trash2,
 } from "lucide-react";
 import { boothsApi } from "@/lib/api/booths";
@@ -21,11 +24,12 @@ import type {
   Booth,
   BoothStatus,
   BoothStatusLog,
+  TransferBoothBookingsDryRunResponse,
 } from "@/lib/api/types";
 import type { BoothNotificationEvent, BoothStatusUpdatedEvent, BookingRealtimeEvent } from "@/lib/api/types";
 import { realtimeClient } from "@/lib/realtime/socketClient";
 
-const STATUS_OPTIONS: BoothStatus[] = ["ACTIVE", "MAINTENANCE", "INACTIVE"];
+const STATUS_OPTIONS: BoothStatus[] = ["ACTIVE", "MAINTENANCE_PENDING", "MAINTENANCE", "INACTIVE"];
 
 interface BoothFormData {
   name: string;
@@ -52,6 +56,18 @@ interface OtpModalState {
   submitting: boolean;
 }
 
+interface TransferModalState {
+  isOpen: boolean;
+  booth: Booth | null;
+  targetBoothId: string;
+  reason: string;
+  includeCheckedIn: boolean;
+  dryRunning: boolean;
+  submitting: boolean;
+  preview: TransferBoothBookingsDryRunResponse | null;
+  selectedBookingIds: string[];
+}
+
 const emptyForm: BoothFormData = {
   name: "",
   code: "",
@@ -61,12 +77,14 @@ const emptyForm: BoothFormData = {
 
 const statusLabel: Record<BoothStatus, string> = {
   ACTIVE: "Sẵn sàng",
+  MAINTENANCE_PENDING: "Sự cố - chờ điều phối",
   MAINTENANCE: "Bảo trì",
   INACTIVE: "Ngưng hoạt động",
 };
 
 const statusColor: Record<BoothStatus, string> = {
   ACTIVE: "bg-cyan-100 text-cyan-700",
+  MAINTENANCE_PENDING: "bg-rose-100 text-rose-700",
   MAINTENANCE: "bg-amber-100 text-amber-700",
   INACTIVE: "bg-slate-200 text-slate-700",
 };
@@ -131,6 +149,17 @@ export default function BoothsManagementPage() {
   });
   const [realtimeMessage, setRealtimeMessage] = useState<string | null>(null);
   const [quickActivatingBoothId, setQuickActivatingBoothId] = useState<string | null>(null);
+  const [transferModal, setTransferModal] = useState<TransferModalState>({
+    isOpen: false,
+    booth: null,
+    targetBoothId: "",
+    reason: "",
+    includeCheckedIn: true,
+    dryRunning: false,
+    submitting: false,
+    preview: null,
+    selectedBookingIds: [],
+  });
 
   const selectedBooth = useMemo(
     () => booths.find((booth) => booth.id === selectedBoothId) ?? null,
@@ -139,6 +168,11 @@ export default function BoothsManagementPage() {
 
   const canViewPage = hasPermission(user, "MANAGE_BOOTHS");
   const canManageBooths = canViewPage;
+
+  const transferTargetBooths = useMemo(() => {
+    if (!transferModal.booth) return [];
+    return booths.filter((booth) => booth.id !== transferModal.booth?.id && booth.status === "ACTIVE");
+  }, [booths, transferModal.booth]);
 
   const loadBooths = async () => {
     try {
@@ -446,6 +480,133 @@ export default function BoothsManagementPage() {
     }
   };
 
+  const openTransferModal = (booth: Booth) => {
+    const firstTargetId = booths.find((item) => item.id !== booth.id && item.status === "ACTIVE")?.id || "";
+    setTransferModal({
+      isOpen: true,
+      booth,
+      targetBoothId: firstTargetId,
+      reason: "",
+      includeCheckedIn: true,
+      dryRunning: false,
+      submitting: false,
+      preview: null,
+      selectedBookingIds: [],
+    });
+  };
+
+  const closeTransferModal = () => {
+    if (transferModal.dryRunning || transferModal.submitting) return;
+    setTransferModal({
+      isOpen: false,
+      booth: null,
+      targetBoothId: "",
+      reason: "",
+      includeCheckedIn: true,
+      dryRunning: false,
+      submitting: false,
+      preview: null,
+      selectedBookingIds: [],
+    });
+  };
+
+  const runTransferPreview = async () => {
+    if (!canManageBooths) {
+      setError("Bạn không có quyền thực hiện thao tác này");
+      return;
+    }
+
+    if (!transferModal.booth) return;
+    if (!transferModal.targetBoothId) {
+      setError("Vui lòng chọn booth đích");
+      return;
+    }
+    const reason = transferModal.reason.trim();
+    if (reason.length < 3) {
+      setError("Lý do chuyển booth phải tối thiểu 3 ký tự");
+      return;
+    }
+
+    try {
+      setError(null);
+      setTransferModal((prev) => ({ ...prev, dryRunning: true }));
+      const previewResult = await boothsApi.transferBoothBookings(transferModal.booth.id, {
+        targetBoothId: transferModal.targetBoothId,
+        reason,
+        dryRun: true,
+        includeCheckedIn: transferModal.includeCheckedIn,
+      });
+
+      if (previewResult.dryRun) {
+        setTransferModal((prev) => ({
+          ...prev,
+          dryRunning: false,
+          preview: previewResult,
+          selectedBookingIds: previewResult.transferableBookingIds,
+        }));
+      } else {
+        setTransferModal((prev) => ({ ...prev, dryRunning: false }));
+        setError("Kết quả preview không hợp lệ, vui lòng thử lại");
+      }
+    } catch (err: unknown) {
+      setTransferModal((prev) => ({ ...prev, dryRunning: false }));
+      setError(err instanceof Error ? err.message : "Không thể phân tích trước khi chuyển");
+    }
+  };
+
+  const toggleSelectedBooking = (bookingId: string) => {
+    setTransferModal((prev) => ({
+      ...prev,
+      selectedBookingIds: prev.selectedBookingIds.includes(bookingId)
+        ? prev.selectedBookingIds.filter((id) => id !== bookingId)
+        : [...prev.selectedBookingIds, bookingId],
+    }));
+  };
+
+  const executeTransfer = async () => {
+    if (!canManageBooths) {
+      setError("Bạn không có quyền thực hiện thao tác này");
+      return;
+    }
+    if (!transferModal.booth) return;
+
+    const reason = transferModal.reason.trim();
+    if (!transferModal.targetBoothId || reason.length < 3) {
+      setError("Vui lòng chọn booth đích và nhập lý do hợp lệ");
+      return;
+    }
+
+    if (transferModal.preview && transferModal.selectedBookingIds.length === 0) {
+      setError("Vui lòng chọn ít nhất một booking để chuyển");
+      return;
+    }
+
+    try {
+      setError(null);
+      setTransferModal((prev) => ({ ...prev, submitting: true }));
+      const result = await boothsApi.transferBoothBookings(transferModal.booth.id, {
+        targetBoothId: transferModal.targetBoothId,
+        reason,
+        dryRun: false,
+        includeCheckedIn: transferModal.includeCheckedIn,
+        bookingIds: transferModal.preview ? transferModal.selectedBookingIds : undefined,
+      });
+
+      if (result.dryRun) {
+        setTransferModal((prev) => ({ ...prev, submitting: false }));
+        setError("Hệ thống trả về chế độ preview khi đang chuyển thật. Vui lòng thử lại");
+        return;
+      }
+
+      await loadBooths();
+      await loadLogs(transferModal.booth.id);
+      closeTransferModal();
+    } catch (err: unknown) {
+      setTransferModal((prev) => ({ ...prev, submitting: false }));
+      setError(err instanceof Error ? err.message : "Không thể chuyển booking sang booth khác");
+    }
+  };
+
   const activateBoothShortcut = async (booth: Booth) => {
     if (!canManageBooths) {
       setError("Bạn không có quyền thực hiện thao tác này");
@@ -720,6 +881,15 @@ export default function BoothsManagementPage() {
                           </button>
                           <button
                             type="button"
+                            onClick={() => openTransferModal(booth)}
+                            disabled={booth.status === "INACTIVE"}
+                            className="inline-flex items-center rounded-lg border border-rose-200 px-2.5 py-1.5 text-xs font-medium text-rose-700 hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-60"
+                          >
+                            <ArrowRightLeft className="mr-1 h-3.5 w-3.5" />
+                            Điều phối chuyển booth
+                          </button>
+                          <button
+                            type="button"
                             onClick={() => activateBoothShortcut(booth)}
                             disabled={quickActivatingBoothId === booth.id}
                             className="inline-flex items-center rounded-lg border border-emerald-200 px-2.5 py-1.5 text-xs font-medium text-emerald-700 hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-60"
@@ -925,6 +1095,198 @@ export default function BoothsManagementPage() {
               >
                 {otpModal.submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Tạo OTP mới
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {transferModal.isOpen && transferModal.booth && canManageBooths && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-3xl rounded-xl bg-white p-6 shadow-xl">
+            <h3 className="text-lg font-semibold text-gray-900">Điều phối chuyển booking booth sự cố</h3>
+            <p className="mt-1 text-sm text-gray-600">
+              Nguồn: <span className="font-medium">{transferModal.booth.name}</span>
+            </p>
+
+            <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-700">Booth đích (ACTIVE)</label>
+                <select
+                  value={transferModal.targetBoothId}
+                  onChange={(e) =>
+                    setTransferModal((prev) => ({
+                      ...prev,
+                      targetBoothId: e.target.value,
+                      preview: null,
+                      selectedBookingIds: [],
+                    }))
+                  }
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none"
+                >
+                  <option value="">-- Chọn booth đích --</option>
+                  {transferTargetBooths.map((booth) => (
+                    <option key={booth.id} value={booth.id}>
+                      {booth.name} {booth.code ? `(${booth.code})` : ""}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="flex items-end">
+                <label className="inline-flex items-center gap-2 rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-700">
+                  <input
+                    type="checkbox"
+                    checked={transferModal.includeCheckedIn}
+                    onChange={(e) =>
+                      setTransferModal((prev) => ({
+                        ...prev,
+                        includeCheckedIn: e.target.checked,
+                        preview: null,
+                        selectedBookingIds: [],
+                      }))
+                    }
+                  />
+                  Bao gồm booking CHECKED_IN
+                </label>
+              </div>
+            </div>
+
+            <div className="mt-4">
+              <label className="mb-1 block text-sm font-medium text-gray-700">Lý do điều phối</label>
+              <textarea
+                value={transferModal.reason}
+                onChange={(e) =>
+                  setTransferModal((prev) => ({ ...prev, reason: e.target.value, preview: null }))
+                }
+                rows={3}
+                placeholder="Ví dụ: Booth mất điện đột xuất, cần chuyển lịch sang booth khác"
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none"
+              />
+            </div>
+
+            <div className="mt-4 flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={runTransferPreview}
+                disabled={transferModal.dryRunning || transferModal.submitting || transferTargetBooths.length === 0}
+                className="inline-flex items-center rounded-lg border border-indigo-200 px-3 py-2 text-sm font-medium text-indigo-700 hover:bg-indigo-50 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {transferModal.dryRunning && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Phân tích trước (dry-run)
+              </button>
+
+              {transferTargetBooths.length === 0 && (
+                <span className="text-xs text-rose-600">Không có booth ACTIVE khả dụng để điều phối</span>
+              )}
+            </div>
+
+            {transferModal.preview && (
+              <div className="mt-4 rounded-lg border border-gray-200 bg-gray-50 p-4">
+                <div className="grid grid-cols-2 gap-3 text-sm md:grid-cols-4">
+                  <div>
+                    <p className="text-gray-500">Ứng viên</p>
+                    <p className="font-semibold text-gray-900">{transferModal.preview.totalCandidates}</p>
+                  </div>
+                  <div>
+                    <p className="text-gray-500">Có thể chuyển</p>
+                    <p className="font-semibold text-emerald-700">{transferModal.preview.transferableCount}</p>
+                  </div>
+                  <div>
+                    <p className="text-gray-500">Conflict</p>
+                    <p className="font-semibold text-rose-700">{transferModal.preview.conflictCount}</p>
+                  </div>
+                  <div>
+                    <p className="text-gray-500">Đã chọn</p>
+                    <p className="font-semibold text-navy-700">{transferModal.selectedBookingIds.length}</p>
+                  </div>
+                </div>
+
+                {transferModal.preview.transferableBookingIds.length > 0 && (
+                  <div className="mt-4">
+                    <div className="mb-2 flex items-center justify-between">
+                      <p className="text-sm font-medium text-gray-900">Danh sách booking có thể chuyển</p>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setTransferModal((prev) => ({
+                            ...prev,
+                            selectedBookingIds:
+                              prev.selectedBookingIds.length === prev.preview?.transferableBookingIds.length
+                                ? []
+                                : prev.preview?.transferableBookingIds || [],
+                          }))
+                        }
+                        className="inline-flex items-center gap-1 text-xs font-medium text-indigo-700 hover:text-indigo-900"
+                      >
+                        {transferModal.selectedBookingIds.length === transferModal.preview.transferableBookingIds.length ? (
+                          <Square className="h-3.5 w-3.5" />
+                        ) : (
+                          <CheckSquare className="h-3.5 w-3.5" />
+                        )}
+                        Chọn/Bỏ chọn tất cả
+                      </button>
+                    </div>
+                    <div className="max-h-52 space-y-2 overflow-y-auto pr-1">
+                      {transferModal.preview.transferableBookingIds.map((bookingId) => (
+                        <label
+                          key={bookingId}
+                          className="flex cursor-pointer items-center justify-between rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm"
+                        >
+                          <span className="truncate font-mono text-xs text-gray-700">{bookingId}</span>
+                          <input
+                            type="checkbox"
+                            checked={transferModal.selectedBookingIds.includes(bookingId)}
+                            onChange={() => toggleSelectedBooking(bookingId)}
+                          />
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {transferModal.preview.conflicts.length > 0 && (
+                  <div className="mt-4">
+                    <p className="mb-2 text-sm font-medium text-rose-800">Booking bị conflict</p>
+                    <div className="max-h-44 space-y-2 overflow-y-auto pr-1">
+                      {transferModal.preview.conflicts.map((conflict) => (
+                        <div
+                          key={conflict.bookingId}
+                          className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2"
+                        >
+                          <p className="font-mono text-xs text-rose-800">{conflict.bookingId}</p>
+                          <p className="mt-1 text-xs text-rose-700">{conflict.reason}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            <div className="mt-5 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={closeTransferModal}
+                disabled={transferModal.dryRunning || transferModal.submitting}
+                className="rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                Hủy
+              </button>
+              <button
+                type="button"
+                onClick={executeTransfer}
+                disabled={
+                  transferModal.dryRunning ||
+                  transferModal.submitting ||
+                  !transferModal.targetBoothId ||
+                  transferModal.reason.trim().length < 3
+                }
+                className="inline-flex items-center rounded-lg bg-rose-600 px-3 py-2 text-sm font-medium text-white hover:bg-rose-700 disabled:cursor-not-allowed disabled:bg-rose-300"
+              >
+                {transferModal.submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                <AlertTriangle className="mr-2 h-4 w-4" />
+                Xác nhận chuyển booking
               </button>
             </div>
           </div>

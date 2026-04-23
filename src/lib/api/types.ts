@@ -102,7 +102,7 @@ export interface BoothSessionStatusResponse {
     id: string;
     code: string;
     name: string;
-    status: "ACTIVE" | "MAINTENANCE" | "INACTIVE";
+    status: "ACTIVE" | "MAINTENANCE_PENDING" | "MAINTENANCE" | "INACTIVE";
   };
   sessionActivatedAt?: string | null;
   sessionActivatedAtLocal?: string | null;
@@ -1278,7 +1278,48 @@ export interface QuerySubmissionTestMembersParams {
 // ==================== NEW MODULES (PHASE 1) ====================
 
 // Booths
-export type BoothStatus = "ACTIVE" | "MAINTENANCE" | "INACTIVE";
+export type BoothStatus = "ACTIVE" | "MAINTENANCE_PENDING" | "MAINTENANCE" | "INACTIVE";
+
+export interface TransferBoothBookingsRequest {
+  targetBoothId: string;
+  reason: string;
+  dryRun?: boolean;
+  includeCheckedIn?: boolean;
+  bookingIds?: string[];
+}
+
+export interface TransferBoothBookingsConflict {
+  bookingId: string;
+  reason: string;
+}
+
+export interface TransferBoothBookingsDryRunResponse {
+  sourceBoothId: string;
+  targetBoothId: string;
+  dryRun: true;
+  totalCandidates: number;
+  transferableCount: number;
+  conflictCount: number;
+  transferableBookingIds: string[];
+  conflicts: TransferBoothBookingsConflict[];
+  includeCheckedIn: boolean;
+}
+
+export interface TransferBoothBookingsExecuteResponse {
+  sourceBoothId: string;
+  targetBoothId: string;
+  dryRun: false;
+  totalCandidates: number;
+  transferredCount: number;
+  skippedCount: number;
+  transferredBookingIds: string[];
+  skipped: TransferBoothBookingsConflict[];
+  sourceBoothStatusAfterTransfer: BoothStatus;
+}
+
+export type TransferBoothBookingsResponse =
+  | TransferBoothBookingsDryRunResponse
+  | TransferBoothBookingsExecuteResponse;
 
 export interface BoothStatusLog {
   id: string;
@@ -1389,6 +1430,7 @@ export interface MonitoringUpdatedEvent {
   action:
     | "CHECKIN"
     | "CHECKOUT"
+    | "TRANSFER_BOOKING"
     | "FORCE_CHECKOUT"
     | "FORCE_LOGOUT_BOOTH"
     | "START"
