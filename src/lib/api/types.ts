@@ -7,6 +7,7 @@ export type LecturerPermission =
   | "MANAGE_STUDENTS"
   | "MANAGE_BOOTHS"
   | "MONITOR_SESSIONS"
+  | "APPROVE_KYC"
   | "LECTURER_ADMIN";
 
 export interface User {
@@ -1456,10 +1457,16 @@ export interface KycRegisterResponse {
   cardFaceMatchScore: number;
   cardThreshold: number;
   studentCardImageUrl: string;
+  faceImageUrl: string;
 }
 
 export interface KycStatusResponse {
   kycStatus: "NOT_STARTED" | "PENDING" | "VERIFIED" | "REJECTED";
+  kycManualReviewStatus: "NOT_REQUESTED" | "PENDING" | "APPROVED" | "REJECTED";
+  kycManualReviewRequestedAt: string | null;
+  kycManualReviewReviewedAt: string | null;
+  kycManualReviewRejectionReason: string | null;
+  kycManualReviewNotes: string | null;
   hasEmbedding: boolean;
   cardVerified: boolean;
   cardFaceMatchScore: number | null;
@@ -1467,6 +1474,76 @@ export interface KycStatusResponse {
   kycVerifiedAt: string | null;
   kycLastAttemptAt: string | null;
   faceEmbeddingUpdatedAt: string | null;
+}
+
+export interface RequestKycManualReviewRequest {
+  reason?: string;
+}
+
+export interface RequestKycManualReviewResponse {
+  kycStatus: "NOT_STARTED" | "PENDING" | "VERIFIED" | "REJECTED";
+  kycManualReviewStatus: "NOT_REQUESTED" | "PENDING" | "APPROVED" | "REJECTED";
+  requestedAt: string | null;
+  message: string;
+}
+
+export interface QueryKycManualReviewRequest {
+  page?: number;
+  limit?: number;
+  search?: string;
+  sortOrder?: "asc" | "desc";
+}
+
+export interface KycManualReviewItem {
+  id: string;
+  email: string;
+  name: string | null;
+  studentCode: string | null;
+  className: string | null;
+  kycStatus: "NOT_STARTED" | "PENDING" | "VERIFIED" | "REJECTED";
+  kycLastAttemptAt: string | null;
+  kycFaceImageUrl: string | null;
+  studentCardImageUrl: string | null;
+  studentCardFaceMatchScore: number | null;
+  kycManualReviewStatus: "NOT_REQUESTED" | "PENDING" | "APPROVED" | "REJECTED";
+  kycManualReviewRequestedAt: string | null;
+  kycManualReviewRequestedReason: string | null;
+}
+
+export interface KycManualReviewListResponse {
+  data: KycManualReviewItem[];
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+}
+
+export interface KycManualReviewDetail extends KycManualReviewItem {
+  kycRegisteredAt: string | null;
+  kycVerifiedAt: string | null;
+  kycManualReviewReviewedAt: string | null;
+  kycManualReviewedByUserId: string | null;
+  kycManualReviewRejectionReason: string | null;
+  kycManualReviewNotes: string | null;
+}
+
+export interface ApproveKycManualReviewRequest {
+  notes?: string;
+}
+
+export interface RejectKycManualReviewRequest {
+  reason: string;
+  notes?: string;
+}
+
+export interface ManualReviewDecisionResponse {
+  message: string;
+  id: string;
+  kycStatus: "NOT_STARTED" | "PENDING" | "VERIFIED" | "REJECTED";
+  kycManualReviewStatus: "NOT_REQUESTED" | "PENDING" | "APPROVED" | "REJECTED";
+  kycManualReviewReviewedAt: string | null;
+  kycManualReviewedByUserId: string | null;
+  kycManualReviewRejectionReason?: string | null;
 }
 
 export interface CheckinVerifyRequest {

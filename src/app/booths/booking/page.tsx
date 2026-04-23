@@ -65,6 +65,9 @@ export default function BookingPage() {
   const [success, setSuccess] = useState(false);
   const [loadingKyc, setLoadingKyc] = useState(true);
   const [kycStatus, setKycStatus] = useState<"NOT_STARTED" | "PENDING" | "VERIFIED" | "REJECTED">("NOT_STARTED");
+  const [kycManualReviewStatus, setKycManualReviewStatus] = useState<
+    "NOT_REQUESTED" | "PENDING" | "APPROVED" | "REJECTED"
+  >("NOT_REQUESTED");
   const [hasFaceEmbedding, setHasFaceEmbedding] = useState(false);
   const [cardVerified, setCardVerified] = useState(false);
 
@@ -220,10 +223,12 @@ export default function BookingPage() {
         setLoadingKyc(true);
         const response = await kycApi.getStatus();
         setKycStatus(response.kycStatus);
+        setKycManualReviewStatus(response.kycManualReviewStatus);
         setHasFaceEmbedding(response.hasEmbedding);
         setCardVerified(response.cardVerified);
       } catch {
         setKycStatus("NOT_STARTED");
+        setKycManualReviewStatus("NOT_REQUESTED");
         setHasFaceEmbedding(false);
         setCardVerified(false);
       } finally {
@@ -347,6 +352,13 @@ export default function BookingPage() {
   if (loadingKyc) return <div className="text-center py-20">Đang kiểm tra trạng thái KYC...</div>;
 
   if (!isKycVerified) {
+    const helperMessage =
+      kycManualReviewStatus === "PENDING"
+        ? "Yêu cầu duyệt KYC thủ công của bạn đang được giảng viên/admin xử lý. Vui lòng quay lại sau."
+        : kycManualReviewStatus === "REJECTED"
+          ? "Yêu cầu duyệt KYC thủ công đã bị từ chối. Vui lòng vào trang KYC để xem lý do và gửi lại hồ sơ."
+          : "Bạn chưa có dữ liệu khuôn mặt hợp lệ trong hệ thống. Vui lòng hoàn tất bước KYC một lần trước khi đặt lịch booth.";
+
     return (
       <div className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-100 flex flex-col">
         <main className="flex-1 flex items-center justify-center px-4">
@@ -356,8 +368,7 @@ export default function BookingPage() {
               <div>
                 <h1 className="text-2xl font-bold">Cần hoàn tất Facial KYC</h1>
                 <p className="mt-3 text-sm">
-                  Bạn chưa có dữ liệu khuôn mặt hợp lệ trong hệ thống. Vui lòng hoàn tất bước KYC
-                  một lần trước khi đặt lịch booth.
+                  {helperMessage}
                 </p>
                 <button
                   type="button"

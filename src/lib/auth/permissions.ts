@@ -7,6 +7,7 @@ export const ALL_LECTURER_PERMISSIONS: LecturerPermission[] = [
   "MANAGE_STUDENTS",
   "MANAGE_BOOTHS",
   "MONITOR_SESSIONS",
+  "APPROVE_KYC",
   "LECTURER_ADMIN",
 ];
 
@@ -41,6 +42,7 @@ export function canAccessAdminArea(user: User | null | undefined): boolean {
     "MANAGE_STUDENTS",
     "MANAGE_BOOTHS",
     "MONITOR_SESSIONS",
+    "APPROVE_KYC",
     "LECTURER_ADMIN",
   ]);
 }

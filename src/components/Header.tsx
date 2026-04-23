@@ -113,15 +113,15 @@ export default function Header() {
     ? { label: "Tổng quan", href: "/dashboard" }
     : { label: "Trang chủ", href: "/" };
 
-  const canManageUsers = hasAnyPermission(user, ["MANAGE_STUDENTS", "LECTURER_ADMIN"]);
-  const userManagementHref = hasAnyPermission(user, ["MANAGE_STUDENTS"])
+  const canManageUsers = hasAnyPermission(user, ["MANAGE_STUDENTS", "APPROVE_KYC", "LECTURER_ADMIN"]);
+  const userManagementHref = hasAnyPermission(user, ["MANAGE_STUDENTS", "APPROVE_KYC"])
     ? "/admin/student"
     : "/admin/lecturers";
   const userManagementItem: NavItem | null = canManageUsers
     ? {
       label: "Quản lý người dùng",
       href: userManagementHref,
-      activeMatches: ["/admin/student", "/admin/lecturers", "/admin/access-control", "/admin/roles"],
+      activeMatches: ["/admin/student", "/admin/lecturers", "/admin/access-control", "/admin/roles", "/admin/kyc"],
     }
     : null;
 

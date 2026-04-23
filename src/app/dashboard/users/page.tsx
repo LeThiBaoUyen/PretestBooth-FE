@@ -226,6 +226,8 @@ export function AdminUsersPageContent({
   tableOnly = false,
 }: AdminUsersPageContentProps) {
   const { user } = useAuth();
+  const canManageStudents = hasPermission(user, "MANAGE_STUDENTS");
+  const canApproveKyc = hasPermission(user, "APPROVE_KYC");
 
   const [users, setUsers] = useState<any[]>([]);
   const [total, setTotal] = useState(0);
@@ -305,10 +307,10 @@ export function AdminUsersPageContent({
   };
 
   useEffect(() => {
-    if (hasPermission(user, "MANAGE_STUDENTS")) {
+    if (canManageStudents) {
       fetchUsers();
     }
-  }, [user, page, search, classFilter, cohortFilter, lockFilter]);
+  }, [canManageStudents, page, search, classFilter, cohortFilter, lockFilter]);
 
   useEffect(() => {
     setClassFilter(initialClassFilter);
@@ -657,7 +659,7 @@ export function AdminUsersPageContent({
     }
   };
 
-  if (!hasPermission(user, "MANAGE_STUDENTS")) return null;
+  if (!canManageStudents && !canApproveKyc) return null;
 
   const safeUsers = Array.isArray(users) ? users : [];
   const exactClassFilter = String(initialClassFilter || "").trim().toLowerCase();
@@ -849,6 +851,30 @@ export function AdminUsersPageContent({
   };
   const canManageLecturers = hasPermission(user, "LECTURER_ADMIN");
 
+  if (!canManageStudents && canApproveKyc) {
+    return (
+      <div className="pb-8">
+        <div className="ui-page-header">
+          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+            <div>
+              <h1 className="ui-page-title">Quản lý người dùng</h1>
+              <p className="ui-page-subtitle">Bạn có quyền duyệt KYC thủ công trong khu quản lý người dùng.</p>
+
+              <div className="mt-3 flex flex-wrap items-center gap-2">
+                <Link
+                  href="/admin/kyc"
+                  className="inline-flex items-center rounded-full bg-navy-600 px-3 py-1.5 text-xs font-bold text-white"
+                >
+                  Duyệt KYC thủ công
+                </Link>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="pb-8">
       <div className="ui-page-header">
@@ -866,6 +892,15 @@ export function AdminUsersPageContent({
               >
                 Quản lý sinh viên
               </Link>
+
+              {canApproveKyc && (
+                <Link
+                  href="/admin/kyc"
+                  className="inline-flex items-center rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-50"
+                >
+                  Duyệt KYC thủ công
+                </Link>
+              )}
 
               {canManageLecturers && (
                 <Link

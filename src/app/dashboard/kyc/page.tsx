@@ -3,7 +3,7 @@
 import { type ChangeEvent, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
-import { CheckCircle2, Upload } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Loader2, Upload } from "lucide-react";
 import FaceCameraCapture from "@/components/FaceCameraCapture";
 import { kycApi } from "@/lib/api/kyc";
 import type { KycStatusResponse } from "@/lib/api/types";
@@ -56,6 +56,7 @@ export default function KycPage() {
   const [studentCardCaptureMode, setStudentCardCaptureMode] = useState<"camera" | "upload">("upload");
   const [faceImage, setFaceImage] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [requestingManualReview, setRequestingManualReview] = useState(false);
   const [message, setMessage] = useState<string>("");
   const [error, setError] = useState<string>("");
 
@@ -82,6 +83,10 @@ export default function KycPage() {
     () => status?.kycStatus === "VERIFIED" && status?.hasEmbedding && status?.cardVerified,
     [status],
   );
+
+  const isManualReviewPending = status?.kycManualReviewStatus === "PENDING";
+  const canRequestManualReview =
+    status?.kycStatus === "REJECTED" && status?.kycManualReviewStatus !== "PENDING";
 
   const resetForm = () => {
     setStudentCardImage(null);
@@ -164,11 +169,42 @@ export default function KycPage() {
       const nextStatus = await kycApi.getStatus();
       setStatus(nextStatus);
       queryClient.invalidateQueries({ queryKey: ["user"] });
-      setMessage("Đăng ký KYC thành công. Bạn có thể quay lại để đặt lịch booth.");
+
+      if (nextStatus.kycStatus === "VERIFIED") {
+        setMessage("Đăng ký KYC thành công. Bạn có thể quay lại để đặt lịch booth.");
+      } else {
+        setMessage("Hồ sơ KYC đã được gửi. Nếu bị từ chối, bạn có thể gửi yêu cầu duyệt thủ công.");
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Đăng ký KYC thất bại");
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const requestManualReview = async () => {
+    if (!canRequestManualReview) {
+      return;
+    }
+
+    const reason = window.prompt("Nhập lý do yêu cầu duyệt thủ công (không bắt buộc):")?.trim();
+
+    try {
+      setRequestingManualReview(true);
+      setError("");
+      setMessage("");
+
+      await kycApi.requestManualReview({
+        reason: reason || undefined,
+      });
+
+      const nextStatus = await kycApi.getStatus();
+      setStatus(nextStatus);
+      setMessage("Đã gửi yêu cầu duyệt KYC thủ công. Vui lòng chờ giảng viên/admin xác nhận.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Không thể gửi yêu cầu duyệt thủ công");
+    } finally {
+      setRequestingManualReview(false);
     }
   };
 
@@ -191,10 +227,25 @@ export default function KycPage() {
           <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
             <h1 className="text-2xl font-bold text-navy-900">Facial KYC Registration</h1>
             <p className="mt-2 text-sm text-slate-600">
-              Đây là bước xác thực một lần trước khi đặt lịch booth. Hệ thống chỉ lưu vector embedding,
-              không lưu ảnh thô.
+              Đây là bước xác thực một lần trước khi đặt lịch booth. Hệ thống lưu embedding khuôn mặt và
+              ảnh KYC để phục vụ duyệt thủ công khi cần thiết.
             </p>
           </section>
+
+          {isManualReviewPending && (
+            <section className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-amber-900">
+              <div className="flex items-start gap-2">
+                <AlertTriangle className="mt-0.5 h-5 w-5" />
+                <div>
+                  <p className="text-sm font-semibold">Yêu cầu duyệt thủ công đang được xử lý</p>
+                  <p className="mt-1 text-sm">
+                    Giảng viên/Admin đang so sánh ảnh khuôn mặt KYC với ảnh thẻ sinh viên. Khi được duyệt,
+                    bạn có thể đặt lịch booth ngay.
+                  </p>
+                </div>
+              </div>
+            </section>
+          )}
 
           {alreadyVerified ? (
             <section className="rounded-2xl border border-emerald-200 bg-emerald-50 p-6 text-emerald-800">
@@ -305,11 +356,29 @@ export default function KycPage() {
                 <button
                   type="button"
                   onClick={submitKyc}
-                  disabled={submitting}
+                  disabled={submitting || requestingManualReview}
                   className="rounded-lg bg-navy-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-navy-700 disabled:cursor-not-allowed disabled:bg-slate-400"
                 >
                   {submitting ? "Đang gửi KYC..." : "Gửi đăng ký KYC"}
                 </button>
+
+                {canRequestManualReview && (
+                  <button
+                    type="button"
+                    onClick={requestManualReview}
+                    disabled={submitting || requestingManualReview}
+                    className="inline-flex items-center gap-2 rounded-lg bg-amber-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-amber-700 disabled:cursor-not-allowed disabled:bg-slate-400"
+                  >
+                    {requestingManualReview ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                    {requestingManualReview ? "Đang gửi yêu cầu..." : "Yêu cầu duyệt thủ công"}
+                  </button>
+                )}
+
+                {status?.kycManualReviewStatus === "REJECTED" && status?.kycManualReviewRejectionReason && (
+                  <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                    Lý do từ chối duyệt thủ công: {status.kycManualReviewRejectionReason}
+                  </p>
+                )}
 
                 {message && (
                   <p className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">

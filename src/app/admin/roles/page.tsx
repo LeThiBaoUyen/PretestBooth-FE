@@ -20,6 +20,7 @@ const PERMISSION_LABELS: Record<LecturerPermission, string> = {
   MANAGE_STUDENTS: "Quản lý sinh viên",
   MANAGE_BOOTHS: "Quản lý booth",
   MONITOR_SESSIONS: "Giám sát phiên thi/booth",
+  APPROVE_KYC: "Duyệt KYC thủ công",
   LECTURER_ADMIN: "Admin giảng viên",
 };
 
@@ -30,6 +31,7 @@ const PERMISSION_ORDER: LecturerPermission[] = [
   "MANAGE_STUDENTS",
   "MANAGE_BOOTHS",
   "MONITOR_SESSIONS",
+  "APPROVE_KYC",
   "LECTURER_ADMIN",
 ];
 
