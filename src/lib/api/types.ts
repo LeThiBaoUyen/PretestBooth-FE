@@ -1536,6 +1536,13 @@ export interface QueryKycManualReviewRequest {
   sortOrder?: "asc" | "desc";
 }
 
+export interface QueryVerifiedKycRequest {
+  page?: number;
+  limit?: number;
+  search?: string;
+  sortOrder?: "asc" | "desc";
+}
+
 export interface KycManualReviewItem {
   id: string;
   email: string;
@@ -1560,6 +1567,29 @@ export interface KycManualReviewListResponse {
   totalPages: number;
 }
 
+export interface VerifiedKycItem {
+  id: string;
+  email: string;
+  name: string | null;
+  studentCode: string | null;
+  className: string | null;
+  kycStatus: "NOT_STARTED" | "PENDING" | "VERIFIED" | "REJECTED";
+  kycVerifiedAt: string | null;
+  kycLastAttemptAt: string | null;
+  kycManualReviewStatus: "NOT_REQUESTED" | "PENDING" | "APPROVED" | "REJECTED";
+  studentCardFaceMatchScore: number | null;
+  studentCardVerifiedAt: string | null;
+  faceEmbeddingUpdatedAt: string | null;
+}
+
+export interface VerifiedKycListResponse {
+  data: VerifiedKycItem[];
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+}
+
 export interface KycManualReviewDetail extends KycManualReviewItem {
   kycRegisteredAt: string | null;
   kycVerifiedAt: string | null;
@@ -1576,6 +1606,10 @@ export interface ApproveKycManualReviewRequest {
 export interface RejectKycManualReviewRequest {
   reason: string;
   notes?: string;
+}
+
+export interface CancelVerifiedKycRequest {
+  reason: string;
 }
 
 export interface ManualReviewDecisionResponse {

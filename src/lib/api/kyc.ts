@@ -1,6 +1,7 @@
 import { httpClient } from "./httpClient";
 import type {
   ApproveKycManualReviewRequest,
+  CancelVerifiedKycRequest,
   KycManualReviewDetail,
   KycManualReviewListResponse,
   KycCardThresholdConfig,
@@ -9,10 +10,12 @@ import type {
   KycStatusResponse,
   ManualReviewDecisionResponse,
   QueryKycManualReviewRequest,
+  QueryVerifiedKycRequest,
   RejectKycManualReviewRequest,
   RequestKycManualReviewRequest,
   RequestKycManualReviewResponse,
   UpdateKycCardThresholdRequest,
+  VerifiedKycListResponse,
 } from "./types";
 
 export const kycApi = {
@@ -50,6 +53,18 @@ export const kycApi = {
     );
   },
 
+  getVerifiedStudents: (query: QueryVerifiedKycRequest = {}) => {
+    const params = new URLSearchParams();
+
+    if (query.page) params.set("page", String(query.page));
+    if (query.limit) params.set("limit", String(query.limit));
+    if (query.search) params.set("search", query.search);
+    if (query.sortOrder) params.set("sortOrder", query.sortOrder);
+
+    const suffix = params.toString();
+    return httpClient.get<VerifiedKycListResponse>(`/api/kyc/verified${suffix ? `?${suffix}` : ""}`);
+  },
+
   getManualReviewDetail: (studentId: string) => {
     return httpClient.get<KycManualReviewDetail>(`/api/kyc/manual-review/${studentId}`);
   },
@@ -64,6 +79,13 @@ export const kycApi = {
   rejectManualReview: (studentId: string, payload: RejectKycManualReviewRequest) => {
     return httpClient.post<ManualReviewDecisionResponse>(
       `/api/kyc/manual-review/${studentId}/reject`,
+      payload,
+    );
+  },
+
+  cancelVerifiedStatus: (studentId: string, payload: CancelVerifiedKycRequest) => {
+    return httpClient.post<ManualReviewDecisionResponse>(
+      `/api/kyc/verified/${studentId}/cancel`,
       payload,
     );
   },

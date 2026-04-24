@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { AlertTriangle, CheckCircle2, Loader2, RefreshCw, XCircle } from "lucide-react";
 import { kycApi } from "@/lib/api/kyc";
-import type { KycManualReviewDetail, KycManualReviewItem } from "@/lib/api/types";
+import type { KycManualReviewDetail, KycManualReviewItem, VerifiedKycItem } from "@/lib/api/types";
 import { hasPermission } from "@/lib/auth/permissions";
 import { useAuth } from "@/lib/hooks";
 
@@ -38,14 +38,22 @@ export default function AdminKycModerationPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const [verifiedPage, setVerifiedPage] = useState(1);
+  const [verifiedSearch, setVerifiedSearch] = useState("");
+  const [verifiedRows, setVerifiedRows] = useState<VerifiedKycItem[]>([]);
+  const [verifiedTotal, setVerifiedTotal] = useState(0);
+  const [loadingVerified, setLoadingVerified] = useState(true);
+
   const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null);
   const [detail, setDetail] = useState<KycManualReviewDetail | null>(null);
   const [loadingDetail, setLoadingDetail] = useState(false);
 
-  const [actionLoading, setActionLoading] = useState<"approve" | "reject" | null>(null);
+  const [actionLoading, setActionLoading] = useState<"approve" | "reject" | "cancel" | null>(null);
+  const [cancelingStudentId, setCancelingStudentId] = useState<string | null>(null);
   const [decisionMessage, setDecisionMessage] = useState<string | null>(null);
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const verifiedTotalPages = Math.max(1, Math.ceil(verifiedTotal / PAGE_SIZE));
 
   const loadPending = useCallback(async () => {
     if (!canReview) return;
@@ -93,10 +101,40 @@ export default function AdminKycModerationPage() {
     }
   }, []);
 
+  const loadVerified = useCallback(async () => {
+    if (!canReview) return;
+
+    try {
+      setLoadingVerified(true);
+      setError(null);
+
+      const response = await kycApi.getVerifiedStudents({
+        page: verifiedPage,
+        limit: PAGE_SIZE,
+        search: verifiedSearch.trim() || undefined,
+        sortOrder: "desc",
+      });
+
+      setVerifiedRows(response.data || []);
+      setVerifiedTotal(response.total || 0);
+    } catch (err: any) {
+      setVerifiedRows([]);
+      setVerifiedTotal(0);
+      setError(err?.message || "Không thể tải danh sách sinh viên đã xác thực KYC.");
+    } finally {
+      setLoadingVerified(false);
+    }
+  }, [canReview, verifiedPage, verifiedSearch]);
+
   useEffect(() => {
     if (!canReview) return;
     void loadPending();
   }, [canReview, loadPending]);
+
+  useEffect(() => {
+    if (!canReview) return;
+    void loadVerified();
+  }, [canReview, loadVerified]);
 
   useEffect(() => {
     if (!selectedStudentId || !canReview) return;
@@ -126,7 +164,7 @@ export default function AdminKycModerationPage() {
       });
 
       setDecisionMessage(response.message);
-      await loadPending();
+      await Promise.all([loadPending(), loadVerified()]);
     } catch (err: any) {
       setError(err?.message || "Duyệt hồ sơ thất bại.");
     } finally {
@@ -156,13 +194,41 @@ export default function AdminKycModerationPage() {
       });
 
       setDecisionMessage(response.message);
-      await loadPending();
+      await Promise.all([loadPending(), loadVerified()]);
     } catch (err: any) {
       setError(err?.message || "Từ chối hồ sơ thất bại.");
     } finally {
       setActionLoading(null);
     }
-  }, [detail, loadPending]);
+  }, [detail, loadPending, loadVerified]);
+
+  const handleCancelVerified = useCallback(
+    async (student: VerifiedKycItem) => {
+      const reason = window.prompt("Nhập lý do hủy trạng thái đã xác thực KYC (bắt buộc):")?.trim();
+
+      if (!reason) {
+        window.alert("Bạn cần nhập lý do hủy xác thực KYC.");
+        return;
+      }
+
+      try {
+        setActionLoading("cancel");
+        setCancelingStudentId(student.id);
+        setError(null);
+        setDecisionMessage(null);
+
+        const response = await kycApi.cancelVerifiedStatus(student.id, { reason });
+        setDecisionMessage(response.message);
+        await Promise.all([loadPending(), loadVerified()]);
+      } catch (err: any) {
+        setError(err?.message || "Không thể hủy trạng thái xác thực KYC.");
+      } finally {
+        setActionLoading(null);
+        setCancelingStudentId(null);
+      }
+    },
+    [loadPending, loadVerified],
+  );
 
   if (userLoading) {
     return (
@@ -404,6 +470,119 @@ export default function AdminKycModerationPage() {
                 </div>
               </div>
             )}
+          </div>
+        </section>
+
+        <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 className="text-xl font-bold text-slate-900">Sinh viên đã xác thực KYC</h2>
+              <p className="mt-1 text-sm text-slate-600">
+                Hủy trạng thái VERIFIED để sinh viên thực hiện xác thực lại KYC.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => void loadVerified()}
+              disabled={loadingVerified}
+              className="inline-flex items-center gap-2 rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              <RefreshCw className={`h-4 w-4 ${loadingVerified ? "animate-spin" : ""}`} />
+              Tải lại danh sách VERIFIED
+            </button>
+          </div>
+
+          <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="w-full max-w-md rounded-lg border border-slate-200 px-3 py-2">
+              <input
+                type="text"
+                value={verifiedSearch}
+                onChange={(event) => {
+                  setVerifiedPage(1);
+                  setVerifiedSearch(event.target.value);
+                }}
+                placeholder="Tìm theo tên/email/mã SV"
+                className="w-full bg-transparent text-sm outline-none"
+              />
+            </div>
+            <div className="text-sm text-slate-600">Tổng sinh viên VERIFIED: {verifiedTotal}</div>
+          </div>
+
+          <div className="mt-4 overflow-x-auto">
+            <table className="min-w-full divide-y divide-slate-200">
+              <thead className="bg-slate-50">
+                <tr>
+                  <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Sinh viên</th>
+                  <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">MSSV/Lớp</th>
+                  <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Verified at</th>
+                  <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Score</th>
+                  <th className="px-3 py-2 text-right text-xs font-semibold uppercase tracking-wide text-slate-500">Hành động</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 bg-white">
+                {loadingVerified ? (
+                  <tr>
+                    <td className="px-3 py-4 text-sm text-slate-500" colSpan={5}>
+                      Đang tải danh sách sinh viên VERIFIED...
+                    </td>
+                  </tr>
+                ) : verifiedRows.length === 0 ? (
+                  <tr>
+                    <td className="px-3 py-4 text-sm text-slate-500" colSpan={5}>
+                      Không có sinh viên ở trạng thái VERIFIED.
+                    </td>
+                  </tr>
+                ) : (
+                  verifiedRows.map((row) => (
+                    <tr key={row.id}>
+                      <td className="px-3 py-3 text-sm text-slate-800">
+                        <div className="font-semibold">{row.name || row.email}</div>
+                        <div className="text-xs text-slate-500">{row.email}</div>
+                      </td>
+                      <td className="px-3 py-3 text-sm text-slate-700">
+                        <div>{row.studentCode || "-"}</div>
+                        <div className="text-xs text-slate-500">{row.className || "-"}</div>
+                      </td>
+                      <td className="px-3 py-3 text-sm text-slate-700">{formatDateTime(row.kycVerifiedAt)}</td>
+                      <td className="px-3 py-3 text-sm text-slate-700">{normalizeScore(row.studentCardFaceMatchScore)}</td>
+                      <td className="px-3 py-3 text-right">
+                        <button
+                          type="button"
+                          onClick={() => void handleCancelVerified(row)}
+                          disabled={actionLoading !== null}
+                          className="inline-flex items-center gap-2 rounded-lg bg-red-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                          {actionLoading === "cancel" && cancelingStudentId === row.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <XCircle className="h-3.5 w-3.5" />}
+                          Hủy VERIFIED
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="mt-4 flex items-center justify-between">
+            <button
+              type="button"
+              onClick={() => setVerifiedPage((prev) => Math.max(1, prev - 1))}
+              disabled={verifiedPage <= 1 || loadingVerified}
+              className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              Trước
+            </button>
+            <span className="text-xs text-slate-500">
+              {verifiedPage}/{verifiedTotalPages}
+            </span>
+            <button
+              type="button"
+              onClick={() => setVerifiedPage((prev) => Math.min(verifiedTotalPages, prev + 1))}
+              disabled={verifiedPage >= verifiedTotalPages || loadingVerified}
+              className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              Sau
+            </button>
           </div>
         </section>
       </div>
