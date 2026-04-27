@@ -664,9 +664,19 @@ export function AdminUsersPageContent({
   const safeUsers = Array.isArray(users) ? users : [];
   const exactClassFilter = String(initialClassFilter || "").trim().toLowerCase();
   const scopedUsers = exactClassFilter
-    ? safeUsers.filter(
-        (student) => String(student.className || "").trim().toLowerCase() === exactClassFilter,
-      )
+    ? safeUsers.filter((student) => {
+        const rawClassName = String(student.className || "").trim().toLowerCase();
+        if (rawClassName === exactClassFilter) {
+          return true;
+        }
+
+        const cohort = resolveStudentCohort(student.studentCode, student.className);
+        const normalizedClassName = normalizeClassNameByCohort(student.className, cohort)
+          .trim()
+          .toLowerCase();
+
+        return normalizedClassName === exactClassFilter;
+      })
     : safeUsers;
 
   const groupedByCohort = scopedUsers.reduce<

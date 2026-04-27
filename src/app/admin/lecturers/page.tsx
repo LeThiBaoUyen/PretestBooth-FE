@@ -46,6 +46,7 @@ export default function LecturerManagementPage() {
   const { user, userLoading } = useAuth();
   const canManageLecturers = hasPermission(user, "LECTURER_ADMIN");
   const canManageStudents = hasPermission(user, "MANAGE_STUDENTS");
+  const canApproveKyc = hasPermission(user, "APPROVE_KYC");
 
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
@@ -338,17 +339,21 @@ export default function LecturerManagementPage() {
                     Quản lý sinh viên
                   </Link>
                 )}
+
+                {canApproveKyc && (
+                  <Link
+                    href="/admin/kyc"
+                    className="inline-flex items-center rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-50"
+                  >
+                    Duyệt KYC thủ công
+                  </Link>
+                )}
+
                 <Link
                   href="/admin/lecturers"
                   className="inline-flex items-center rounded-full bg-navy-600 px-3 py-1.5 text-xs font-bold text-white"
                 >
                   Quản lý giảng viên
-                </Link>
-                <Link
-                  href="/admin/roles"
-                  className="inline-flex items-center rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-50"
-                >
-                  Danh mục vai trò
                 </Link>
               </div>
             </div>

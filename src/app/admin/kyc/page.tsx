@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { AlertTriangle, CheckCircle2, Loader2, RefreshCw, XCircle } from "lucide-react";
 import { kycApi } from "@/lib/api/kyc";
@@ -30,6 +31,8 @@ function normalizeScore(value?: number | null) {
 export default function AdminKycModerationPage() {
   const { user, userLoading } = useAuth();
   const canReview = hasPermission(user, "APPROVE_KYC");
+  const canManageStudents = hasPermission(user, "MANAGE_STUDENTS");
+  const canManageLecturers = hasPermission(user, "LECTURER_ADMIN");
 
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
@@ -260,6 +263,33 @@ export default function AdminKycModerationPage() {
               <p className="mt-1 text-sm text-slate-600">
                 Giảng viên/Admin đối sánh ảnh khuôn mặt đã đăng ký với ảnh thẻ sinh viên trước khi mở quyền đặt lịch booth.
               </p>
+
+              <div className="mt-3 flex flex-wrap items-center gap-2">
+                {canManageStudents && (
+                  <Link
+                    href="/admin/student"
+                    className="inline-flex items-center rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-50"
+                  >
+                    Quản lý sinh viên
+                  </Link>
+                )}
+
+                <Link
+                  href="/admin/kyc"
+                  className="inline-flex items-center rounded-full bg-navy-600 px-3 py-1.5 text-xs font-bold text-white"
+                >
+                  Duyệt KYC thủ công
+                </Link>
+
+                {canManageLecturers && (
+                  <Link
+                    href="/admin/lecturers"
+                    className="inline-flex items-center rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-50"
+                  >
+                    Quản lý giảng viên
+                  </Link>
+                )}
+              </div>
             </div>
             <button
               type="button"
