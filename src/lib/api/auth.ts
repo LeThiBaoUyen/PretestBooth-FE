@@ -21,7 +21,6 @@ import type {
   VerifyEmailResponse,
   ResendVerificationRequest,
   ResendVerificationResponse,
-  RefreshTokenRequest,
   RefreshTokenResponse,
   ApiError,
 } from "./types";
@@ -44,6 +43,7 @@ class ApiClient {
     const url = `${this.baseURL}${endpoint}`;
     const config: RequestInit = {
       ...options,
+      credentials: "include",
       headers: {
         "Content-Type": "application/json",
         ...options.headers,
@@ -135,10 +135,9 @@ class ApiClient {
     );
   }
 
-  async refreshToken(data: RefreshTokenRequest): Promise<RefreshTokenResponse> {
+  async refreshToken(): Promise<RefreshTokenResponse> {
     return this.request<RefreshTokenResponse>("/api/auth/refresh", {
       method: "POST",
-      body: JSON.stringify(data),
     });
   }
 

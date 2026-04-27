@@ -8,71 +8,54 @@ type ApiError = Error & { status?: number };
 
 class HttpClient {
   private baseURL: string;
-  private isRefreshing = false;
-  private refreshSubscribers: Array<(token: string) => void> = [];
+  private refreshPromise: Promise<string> | null = null;
 
   constructor(baseURL: string) {
     this.baseURL = baseURL;
   }
 
   /**
-   * Subscribe to token refresh completion
-   */
-  private onRefreshed(token: string) {
-    this.refreshSubscribers.forEach((callback) => callback(token));
-    this.refreshSubscribers = [];
-  }
-
-  /**
-   * Add subscriber to token refresh
-   */
-  private addRefreshSubscriber(callback: (token: string) => void) {
-    this.refreshSubscribers.push(callback);
-  }
-
-  /**
-   * Refresh access token using refresh token
+   * Refresh access token using HttpOnly refresh cookie.
+   * A single in-flight refresh is shared by concurrent 401 requests.
    */
   private async refreshAccessToken(): Promise<string> {
-    try {
-      const tokenManager = getTokenManager();
-      const refreshToken = tokenManager.getRefreshToken();
+    if (!this.refreshPromise) {
+      this.refreshPromise = (async () => {
+        const tokenManager = getTokenManager();
+        const response = await fetch(`${this.baseURL}/api/auth/refresh`, {
+          method: "POST",
+          credentials: "include",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        });
 
-      if (!refreshToken) {
-        tokenManager.clearTokens();
-        if (typeof window !== "undefined") {
-          window.location.href = "/login";
+        if (!response.ok) {
+          tokenManager.clearTokens();
+          if (typeof window !== "undefined") {
+            window.location.href = "/login";
+          }
+          throw new Error("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.");
         }
-        throw new Error("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.");
-      }
 
-      const response = await fetch(`${this.baseURL}/api/auth/refresh`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ refreshToken }),
+        const json = (await response.json()) as {
+          data?: RefreshTokenResponse;
+          accessToken?: string;
+        };
+        const payload = json.data ?? json;
+
+        if (!payload.accessToken) {
+          throw new Error("Invalid refresh response");
+        }
+
+        tokenManager.saveAccessToken(payload.accessToken);
+        return payload.accessToken;
+      })().finally(() => {
+        this.refreshPromise = null;
       });
-
-      if (!response.ok) {
-        // If refresh fails, clear tokens and redirect to login
-        tokenManager.clearTokens();
-        if (typeof window !== "undefined") {
-          window.location.href = "/login";
-        }
-        throw new Error("Failed to refresh token");
-      }
-
-      const data = (await response.json()) as RefreshTokenResponse;
-
-      // Save new tokens
-      tokenManager.saveAccessToken(data.accessToken);
-      tokenManager.saveRefreshToken(data.refreshToken);
-
-      return data.accessToken;
-    } catch (error) {
-      throw error;
     }
+
+    return this.refreshPromise;
   }
 
   /**
@@ -85,6 +68,7 @@ class HttpClient {
 
     const config: RequestInit = {
       ...options,
+      credentials: "include",
       headers: {
         "Content-Type": "application/json",
         ...options.headers,
@@ -97,51 +81,14 @@ class HttpClient {
 
       // If 401 Unauthorized, try to refresh token
       if (response.status === 401) {
-        const refreshToken = tokenManager.getRefreshToken();
+        const newAccessToken = await this.refreshAccessToken();
 
-        if (!refreshToken) {
-          tokenManager.clearTokens();
-          if (typeof window !== "undefined") {
-            window.location.href = "/login";
-          }
-          const authError = new Error("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.") as ApiError;
-          authError.status = 401;
-          throw authError;
-        }
-
-        if (!this.isRefreshing) {
-          this.isRefreshing = true;
-
-          try {
-            const newAccessToken = await this.refreshAccessToken();
-            this.isRefreshing = false;
-            this.onRefreshed(newAccessToken);
-
-            // Retry the original request with new token
-            config.headers = {
-              ...config.headers,
-              Authorization: `Bearer ${newAccessToken}`,
-            };
-            response = await fetch(url, config);
-          } catch (refreshError) {
-            this.isRefreshing = false;
-            throw refreshError;
-          }
-        } else {
-          // Wait for token to be refreshed
-          return new Promise((resolve, reject) => {
-            this.addRefreshSubscriber((newAccessToken: string) => {
-              config.headers = {
-                ...config.headers,
-                Authorization: `Bearer ${newAccessToken}`,
-              };
-              fetch(url, config)
-                .then((res) => res.json())
-                .then(resolve)
-                .catch(reject);
-            });
-          });
-        }
+        // Retry original request once with refreshed access token.
+        config.headers = {
+          ...config.headers,
+          Authorization: `Bearer ${newAccessToken}`,
+        };
+        response = await fetch(url, config);
       }
 
       const data = await response.json();

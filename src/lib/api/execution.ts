@@ -100,6 +100,7 @@ class ExecutionApiClient {
     const url = `${this.baseURL}${endpoint}`;
     const config: RequestInit = {
       ...options,
+      credentials: "include",
       headers: {
         "Content-Type": "application/json",
         ...options.headers,
@@ -109,62 +110,58 @@ class ExecutionApiClient {
     try {
       const response = await this.fetchWithTimeout(url, config, timeoutMs);
 
-      // Handle 401 Unauthorized - try to refresh token
+      // Handle 401 Unauthorized - try to refresh access token using HttpOnly cookie.
       if (response.status === 401) {
         const tokenManager = getTokenManager();
-        const refreshToken = tokenManager.getRefreshToken();
 
-        if (refreshToken) {
-          // Try to refresh the access token
-          try {
-            const refreshResponse = await this.fetchWithTimeout(
-              `${this.baseURL}/api/auth/refresh`,
-              {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ refreshToken }),
+        try {
+          const refreshResponse = await this.fetchWithTimeout(
+            `${this.baseURL}/api/auth/refresh`,
+            {
+              method: "POST",
+              credentials: "include",
+              headers: { "Content-Type": "application/json" },
+            },
+            ExecutionApiClient.DEFAULT_TIMEOUT_MS,
+          );
+
+          if (refreshResponse.ok) {
+            const refreshData = await refreshResponse.json();
+            const data = refreshData.data || refreshData;
+            tokenManager.saveAccessToken(data.accessToken);
+
+            // Retry the original request with new token
+            const newToken = data.accessToken;
+            const retryConfig: RequestInit = {
+              ...options,
+              credentials: "include",
+              headers: {
+                "Content-Type": "application/json",
+                ...options.headers,
+                Authorization: `Bearer ${newToken}`,
               },
-              ExecutionApiClient.DEFAULT_TIMEOUT_MS,
+            };
+
+            const retryResponse = await this.fetchWithTimeout(
+              url,
+              retryConfig,
+              timeoutMs,
             );
+            const retryJson = await retryResponse.json();
 
-            if (refreshResponse.ok) {
-              const refreshData = await refreshResponse.json();
-              const data = refreshData.data || refreshData;
-              tokenManager.saveAccessToken(data.accessToken);
-              tokenManager.saveRefreshToken(data.refreshToken);
-
-              // Retry the original request with new token
-              const newToken = data.accessToken;
-              const retryConfig: RequestInit = {
-                ...options,
-                headers: {
-                  "Content-Type": "application/json",
-                  ...options.headers,
-                  Authorization: `Bearer ${newToken}`,
-                },
-              };
-
-              const retryResponse = await this.fetchWithTimeout(
-                url,
-                retryConfig,
-                timeoutMs,
+            if (!retryResponse.ok) {
+              throw new Error(
+                Array.isArray(retryJson.message)
+                  ? retryJson.message.join(", ")
+                  : retryJson.message || "An error occurred",
               );
-              const retryJson = await retryResponse.json();
-
-              if (!retryResponse.ok) {
-                throw new Error(
-                  Array.isArray(retryJson.message)
-                    ? retryJson.message.join(", ")
-                    : retryJson.message || "An error occurred",
-                );
-              }
-
-              return retryJson.data || retryJson;
             }
-          } catch (refreshError) {
-            // Refresh failed, clear tokens and throw original error
-            tokenManager.clearTokens();
+
+            return retryJson.data || retryJson;
           }
+        } catch (refreshError) {
+          // Refresh failed, clear tokens and throw original error.
+          tokenManager.clearTokens();
         }
 
         throw new Error("Unauthorized - Please login again");
@@ -267,6 +264,7 @@ class SubmissionsApiClient {
     const url = `${this.baseURL}${endpoint}`;
     const config: RequestInit = {
       ...options,
+      credentials: "include",
       headers: {
         "Content-Type": "application/json",
         ...options.headers,

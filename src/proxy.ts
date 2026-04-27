@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
-const AUTH_COOKIE = "refreshToken";
+const AUTH_COOKIE_CANDIDATES = ["refreshToken", "__Host-refreshToken"];
 
 const protectedPrefixes = [
   "/dashboard",
@@ -26,7 +26,9 @@ function pathStartsWith(pathname: string, prefix: string) {
 
 export function proxy(request: NextRequest) {
   const { pathname, search } = request.nextUrl;
-  const hasSession = Boolean(request.cookies.get(AUTH_COOKIE)?.value);
+  const hasSession = AUTH_COOKIE_CANDIDATES.some((cookieName) =>
+    Boolean(request.cookies.get(cookieName)?.value),
+  );
   const forceGuestAccess = request.nextUrl.searchParams.get("force") === "1";
 
   const requiresAuth = protectedPrefixes.some((prefix) =>

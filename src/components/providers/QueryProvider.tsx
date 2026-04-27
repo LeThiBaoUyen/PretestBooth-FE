@@ -17,18 +17,17 @@ function RefreshTokenProvider({ children }: { children: ReactNode }) {
 
     // Initialize: Try to restore access token from refresh token
     const initializeAuth = async () => {
-      const refreshToken = tokenManager.getRefreshToken();
       const accessToken = tokenManager.getAccessToken();
 
-      // If we have refresh token but no access token, restore the session
-      if (refreshToken && !accessToken) {
+      // If access token is missing, try restoring session from HttpOnly refresh cookie.
+      if (!accessToken) {
         try {
           const response = await fetch(
             `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000"}/api/auth/refresh`,
             {
               method: "POST",
               headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ refreshToken }),
+              credentials: "include",
             },
           );
 
@@ -37,7 +36,6 @@ function RefreshTokenProvider({ children }: { children: ReactNode }) {
             // Backend wraps responses in { statusCode, message, data }
             const data = jsonResponse.data || jsonResponse;
             tokenManager.saveAccessToken(data.accessToken);
-            tokenManager.saveRefreshToken(data.refreshToken);
 
             // Invalidate user query to trigger a refetch
             queryClient.invalidateQueries({ queryKey: ["user"] });
@@ -57,30 +55,24 @@ function RefreshTokenProvider({ children }: { children: ReactNode }) {
 
     const refreshInterval = setInterval(async () => {
       try {
-        const refreshToken = tokenManager.getRefreshToken();
+        const response = await fetch(
+          `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000"}/api/auth/refresh`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            credentials: "include",
+          },
+        );
 
-        // Refresh if we have a refresh token (regardless of access token state)
-        if (refreshToken) {
-          const response = await fetch(
-            `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000"}/api/auth/refresh`,
-            {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ refreshToken }),
-            },
-          );
-
-          if (response.ok) {
-            const jsonResponse = await response.json();
-            // Backend wraps responses in { statusCode, message, data }
-            const data = jsonResponse.data || jsonResponse;
-            tokenManager.saveAccessToken(data.accessToken);
-            tokenManager.saveRefreshToken(data.refreshToken);
-          } else {
-            // Refresh token is invalid, clear everything
-            tokenManager.clearTokens();
-            queryClient.invalidateQueries({ queryKey: ["user"] });
-          }
+        if (response.ok) {
+          const jsonResponse = await response.json();
+          // Backend wraps responses in { statusCode, message, data }
+          const data = jsonResponse.data || jsonResponse;
+          tokenManager.saveAccessToken(data.accessToken);
+        } else if (response.status === 401 || response.status === 403) {
+          // Refresh token is invalid/expired, clear access token state.
+          tokenManager.clearTokens();
+          queryClient.invalidateQueries({ queryKey: ["user"] });
         }
       } catch (error) {
         // Silent error - will retry on next interval

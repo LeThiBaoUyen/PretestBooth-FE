@@ -81,13 +81,7 @@ export function useAuth() {
    * Refresh token mutation
    */
   const refreshTokenMutation = useMutation({
-    mutationFn: async () => {
-      const refreshToken = tokenManager.getRefreshToken();
-      if (!refreshToken) {
-        throw new Error("No refresh token available");
-      }
-      return apiClient.refreshToken({ refreshToken });
-    },
+    mutationFn: async () => apiClient.refreshToken(),
   });
 
   /**
@@ -114,7 +108,6 @@ export function useAuth() {
 
       // Save tokens
       tokenManager.saveAccessToken(result.accessToken);
-      tokenManager.saveRefreshToken(result.refreshToken);
 
       return result;
     },
@@ -129,7 +122,6 @@ export function useAuth() {
 
     // Save new tokens
     tokenManager.saveAccessToken(result.accessToken);
-    tokenManager.saveRefreshToken(result.refreshToken);
 
     return result;
   }, [refreshTokenMutation, tokenManager]);

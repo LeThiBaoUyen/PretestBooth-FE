@@ -94,9 +94,6 @@ export default function LoginPage() {
       // Save access token to TanStack Query cache
       tokenManager.saveAccessToken(response.accessToken);
 
-      // Save refresh token to cookies
-      tokenManager.saveRefreshToken(response.refreshToken);
-
       // Store user info in query cache and invalidate to trigger refetch
       queryClient.setQueryData(["user"], response.user);
       queryClient.invalidateQueries({ queryKey: ["user"] });
