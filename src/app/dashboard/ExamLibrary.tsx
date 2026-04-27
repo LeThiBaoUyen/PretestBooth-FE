@@ -36,6 +36,18 @@ const QUESTION_RANGE_CONFIG = {
 
 type ExamTypeFilter = "ALL" | "PRACTICE" | "EXAM";
 
+function isPretestExam(exam: ExamListItem) {
+  if (typeof exam.isPretestExam === "boolean") {
+    return exam.isPretestExam;
+  }
+
+  return /pretest/i.test(exam.title || "");
+}
+
+function getExamDisplayTitle(exam: ExamListItem) {
+  return exam.displayTitle || exam.title;
+}
+
 function getExamTypeLabel(type?: "PRACTICE" | "EXAM") {
   return type === "EXAM" ? "Kiểm tra" : "Luyện tập";
 }
@@ -170,10 +182,17 @@ export default function ExamLibrary() {
   const [exams, setExams] = useState<ExamListItem[]>([]);
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [loading, setLoading] = useState(true);
-  const [total, setTotal] = useState(0);
-  const [page, setPage] = useState(1);
+  const [regularPage, setRegularPage] = useState(1);
+  const [pretestPage, setPretestPage] = useState(1);
+  const [regularTotal, setRegularTotal] = useState(0);
+  const [pretestTotal, setPretestTotal] = useState(0);
   const latestFetchRef = useRef(0);
   const autoAssignCheckedRef = useRef(false);
+
+  const resetPagination = useCallback(() => {
+    setRegularPage(1);
+    setPretestPage(1);
+  }, []);
 
   // Role check: can this user manage the given exam?
   const canManage = (_exam: ExamListItem) => hasPermission(user, "CREATE_EXAM");
@@ -239,13 +258,6 @@ export default function ExamLibrary() {
     void attemptAutoAssignExam();
   }, [accessToken, user?.role, userLoading, attemptAutoAssignExam]);
 
-  useEffect(() => {
-    if (user?.role === "STUDENT" && selectedExamType !== "PRACTICE") {
-      setSelectedExamType("PRACTICE");
-      setPage(1);
-    }
-  }, [user?.role, selectedExamType]);
-
   // Fetch subjects
   useEffect(() => {
     async function fetchSubjects() {
@@ -267,7 +279,8 @@ export default function ExamLibrary() {
     if (!accessToken) {
       setLoading(false);
       setExams([]);
-      setTotal(0);
+      setRegularTotal(0);
+      setPretestTotal(0);
       return;
     }
 
@@ -280,60 +293,78 @@ export default function ExamLibrary() {
           ? subjects.find((s) => s.name === selectedSubject)
           : null;
 
-      const result = await examsApiClient.listExams(
-        {
-          page,
-          limit: 12,
-          subjectId: subjectMatch?.id,
-          type: selectedExamType === "ALL" ? undefined : selectedExamType,
-          search: debouncedSearch || undefined,
-          minDuration:
-            durationRange[0] > DURATION_RANGE_CONFIG.min
-              ? durationRange[0]
-              : undefined,
-          maxDuration:
-            durationRange[1] < DURATION_RANGE_CONFIG.max
-              ? durationRange[1]
-              : undefined,
-          minQuestionCount:
-            questionRange[0] > QUESTION_RANGE_CONFIG.min
-              ? questionRange[0]
-              : undefined,
-          maxQuestionCount:
-            questionRange[1] < QUESTION_RANGE_CONFIG.max
-              ? questionRange[1]
-              : undefined,
-          isPublished: activeTab === "published" ? true : undefined,
-        },
-        accessToken,
-      );
+      const baseParams = {
+        limit: 12,
+        subjectId: subjectMatch?.id,
+        type: selectedExamType === "ALL" ? undefined : selectedExamType,
+        search: debouncedSearch || undefined,
+        minDuration:
+          durationRange[0] > DURATION_RANGE_CONFIG.min
+            ? durationRange[0]
+            : undefined,
+        maxDuration:
+          durationRange[1] < DURATION_RANGE_CONFIG.max
+            ? durationRange[1]
+            : undefined,
+        minQuestionCount:
+          questionRange[0] > QUESTION_RANGE_CONFIG.min
+            ? questionRange[0]
+            : undefined,
+        maxQuestionCount:
+          questionRange[1] < QUESTION_RANGE_CONFIG.max
+            ? questionRange[1]
+            : undefined,
+      };
+
+      const [regularResult, pretestResult] = await Promise.all([
+        examsApiClient.listExams(
+          {
+            ...baseParams,
+            page: regularPage,
+            pretestGroup: "REGULAR",
+            isPublished: user?.role !== "STUDENT" && activeTab === "published" ? true : undefined,
+          },
+          accessToken,
+        ),
+        examsApiClient.listExams(
+          {
+            ...baseParams,
+            page: pretestPage,
+            pretestGroup: "PRETEST",
+            isPublished: user?.role !== "STUDENT" && activeTab === "published" ? true : undefined,
+          },
+          accessToken,
+        ),
+      ]);
 
       if (requestId !== latestFetchRef.current) return;
 
-      if (Array.isArray(result)) {
-        setExams(result as ExamListItem[]);
-        setTotal((result as ExamListItem[]).length);
-      } else {
-        setExams(Array.isArray((result as any)?.data) ? (result as any).data : []);
-        setTotal(Number((result as any)?.total ?? 0));
-      }
+      const regularData = Array.isArray(regularResult?.data) ? regularResult.data : [];
+      const pretestData = Array.isArray(pretestResult?.data) ? pretestResult.data : [];
+
+      setExams([...regularData, ...pretestData]);
+      setRegularTotal(Number(regularResult?.total ?? 0));
+      setPretestTotal(Number(pretestResult?.total ?? 0));
     } catch (err: any) {
       if (requestId !== latestFetchRef.current) return;
       setExams([]);
-      setTotal(0);
+      setRegularTotal(0);
+      setPretestTotal(0);
       setError(err?.message || "Không thể tải danh sách đề thi.");
     } finally {
       if (requestId !== latestFetchRef.current) return;
       setLoading(false);
     }
   }, [
-    page,
+    regularPage,
+    pretestPage,
     selectedSubject,
     debouncedSearch,
     durationRange,
     questionRange,
     subjects,
     accessToken,
+    user?.role,
     selectedExamType,
     activeTab,
   ]);
@@ -380,10 +411,7 @@ export default function ExamLibrary() {
 
   const safeSubjects = Array.isArray(subjects) ? subjects : [];
   const safeExams = Array.isArray(exams) ? exams : [];
-  const visibleExams =
-    user?.role === "STUDENT"
-      ? safeExams.filter((exam) => exam.type === "PRACTICE")
-      : safeExams;
+  const visibleExams = safeExams;
   const typeFilteredExams =
     selectedExamType === "ALL"
       ? visibleExams
@@ -409,14 +437,31 @@ export default function ExamLibrary() {
     return latestByExam;
   }, [recentExamSessions]);
 
-  const pendingExams =
-    user?.role === "STUDENT"
-      ? typeFilteredExams.filter((exam) => !doneExamLatestTime.has(exam.id))
-      : typeFilteredExams;
+  // Split exams by pretest group
+  const examsRegular = typeFilteredExams.filter((exam) => !isPretestExam(exam));
+  const examsPretest = typeFilteredExams.filter((exam) => isPretestExam(exam));
 
-  const recentCompletedExams =
+  // Separate pending and completed for students; all for non-students
+  const pendingRegularExams =
     user?.role === "STUDENT"
-      ? [...typeFilteredExams]
+      ? examsRegular.filter((exam) => !doneExamLatestTime.has(exam.id))
+      : examsRegular;
+
+  const pendingPretestExams =
+    user?.role === "STUDENT"
+      ? examsPretest.filter((exam) => !doneExamLatestTime.has(exam.id))
+      : examsPretest;
+
+  const completedRegularExams =
+    user?.role === "STUDENT"
+      ? [...examsRegular]
+          .filter((exam) => doneExamLatestTime.has(exam.id))
+          .sort((a, b) => (doneExamLatestTime.get(b.id) ?? 0) - (doneExamLatestTime.get(a.id) ?? 0))
+      : [];
+
+  const completedPretestExams =
+    user?.role === "STUDENT"
+      ? [...examsPretest]
           .filter((exam) => doneExamLatestTime.has(exam.id))
           .sort((a, b) => (doneExamLatestTime.get(b.id) ?? 0) - (doneExamLatestTime.get(a.id) ?? 0))
       : [];
@@ -527,7 +572,7 @@ export default function ExamLibrary() {
                   value={search}
                   onChange={(e) => {
                     setSearch(e.target.value);
-                    setPage(1);
+                    resetPagination();
                   }}
                 />
               </div>
@@ -540,7 +585,7 @@ export default function ExamLibrary() {
                 value={selectedSubject}
                 onChange={(e) => {
                   setSelectedSubject(e.target.value);
-                  setPage(1);
+                  resetPagination();
                 }}
               >
                 {subjectNames.map((subject) => (
@@ -558,7 +603,7 @@ export default function ExamLibrary() {
                 value={selectedExamType}
                 onChange={(e) => {
                   setSelectedExamType(e.target.value as ExamTypeFilter);
-                  setPage(1);
+                  resetPagination();
                 }}
                 disabled={user?.role === "STUDENT"}
               >
@@ -595,8 +640,8 @@ export default function ExamLibrary() {
                     QUESTION_RANGE_CONFIG.min,
                     QUESTION_RANGE_CONFIG.max,
                   ]);
-                  setSelectedExamType(user?.role === "STUDENT" ? "PRACTICE" : "ALL");
-                  setPage(1);
+                  setSelectedExamType("ALL");
+                  resetPagination();
                 }}
               >
                 <RotateCcw className="h-4 w-4" />
@@ -616,7 +661,7 @@ export default function ExamLibrary() {
               value={durationRange}
               onChange={(next) => {
                 setDurationRange(next);
-                setPage(1);
+                resetPagination();
               }}
             />
 
@@ -630,7 +675,7 @@ export default function ExamLibrary() {
               value={questionRange}
               onChange={(next) => {
                 setQuestionRange(next);
-                setPage(1);
+                resetPagination();
               }}
             />
           </div>
@@ -660,6 +705,7 @@ export default function ExamLibrary() {
               : "text-slate-600 hover:bg-slate-50"
           }`}
           onClick={() => setActiveTab("published")}
+          hidden={user?.role === "STUDENT"}
         >
           Chỉ đề công bố
         </button>
@@ -697,7 +743,7 @@ export default function ExamLibrary() {
       ) : (
         <>
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-            {pendingExams.map((exam) => (
+            {pendingRegularExams.map((exam) => (
               <div
                 key={exam.id}
                 className="bg-white rounded-xl shadow-sm p-5 flex flex-col justify-between border border-slate-200 relative hover:shadow-md transition"
@@ -705,7 +751,7 @@ export default function ExamLibrary() {
                 <div className="flex-1">
                   <div className="min-h-[3.5rem] mb-2">
                     <h2 className="text-lg font-bold text-navy-700 line-clamp-2">
-                      {exam.title}
+                      {getExamDisplayTitle(exam)}
                     </h2>
                   </div>
                   <div className="flex items-center text-gray-500 text-sm mb-2 gap-3 min-h-[1.5rem]">
@@ -766,26 +812,101 @@ export default function ExamLibrary() {
                 )}
               </div>
             ))}
-            {pendingExams.length === 0 && recentCompletedExams.length === 0 && (
+            {pendingRegularExams.length === 0 && pendingPretestExams.length === 0 && completedRegularExams.length === 0 && completedPretestExams.length === 0 && (
               <div className="col-span-full text-center text-gray-500 py-10">
                 Không tìm thấy bộ đề phù hợp.
               </div>
             )}
-            {pendingExams.length === 0 && recentCompletedExams.length > 0 && (
+            {pendingRegularExams.length === 0 && pendingPretestExams.length === 0 && (completedRegularExams.length > 0 || completedPretestExams.length > 0) && (
               <div className="col-span-full text-center text-gray-500 py-10">
                 Bạn đã làm các đề trong danh sách này. Xem lại ở mục bên dưới.
               </div>
             )}
           </div>
 
-          {user?.role === "STUDENT" && recentCompletedExams.length > 0 && (
+          {regularTotal > 12 && (
+            <div className="mt-6 flex items-center justify-center gap-2">
+              {Array.from({ length: Math.ceil(regularTotal / 12) }, (_, i) => i + 1).map((p) => (
+                <button
+                  key={`regular-page-${p}`}
+                  className={`px-3 py-1 rounded font-bold text-sm ${
+                    p === regularPage
+                      ? "bg-navy-600 text-white"
+                      : "bg-white text-navy-600 border border-navy-200"
+                  }`}
+                  onClick={() => setRegularPage(p)}
+                >
+                  {p}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {pendingPretestExams.length > 0 && (
             <section className="mt-10">
-              <div className="mb-4 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
-                <h2 className="text-base font-bold text-navy-700">Các bài luyện tập đã làm gần đây</h2>
+              <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
+                <h2 className="text-base font-bold text-amber-800">Đề Pretest</h2>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-                {recentCompletedExams.map((exam) => (
+                {pendingPretestExams.map((exam) => (
+                  <div
+                    key={`pretest-${exam.id}`}
+                    className="bg-white rounded-xl shadow-sm p-5 flex flex-col justify-between border border-amber-200 relative hover:shadow-md transition"
+                  >
+                    <div className="flex-1">
+                      <div className="min-h-[3.5rem] mb-2">
+                        <h2 className="text-lg font-bold text-navy-700 line-clamp-2">
+                          {getExamDisplayTitle(exam)}
+                        </h2>
+                      </div>
+                      <div className="flex items-center text-gray-500 text-sm mb-2 gap-3 min-h-[1.5rem]">
+                        <span>⏰ {exam.duration} phút</span>
+                        <span>👁️ {exam.sessionCount} lượt thi</span>
+                        <span>📝 {exam.totalItems} câu</span>
+                      </div>
+                      <div className="text-xs text-gray-400 mb-2 min-h-[1.25rem]">
+                        Trắc nghiệm: {exam.questionCount} | Code: {exam.problemCount}
+                      </div>
+                    </div>
+                    <Link
+                      href={`/exams/${exam.id}`}
+                      className="mt-2 w-full bg-navy-600 text-white py-2 rounded-lg font-bold hover:bg-navy-700 transition block text-center"
+                    >
+                      Chi tiết
+                    </Link>
+                  </div>
+                ))}
+              </div>
+
+          {pretestTotal > 12 && (
+                <div className="mt-6 flex items-center justify-center gap-2">
+                  {Array.from({ length: Math.ceil(pretestTotal / 12) }, (_, i) => i + 1).map((p) => (
+                    <button
+                      key={`pretest-page-${p}`}
+                      className={`px-3 py-1 rounded font-bold text-sm ${
+                        p === pretestPage
+                          ? "bg-navy-600 text-white"
+                          : "bg-white text-navy-600 border border-navy-200"
+                      }`}
+                      onClick={() => setPretestPage(p)}
+                    >
+                      {p}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </section>
+          )}
+
+          {user?.role === "STUDENT" && completedRegularExams.length > 0 && (
+            <section className="mt-10">
+              <div className="mb-4 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+                <h2 className="text-base font-bold text-navy-700">Các đề đã làm gần đây</h2>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                {completedRegularExams.map((exam) => (
                   <div
                     key={`done-${exam.id}`}
                     className="bg-white rounded-xl shadow-sm p-5 flex flex-col justify-between border border-slate-200 relative hover:shadow-md transition"
@@ -793,7 +914,7 @@ export default function ExamLibrary() {
                     <div className="flex-1">
                       <div className="min-h-[3.5rem] mb-2">
                         <h2 className="text-lg font-bold text-navy-700 line-clamp-2">
-                          {exam.title}
+                          {getExamDisplayTitle(exam)}
                         </h2>
                       </div>
                       <div className="flex items-center text-gray-500 text-sm mb-2 gap-3 min-h-[1.5rem]">
@@ -857,26 +978,44 @@ export default function ExamLibrary() {
               </div>
             </section>
           )}
-          {/* Pagination */}
-          {total > 12 && (
-            <div className="flex justify-center gap-2 mt-8">
-              {Array.from(
-                { length: Math.ceil(total / 12) },
-                (_, i) => i + 1,
-              ).map((p) => (
-                <button
-                  key={p}
-                  className={`px-3 py-1 rounded font-bold text-sm ${
-                    p === page
-                      ? "bg-navy-600 text-white"
-                      : "bg-white text-navy-600 border border-navy-200"
-                  }`}
-                  onClick={() => setPage(p)}
-                >
-                  {p}
-                </button>
-              ))}
-            </div>
+
+          {user?.role === "STUDENT" && completedPretestExams.length > 0 && (
+            <section className="mt-10">
+              <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
+                <h2 className="text-base font-bold text-amber-800">Đề Pretest đã làm</h2>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                {completedPretestExams.map((exam) => (
+                  <div
+                    key={`done-pretest-${exam.id}`}
+                    className="bg-white rounded-xl shadow-sm p-5 flex flex-col justify-between border border-amber-200 relative hover:shadow-md transition"
+                  >
+                    <div className="flex-1">
+                      <div className="min-h-[3.5rem] mb-2">
+                        <h2 className="text-lg font-bold text-navy-700 line-clamp-2">
+                          {getExamDisplayTitle(exam)}
+                        </h2>
+                      </div>
+                      <div className="flex items-center text-gray-500 text-sm mb-2 gap-3 min-h-[1.5rem]">
+                        <span>⏰ {exam.duration} phút</span>
+                        <span>👁️ {exam.sessionCount} lượt thi</span>
+                        <span>📝 {exam.totalItems} câu</span>
+                      </div>
+                      <div className="text-xs text-gray-400 mb-2 min-h-[1.25rem]">
+                        Trắc nghiệm: {exam.questionCount} | Code: {exam.problemCount}
+                      </div>
+                    </div>
+                    <Link
+                      href={`/exams/${exam.id}`}
+                      className="mt-2 w-full bg-navy-600 text-white py-2 rounded-lg font-bold hover:bg-navy-700 transition block text-center"
+                    >
+                      Chi tiết
+                    </Link>
+                  </div>
+                ))}
+              </div>
+            </section>
           )}
         </>
       )}

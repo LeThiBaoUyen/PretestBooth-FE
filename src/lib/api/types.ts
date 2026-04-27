@@ -732,6 +732,8 @@ export interface Exam {
 export interface ExamListItem {
   id: string;
   title: string;
+  displayTitle?: string;
+  isPretestExam?: boolean;
   description: string | null;
   questionCount: number;
   problemCount: number;
@@ -810,6 +812,7 @@ export interface PaginatedExams {
 export interface QueryExamsParams {
   page?: number;
   limit?: number;
+  pretestGroup?: "PRETEST" | "REGULAR";
   subjectId?: string;
   topicId?: string;
   type?: "PRACTICE" | "EXAM";

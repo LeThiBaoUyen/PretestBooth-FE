@@ -70,6 +70,7 @@ class ExamsApiClient {
     const searchParams = new URLSearchParams();
     if (params?.page) searchParams.append("page", params.page.toString());
     if (params?.limit) searchParams.append("limit", params.limit.toString());
+    if (params?.pretestGroup) searchParams.append("pretestGroup", params.pretestGroup);
     if (params?.subjectId) searchParams.append("subjectId", params.subjectId);
     if (params?.topicId) searchParams.append("topicId", params.topicId);
     if (params?.type) searchParams.append("type", params.type);
