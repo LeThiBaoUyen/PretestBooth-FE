@@ -542,7 +542,7 @@ export default function BoothsManagementPage() {
           ...prev,
           dryRunning: false,
           preview: previewResult,
-          selectedBookingIds: previewResult.transferableBookingIds,
+          selectedBookingIds: previewResult.transferableBookings.map((item) => item.bookingId),
         }));
       } else {
         setTransferModal((prev) => ({ ...prev, dryRunning: false }));
@@ -600,6 +600,32 @@ export default function BoothsManagementPage() {
 
       await loadBooths();
       await loadLogs(transferModal.booth.id);
+
+      if (result.skippedCount > 0) {
+        setTransferModal((prev) => ({
+          ...prev,
+          submitting: false,
+          preview: {
+            sourceBoothId: result.sourceBoothId,
+            targetBoothId: result.targetBoothId,
+            dryRun: true,
+            totalCandidates: result.totalCandidates,
+            transferableCount: result.transferredCount,
+            conflictCount: result.skippedCount,
+            transferableBookings: result.transferredBookings || [],
+            transferableBookingIds: result.transferredBookingIds,
+            conflicts: result.skipped,
+            includeCheckedIn: transferModal.includeCheckedIn,
+          },
+          selectedBookingIds: result.transferredBookingIds,
+        }));
+        setError(
+          result.message ||
+            `Đã chuyển ${result.transferredCount} booking. Có ${result.skippedCount} booking trùng lịch đã đổi trạng thái CANCEL.`,
+        );
+        return;
+      }
+
       closeTransferModal();
     } catch (err: unknown) {
       setTransferModal((prev) => ({ ...prev, submitting: false }));
@@ -1202,7 +1228,7 @@ export default function BoothsManagementPage() {
                   </div>
                 </div>
 
-                {transferModal.preview.transferableBookingIds.length > 0 && (
+                {transferModal.preview.transferableBookings.length > 0 && (
                   <div className="mt-4">
                     <div className="mb-2 flex items-center justify-between">
                       <p className="text-sm font-medium text-gray-900">Danh sách booking có thể chuyển</p>
@@ -1212,14 +1238,14 @@ export default function BoothsManagementPage() {
                           setTransferModal((prev) => ({
                             ...prev,
                             selectedBookingIds:
-                              prev.selectedBookingIds.length === prev.preview?.transferableBookingIds.length
+                              prev.selectedBookingIds.length === prev.preview?.transferableBookings.length
                                 ? []
-                                : prev.preview?.transferableBookingIds || [],
+                                : prev.preview?.transferableBookings.map((item) => item.bookingId) || [],
                           }))
                         }
                         className="inline-flex items-center gap-1 text-xs font-medium text-indigo-700 hover:text-indigo-900"
                       >
-                        {transferModal.selectedBookingIds.length === transferModal.preview.transferableBookingIds.length ? (
+                        {transferModal.selectedBookingIds.length === transferModal.preview.transferableBookings.length ? (
                           <Square className="h-3.5 w-3.5" />
                         ) : (
                           <CheckSquare className="h-3.5 w-3.5" />
@@ -1228,16 +1254,26 @@ export default function BoothsManagementPage() {
                       </button>
                     </div>
                     <div className="max-h-52 space-y-2 overflow-y-auto pr-1">
-                      {transferModal.preview.transferableBookingIds.map((bookingId) => (
+                      {transferModal.preview.transferableBookings.map((candidate) => (
                         <label
-                          key={bookingId}
+                          key={candidate.bookingId}
                           className="flex cursor-pointer items-center justify-between rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm"
                         >
-                          <span className="truncate font-mono text-xs text-gray-700">{bookingId}</span>
+                          <span className="min-w-0 pr-3">
+                            <span className="block truncate text-sm font-medium text-gray-800">
+                              {candidate.studentName}
+                            </span>
+                            <span className="block truncate text-xs text-gray-600">
+                              {candidate.studentEmail}
+                            </span>
+                            <span className="block truncate text-xs text-gray-500">
+                              {formatDateTime(candidate.startTime)} - {formatDateTime(candidate.endTime)}
+                            </span>
+                          </span>
                           <input
                             type="checkbox"
-                            checked={transferModal.selectedBookingIds.includes(bookingId)}
-                            onChange={() => toggleSelectedBooking(bookingId)}
+                            checked={transferModal.selectedBookingIds.includes(candidate.bookingId)}
+                            onChange={() => toggleSelectedBooking(candidate.bookingId)}
                           />
                         </label>
                       ))}
@@ -1254,7 +1290,22 @@ export default function BoothsManagementPage() {
                           key={conflict.bookingId}
                           className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2"
                         >
-                          <p className="font-mono text-xs text-rose-800">{conflict.bookingId}</p>
+                          <p className="text-sm font-semibold text-rose-800">
+                            {conflict.studentName || conflict.studentEmail || conflict.bookingId}
+                          </p>
+                          {(conflict.startTime || conflict.endTime) && (
+                            <p className="mt-1 text-xs text-rose-700">
+                              {formatDateTime(conflict.startTime)} - {formatDateTime(conflict.endTime)}
+                            </p>
+                          )}
+                          {conflict.studentEmail && (
+                            <p className="mt-1 text-xs text-rose-700">{conflict.studentEmail}</p>
+                          )}
+                          {conflict.wasCancelled && (
+                            <p className="mt-1 text-xs font-semibold text-rose-800">
+                              Trạng thái booking: CANCEL
+                            </p>
+                          )}
                           <p className="mt-1 text-xs text-rose-700">{conflict.reason}</p>
                         </div>
                       ))}

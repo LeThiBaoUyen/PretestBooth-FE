@@ -1284,7 +1284,23 @@ export interface TransferBoothBookingsRequest {
 
 export interface TransferBoothBookingsConflict {
   bookingId: string;
+  userId?: string;
+  studentName?: string;
+  studentEmail?: string;
+  startTime?: string;
+  endTime?: string;
+  wasCancelled?: boolean;
   reason: string;
+}
+
+export interface TransferBoothBookingCandidate {
+  bookingId: string;
+  userId?: string;
+  studentName: string;
+  studentEmail: string;
+  status?: string;
+  startTime: string;
+  endTime: string;
 }
 
 export interface TransferBoothBookingsDryRunResponse {
@@ -1294,6 +1310,7 @@ export interface TransferBoothBookingsDryRunResponse {
   totalCandidates: number;
   transferableCount: number;
   conflictCount: number;
+  transferableBookings: TransferBoothBookingCandidate[];
   transferableBookingIds: string[];
   conflicts: TransferBoothBookingsConflict[];
   includeCheckedIn: boolean;
@@ -1303,9 +1320,12 @@ export interface TransferBoothBookingsExecuteResponse {
   sourceBoothId: string;
   targetBoothId: string;
   dryRun: false;
+  cancelledDueToConflicts: boolean;
+  message?: string;
   totalCandidates: number;
   transferredCount: number;
   skippedCount: number;
+  transferredBookings?: TransferBoothBookingCandidate[];
   transferredBookingIds: string[];
   skipped: TransferBoothBookingsConflict[];
   sourceBoothStatusAfterTransfer: BoothStatus;
