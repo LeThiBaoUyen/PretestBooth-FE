@@ -22,7 +22,7 @@ export default function AdminStatsDashboard() {
   const [loading, setLoading] = useState(true);
 
   const loadAdminStats = () => {
-    if (!user || user.role !== "ADMIN") {
+    if (!user || (user.role !== "ADMIN" && user.role !== "LECTURER")) {
       return;
     }
 
@@ -33,13 +33,13 @@ export default function AdminStatsDashboard() {
   };
 
   useEffect(() => {
-    if (user && user.role === "ADMIN") {
+    if (user && (user.role === "ADMIN" || user.role === "LECTURER")) {
       loadAdminStats();
     }
   }, [user]);
 
   useEffect(() => {
-    if (!user || user.role !== "ADMIN") {
+    if (!user || (user.role !== "ADMIN" && user.role !== "LECTURER")) {
       return;
     }
 
@@ -60,14 +60,14 @@ export default function AdminStatsDashboard() {
     };
   }, [user]);
 
-  if (!user || user.role !== "ADMIN") return null;
+  if (!user || (user.role !== "ADMIN" && user.role !== "LECTURER")) return null;
   if (loading) return <div className="text-center py-8 text-gray-500">Đang tải thống kê hệ thống...</div>;
   if (!stats) return null;
 
   return (
     <div className="pt-2 pb-8">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-navy-600">Tổng quan Hệ thống Quản trị</h1>
+        <h1 className="text-3xl font-bold text-navy-600">{user.role === "ADMIN" ? "Tổng quan Hệ thống Quản trị" : "Tổng quan Hệ thống - Giảng viên"}</h1>
         <p className="text-gray-600 mt-2">Dữ liệu thời gian thực tình hình hoạt động của Booths và sinh viên.</p>
       </div>
 
@@ -156,12 +156,12 @@ export default function AdminStatsDashboard() {
               Không có cảnh báo vi phạm nào trong hôm nay.
             </div>
           ) : (
-            <div className="space-y-4">
+            <div className="space-y-4 max-h-96 overflow-y-auto pr-2">
               {stats.recentProctoringEvents.map((event) => (
                 (() => {
                   const student = event?.examSession?.user || event?.practiceSession?.user;
                   return (
-                <div key={event.id} className="flex items-start space-x-4 p-4 rounded-xl border border-gray-100 hover:bg-gray-50 transition">
+                <div key={event.id} className="flex items-start space-x-4 p-4 rounded-xl border border-gray-100 hover:bg-gray-50 transition flex-shrink-0">
                   <div className={`p-2 font-bold rounded-lg text-white mt-1 ${
                     event.warningLevel >= 3 ? "bg-red-500" : 
                     event.warningLevel === 2 ? "bg-orange-500" : "bg-amber-400"
