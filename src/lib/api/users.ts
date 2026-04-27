@@ -36,6 +36,8 @@ export interface LecturerListItem {
   name?: string;
   role: "LECTURER";
   isLocked?: boolean;
+  lockedAt?: string | null;
+  lockedReason?: string | null;
   createdAt?: string;
   permissions: LecturerPermission[];
   individualPermissions?: LecturerPermission[];
@@ -87,6 +89,14 @@ export interface CreateLecturerPayload {
   email: string;
   name: string;
   password: string;
+}
+
+export interface UpdateLecturerPayload {
+  email?: string;
+  name?: string;
+  password?: string;
+  isLocked?: boolean;
+  lockedReason?: string;
 }
 
 export interface UpdateLecturerPermissionsPayload {
@@ -158,6 +168,18 @@ export const usersApi = {
       "/api/users/lecturers",
       data,
     ),
+
+  updateLecturer: (id: string, data: UpdateLecturerPayload) =>
+    httpClient.patch<{
+      id: string;
+      email: string;
+      name: string | null;
+      isLocked: boolean;
+      lockedAt: string | null;
+      lockedReason: string | null;
+      createdAt: string;
+      message: string;
+    }>(`/api/users/lecturers/${id}`, data),
 
   updateLecturerPermissions: (id: string, data: UpdateLecturerPermissionsPayload) =>
     httpClient.put<{

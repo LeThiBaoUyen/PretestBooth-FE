@@ -34,6 +34,14 @@ const PERMISSION_ORDER: LecturerPermission[] = [
   "LECTURER_ADMIN",
 ];
 
+type LecturerInfoForm = {
+  email: string;
+  name: string;
+  password: string;
+  isLocked: boolean;
+  lockedReason: string;
+};
+
 export default function LecturerManagementPage() {
   const { user, userLoading } = useAuth();
   const canManageLecturers = hasPermission(user, "LECTURER_ADMIN");
@@ -53,6 +61,13 @@ export default function LecturerManagementPage() {
   const [selectedLecturer, setSelectedLecturer] = useState<LecturerListItem | null>(null);
   const [draftPermissions, setDraftPermissions] = useState<LecturerPermission[]>([]);
   const [draftRoleId, setDraftRoleId] = useState<string | null>(null);
+  const [lecturerInfoForm, setLecturerInfoForm] = useState<LecturerInfoForm>({
+    email: "",
+    name: "",
+    password: "",
+    isLocked: false,
+    lockedReason: "",
+  });
   const [createForm, setCreateForm] = useState({
     email: "",
     name: "",
@@ -121,12 +136,26 @@ export default function LecturerManagementPage() {
     setSelectedLecturer(lecturer);
     setDraftPermissions(lecturer.individualPermissions || lecturer.permissions || []);
     setDraftRoleId(lecturer.lecturerRole?.id || null);
+    setLecturerInfoForm({
+      email: lecturer.email || "",
+      name: lecturer.name || "",
+      password: "",
+      isLocked: Boolean(lecturer.isLocked),
+      lockedReason: lecturer.lockedReason || "",
+    });
   };
 
   const closeEditor = () => {
     setSelectedLecturer(null);
     setDraftPermissions([]);
     setDraftRoleId(null);
+    setLecturerInfoForm({
+      email: "",
+      name: "",
+      password: "",
+      isLocked: false,
+      lockedReason: "",
+    });
   };
 
   const togglePermission = (permission: LecturerPermission) => {
@@ -178,6 +207,45 @@ export default function LecturerManagementPage() {
       closeEditor();
     } catch (err: any) {
       setError(err?.message || "Không thể cập nhật quyền giảng viên");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const saveLecturerInfo = async () => {
+    if (!selectedLecturer) return;
+
+    const nextEmail = lecturerInfoForm.email.trim().toLowerCase();
+    const nextName = lecturerInfoForm.name.trim();
+    const nextPassword = lecturerInfoForm.password.trim();
+    const nextLockedReason = lecturerInfoForm.lockedReason.trim();
+
+    if (!nextEmail || !nextName) {
+      setError("Vui lòng nhập đầy đủ email và họ tên giảng viên.");
+      return;
+    }
+
+    if (nextPassword && nextPassword.length < 8) {
+      setError("Mật khẩu mới phải có ít nhất 8 ký tự.");
+      return;
+    }
+
+    try {
+      setSaving(true);
+      setError(null);
+
+      await usersApi.updateLecturer(selectedLecturer.id, {
+        email: nextEmail,
+        name: nextName,
+        ...(nextPassword ? { password: nextPassword } : {}),
+        isLocked: lecturerInfoForm.isLocked,
+        lockedReason: lecturerInfoForm.isLocked ? nextLockedReason || undefined : undefined,
+      });
+
+      await loadLecturers();
+      closeEditor();
+    } catch (err: any) {
+      setError(err?.message || "Không thể cập nhật thông tin giảng viên");
     } finally {
       setSaving(false);
     }
@@ -435,7 +503,7 @@ export default function LecturerManagementPage() {
                           onClick={() => openEditor(lecturer)}
                           className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-50"
                         >
-                          Phân quyền
+                          Sửa thông tin
                         </button>
                       </td>
                     </tr>
@@ -450,7 +518,7 @@ export default function LecturerManagementPage() {
           <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
             <div className="mb-4 flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
               <div>
-                <h2 className="text-lg font-bold text-slate-900">Phân quyền giảng viên</h2>
+                <h2 className="text-lg font-bold text-slate-900">Sửa thông tin giảng viên</h2>
                 <p className="text-sm text-slate-600">{selectedLecturer.name || selectedLecturer.email}</p>
               </div>
               <button
@@ -458,8 +526,126 @@ export default function LecturerManagementPage() {
                 onClick={closeEditor}
                 className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"
               >
-                Đóng
+              Đóng
               </button>
+            </div>
+
+            <div className="mb-4 rounded-lg border border-slate-200 bg-slate-50 p-4">
+              <div className="mb-3">
+                <p className="text-sm font-semibold text-slate-800">Thông tin cơ bản</p>
+                <p className="text-xs text-slate-600">
+                  Cập nhật email, tên hiển thị, trạng thái khóa và mật khẩu khởi tạo nếu cần.
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                <label className="space-y-1">
+                  <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                    Email
+                  </span>
+                  <input
+                    type="email"
+                    value={lecturerInfoForm.email}
+                    onChange={(event) =>
+                      setLecturerInfoForm((current) => ({
+                        ...current,
+                        email: event.target.value,
+                      }))
+                    }
+                    className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                  />
+                </label>
+
+                <label className="space-y-1">
+                  <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                    Họ tên
+                  </span>
+                  <input
+                    value={lecturerInfoForm.name}
+                    onChange={(event) =>
+                      setLecturerInfoForm((current) => ({
+                        ...current,
+                        name: event.target.value,
+                      }))
+                    }
+                    className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                  />
+                </label>
+
+                <label className="space-y-1">
+                  <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                    Mật khẩu mới
+                  </span>
+                  <input
+                    type="password"
+                    value={lecturerInfoForm.password}
+                    onChange={(event) =>
+                      setLecturerInfoForm((current) => ({
+                        ...current,
+                        password: event.target.value,
+                      }))
+                    }
+                    placeholder="Để trống nếu không đổi"
+                    className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                  />
+                </label>
+
+                <label className="space-y-1">
+                  <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                    Trạng thái
+                  </span>
+                  <select
+                    value={lecturerInfoForm.isLocked ? "LOCKED" : "ACTIVE"}
+                    onChange={(event) =>
+                      setLecturerInfoForm((current) => ({
+                        ...current,
+                        isLocked: event.target.value === "LOCKED",
+                      }))
+                    }
+                    className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
+                  >
+                    <option value="ACTIVE">Hoạt động</option>
+                    <option value="LOCKED">Bị khóa</option>
+                  </select>
+                </label>
+              </div>
+
+              <label className="mt-3 block space-y-1">
+                <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  Lý do khóa
+                </span>
+                <textarea
+                  value={lecturerInfoForm.lockedReason}
+                  onChange={(event) =>
+                    setLecturerInfoForm((current) => ({
+                      ...current,
+                      lockedReason: event.target.value,
+                    }))
+                  }
+                  disabled={!lecturerInfoForm.isLocked}
+                  placeholder="Chỉ dùng khi khóa tài khoản"
+                  rows={3}
+                  className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm disabled:bg-slate-100"
+                />
+              </label>
+
+              {selectedLecturer.isLocked && selectedLecturer.lockedReason && (
+                <p className="mt-2 text-xs text-red-600">
+                  Lý do khóa hiện tại: {selectedLecturer.lockedReason}
+                </p>
+              )}
+
+              <div className="mt-4 flex justify-end">
+                <button
+                  type="button"
+                  onClick={saveLecturerInfo}
+                  disabled={saving}
+                  className="inline-flex items-center rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-60"
+                >
+                  {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                  Lưu thông tin
+                </button>
+              </div>
             </div>
 
             <div className="mb-4 rounded-lg border border-slate-200 bg-slate-50 p-3">
