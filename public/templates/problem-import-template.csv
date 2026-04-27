@@ -1,0 +1,7 @@
+﻿# Hướng dẫn:
+# - Khuyến nghị dùng file .xlsx nếu mở bằng Excel để giữ đúng dấu tiếng Việt.
+# - Các dòng bắt đầu bằng # là hướng dẫn và sẽ được bỏ qua khi import.
+# - subjectId/topicId có thể nhập UUID hoặc tên môn/chủ đề, hệ thống sẽ tự đối chiếu.
+title,slug,description,difficulty,functionName,outputType,timeLimit,memoryLimit,inputTypes,argNames,hints,isPublished,subjectId,topicId,constraints
+"Tổng hai số",sum-two,"Viết hàm trả về tổng hai số",EASY,solve,number,1000,256,"number,number","a,b","Dùng toán tử +",true,Cấu trúc dữ liệu,,"0 <= a,b <= 10^9"
+"Kiểm tra nguyên tố",check-prime,"Viết hàm kiểm tra số nguyên tố",MEDIUM,solve,boolean,1000,256,"number","n","Duyệt từ 2 tới sqrt(n)",false,Cấu trúc dữ liệu,Đệ quy,"n > 0"

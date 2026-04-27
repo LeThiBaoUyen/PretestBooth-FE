@@ -8,7 +8,6 @@ import {
   CheckCircle,
   CircleAlert,
   CircleCheck,
-  Download,
   ChevronDown,
   ChevronRight,
   FileSpreadsheet,
@@ -27,6 +26,8 @@ import { useAuth } from "@/lib/hooks";
 import { usersApi } from "@/lib/api/users";
 import { getTokenManager } from "@/lib/auth/tokenManager";
 import { hasPermission } from "@/lib/auth/permissions";
+import { downloadImportTemplate } from "@/lib/importTemplates";
+import { ImportTemplateActions } from "@/components/import/ImportTemplateActions";
 
 type PreviewRow = {
   rowNumber: number;
@@ -614,6 +615,10 @@ export function AdminUsersPageContent({
     URL.revokeObjectURL(url);
   };
 
+  const handleDownloadCsvTemplate = () => {
+    downloadImportTemplate("studentCsv", "student-import-template.csv");
+  };
+
   const handleExportStudents = async () => {
     setIsExporting(true);
     try {
@@ -923,52 +928,51 @@ export function AdminUsersPageContent({
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
-          <button
-            onClick={handleCreateStudent}
-            className="inline-flex items-center px-4 py-2 bg-navy-600 text-white text-sm font-semibold rounded-lg hover:bg-navy-700 transition"
-          >
-            <Plus className="w-3.5 h-3.5 mr-1.5" />
-            Tạo sinh viên
-          </button>
-          <button
-            onClick={handleExportStudents}
-            disabled={isExporting}
-            className="inline-flex items-center px-4 py-2 bg-white border border-slate-200 text-slate-700 text-sm font-semibold rounded-lg hover:bg-slate-50 transition disabled:opacity-60"
-          >
-            <FileDown className="w-3.5 h-3.5 mr-1.5" />
-            {isExporting ? "Đang xuất..." : "Xuất file"}
-          </button>
-          <button
-            onClick={handleDownloadTemplate}
-            className="inline-flex items-center px-4 py-2 bg-white border border-slate-200 text-slate-700 text-sm font-semibold rounded-lg hover:bg-slate-50 transition"
-          >
-            <Download className="w-3.5 h-3.5 mr-1.5" />
-            Tải mẫu CSV
-          </button>
+          <div className="flex w-full flex-wrap items-center gap-2 xl:max-w-none xl:flex-nowrap xl:justify-end">
+            <button
+              onClick={handleCreateStudent}
+              className="inline-flex min-h-[38px] shrink-0 items-center justify-center whitespace-nowrap rounded-xl bg-navy-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-navy-700"
+            >
+              <Plus className="mr-1.5 h-3.5 w-3.5" />
+              Tạo sinh viên
+            </button>
+            <button
+              onClick={handleExportStudents}
+              disabled={isExporting}
+              className="inline-flex min-h-[38px] shrink-0 items-center justify-center whitespace-nowrap rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:opacity-60"
+            >
+              <FileDown className="mr-1.5 h-3.5 w-3.5" />
+              {isExporting ? "Đang xuất..." : "Xuất file"}
+            </button>
 
-          <input
-            type="file"
-            ref={fileInputRef}
-            className="hidden"
-            accept=".csv, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel"
-            onChange={handleFileUpload}
-          />
+            <ImportTemplateActions
+              onDownloadXlsx={handleDownloadTemplate}
+              onDownloadCsv={handleDownloadCsvTemplate}
+              className="shrink-0"
+            />
 
-          <button
-            onClick={() => fileInputRef.current?.click()}
-            disabled={isParsingFile || isUploading}
-            className="inline-flex items-center px-4 py-2 bg-emerald-600 text-white text-sm font-semibold rounded-lg hover:bg-emerald-700 transition disabled:bg-gray-400"
-          >
-            {isParsingFile ? (
-              <span className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></span>
-            ) : (
-              <Upload className="w-3.5 h-3.5 mr-1.5" />
-            )}
-            Import file
-          </button>
+            <input
+              type="file"
+              ref={fileInputRef}
+              className="hidden"
+              accept=".csv, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel"
+              onChange={handleFileUpload}
+            />
+
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              disabled={isParsingFile || isUploading}
+              className="inline-flex min-h-[38px] shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700 disabled:bg-gray-400"
+            >
+              {isParsingFile ? (
+                <span className="mr-2 h-4 w-4 animate-spin rounded-full border-b-2 border-white"></span>
+              ) : (
+                <Upload className="h-3.5 w-3.5" />
+              )}
+              Import file
+            </button>
+          </div>
         </div>
-      </div>
       </div>
 
       {showForm && (

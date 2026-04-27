@@ -11,10 +11,11 @@ import type {
 import { questionsApiClient } from "@/lib/api/questions";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { getTokenManager } from "@/lib/auth/tokenManager";
+import { downloadImportTemplate } from "@/lib/importTemplates";
+import { ImportTemplateActions } from "@/components/import/ImportTemplateActions";
 import {
   CircleAlert,
   CircleCheck,
-  Download,
   FileSpreadsheet,
   Upload,
 } from "lucide-react";
@@ -556,22 +557,21 @@ export default function QuestionsLibrary() {
           <p className="text-gray-600">Quản lý câu hỏi trắc nghiệm, nhiều đáp án và tự luận ngắn</p>
         </div>
         {isAuthorized && (
-          <div className="shrink-0 flex items-center gap-2">
-            <button
-              onClick={handleDownloadTemplate}
-              className="inline-flex w-32 min-h-[34px] items-center justify-center gap-1 rounded-lg border border-slate-200 bg-white px-2 py-1 text-center text-[12px] font-medium leading-none text-slate-700 shadow-sm transition hover:bg-slate-50 whitespace-nowrap"
-            >
-              <Download className="w-4 h-4" /> Tải mẫu CSV
-            </button>
+          <div className="flex w-full flex-wrap items-center gap-2 xl:max-w-none xl:justify-end">
+            <ImportTemplateActions
+              onDownloadXlsx={handleDownloadTemplate}
+              onDownloadCsv={() => downloadImportTemplate("questionCsv", "question-import-template.csv")}
+              className="shrink-0"
+            />
             <Link
               href="/question-bank/categories"
-              className="inline-flex w-32 min-h-[34px] items-center justify-center rounded-lg border border-slate-200 bg-white px-2 py-1 text-center text-[12px] font-medium leading-none text-slate-700 transition hover:bg-slate-50 whitespace-nowrap"
+              className="inline-flex min-h-[38px] shrink-0 items-center justify-center whitespace-nowrap rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-[13px] font-medium text-slate-700 shadow-sm transition hover:bg-slate-50"
             >
               Subject/Topic
             </Link>
             <Link
               href="/question-bank/review"
-              className="inline-flex w-32 min-h-[34px] items-center justify-center rounded-lg border border-amber-200 bg-amber-50 px-2 py-1 text-center text-[12px] font-medium leading-none text-amber-700 transition hover:bg-amber-100 whitespace-nowrap"
+              className="inline-flex min-h-[38px] shrink-0 items-center justify-center whitespace-nowrap rounded-xl border border-amber-200 bg-amber-50 px-3.5 py-2 text-[13px] font-medium text-amber-700 shadow-sm transition hover:bg-amber-100"
             >
               Review theo quý
             </Link>
@@ -585,7 +585,7 @@ export default function QuestionsLibrary() {
             <button
               onClick={() => fileInputRef.current?.click()}
               disabled={isUploading || isParsingFile}
-              className="inline-flex w-32 min-h-[34px] items-center justify-center gap-1 rounded-lg bg-emerald-600 px-2 py-1 text-center text-[12px] font-medium leading-none text-white shadow-sm transition hover:bg-emerald-700 disabled:opacity-50 whitespace-nowrap"
+              className="inline-flex min-h-[38px] shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-xl bg-emerald-600 px-3.5 py-2 text-[13px] font-medium text-white shadow-sm transition hover:bg-emerald-700 disabled:opacity-50"
             >
               {isParsingFile ? (
                 <span className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></span>
@@ -605,14 +605,14 @@ export default function QuestionsLibrary() {
             <button
               onClick={() => imageInputRef.current?.click()}
               disabled={isUploading || isParsingFile}
-              className="inline-flex w-32 min-h-[34px] items-center justify-center gap-1 rounded-lg bg-sky-600 px-2 py-1 text-center text-[12px] font-medium leading-none text-white shadow-sm transition hover:bg-sky-700 disabled:opacity-50 whitespace-nowrap"
+              className="inline-flex min-h-[38px] shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-xl bg-sky-600 px-3.5 py-2 text-[13px] font-medium text-white shadow-sm transition hover:bg-sky-700 disabled:opacity-50"
             >
               <Upload className="w-4 h-4" />
               Chọn ảnh import
             </button>
             <Link
               href="/question-bank/questions/create"
-              className="inline-flex w-32 min-h-[34px] items-center justify-center gap-1 rounded-lg bg-navy-600 px-2 py-1 text-center text-[12px] font-medium leading-none text-white shadow-sm transition hover:bg-navy-700 whitespace-nowrap"
+              className="inline-flex min-h-[38px] shrink-0 items-center justify-center whitespace-nowrap rounded-xl bg-navy-600 px-3.5 py-2 text-[13px] font-medium text-white shadow-sm transition hover:bg-navy-700"
             >
               + Tạo câu hỏi
             </Link>

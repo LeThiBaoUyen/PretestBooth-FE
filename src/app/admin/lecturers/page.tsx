@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { Loader2, Save, ShieldCheck, Users } from "lucide-react";
+import { Loader2, Lock, Save, ShieldCheck, Unlock, Users } from "lucide-react";
 import { useAuth } from "@/lib/hooks";
 import {
   usersApi,
@@ -52,6 +52,7 @@ export default function LecturerManagementPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [creatingLecturer, setCreatingLecturer] = useState(false);
+  const [lockingLecturerId, setLockingLecturerId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const [lecturers, setLecturers] = useState<LecturerListItem[]>([]);
@@ -115,14 +116,17 @@ export default function LecturerManagementPage() {
         sortOrder: "desc",
       });
 
-      setLecturers(response.data || []);
+      const nextLecturers = response.data || [];
+      setLecturers(nextLecturers);
       setAssignablePermissions(response.assignablePermissions || []);
       setAssignableRoles(response.assignableRoles || []);
       setCanGrantAdminPackage(Boolean(response.canGrantAdminPackage));
+      return nextLecturers;
     } catch (err: any) {
       setError(err?.message || "Không thể tải danh sách giảng viên");
       setLecturers([]);
       setAssignableRoles([]);
+      return [];
     } finally {
       setLoading(false);
     }
@@ -249,6 +253,51 @@ export default function LecturerManagementPage() {
       setError(err?.message || "Không thể cập nhật thông tin giảng viên");
     } finally {
       setSaving(false);
+    }
+  };
+
+  const toggleLecturerLock = async (lecturer: LecturerListItem) => {
+    const isLocked = Boolean(lecturer.isLocked);
+    const actionLabel = isLocked ? "mở khóa" : "khóa";
+    const confirmed = window.confirm(
+      `Bạn có chắc muốn ${actionLabel} tài khoản giảng viên "${lecturer.name || lecturer.email}"?`,
+    );
+
+    if (!confirmed) return;
+
+    const reason = isLocked
+      ? undefined
+      : window.prompt("Nhập lý do khóa (không bắt buộc):")?.trim() || undefined;
+
+    try {
+      setLockingLecturerId(lecturer.id);
+      setError(null);
+
+      if (isLocked) {
+        await usersApi.unlockLecturer(lecturer.id);
+      } else {
+        await usersApi.lockLecturer(lecturer.id, reason ? { reason } : undefined);
+      }
+
+      const nextLecturers = await loadLecturers();
+      const refreshedLecturer = nextLecturers.find((item) => item.id === lecturer.id);
+
+      if (selectedLecturer?.id === lecturer.id && refreshedLecturer) {
+        setSelectedLecturer(refreshedLecturer);
+        setLecturerInfoForm({
+          email: refreshedLecturer.email || "",
+          name: refreshedLecturer.name || "",
+          password: "",
+          isLocked: Boolean(refreshedLecturer.isLocked),
+          lockedReason: refreshedLecturer.lockedReason || "",
+        });
+      }
+
+      alert(isLocked ? "Mở khóa tài khoản giảng viên thành công" : "Khóa tài khoản giảng viên thành công");
+    } catch (err: any) {
+      setError(err?.message || "Không thể thay đổi trạng thái giảng viên");
+    } finally {
+      setLockingLecturerId(null);
     }
   };
 
@@ -503,13 +552,34 @@ export default function LecturerManagementPage() {
                         </div>
                       </td>
                       <td className="px-3 py-2 text-right">
-                        <button
-                          type="button"
-                          onClick={() => openEditor(lecturer)}
-                          className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-50"
-                        >
-                          Sửa thông tin
-                        </button>
+                        <div className="inline-flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => openEditor(lecturer)}
+                            className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-50"
+                          >
+                            Sửa thông tin
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => toggleLecturerLock(lecturer)}
+                            disabled={saving || lockingLecturerId === lecturer.id}
+                            className={`inline-flex items-center rounded-lg px-3 py-1.5 text-xs font-bold disabled:opacity-60 ${
+                              lecturer.isLocked
+                                ? "border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
+                                : "border border-red-200 bg-red-50 text-red-700 hover:bg-red-100"
+                            }`}
+                          >
+                            {lockingLecturerId === lecturer.id ? (
+                              <Loader2 className="mr-1 h-4 w-4 animate-spin" />
+                            ) : lecturer.isLocked ? (
+                              <Unlock className="mr-1 h-4 w-4" />
+                            ) : (
+                              <Lock className="mr-1 h-4 w-4" />
+                            )}
+                            {lecturer.isLocked ? "Mở khóa" : "Khóa"}
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -531,7 +601,26 @@ export default function LecturerManagementPage() {
                 onClick={closeEditor}
                 className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"
               >
-              Đóng
+                Đóng
+              </button>
+              <button
+                type="button"
+                onClick={() => toggleLecturerLock(selectedLecturer)}
+                disabled={saving || lockingLecturerId === selectedLecturer.id}
+                className={`inline-flex items-center rounded-lg px-3 py-1.5 text-xs font-semibold disabled:opacity-60 ${
+                  selectedLecturer.isLocked
+                    ? "border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
+                    : "border border-red-200 bg-red-50 text-red-700 hover:bg-red-100"
+                }`}
+              >
+                {lockingLecturerId === selectedLecturer.id ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : selectedLecturer.isLocked ? (
+                  <Unlock className="mr-2 h-4 w-4" />
+                ) : (
+                  <Lock className="mr-2 h-4 w-4" />
+                )}
+                {selectedLecturer.isLocked ? "Mở khóa" : "Khóa tài khoản"}
               </button>
             </div>
 

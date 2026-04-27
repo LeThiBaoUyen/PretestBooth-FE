@@ -9,7 +9,9 @@ import { problemsApiClient } from "@/lib/api/problems";
 import { questionsApiClient } from "@/lib/api/questions";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { getTokenManager } from "@/lib/auth/tokenManager";
-import { CircleAlert, CircleCheck, Download, FileSpreadsheet, Upload } from "lucide-react";
+import { downloadImportTemplate } from "@/lib/importTemplates";
+import { ImportTemplateActions } from "@/components/import/ImportTemplateActions";
+import { CircleAlert, CircleCheck, FileSpreadsheet, Upload } from "lucide-react";
 
 type ProblemImportPreviewRow = {
   rowNumber: number;
@@ -372,44 +374,43 @@ export default function ProblemsLibrary() {
           <p className="text-gray-600">Rèn luyện kỹ năng lập trình với các bài tập từ dễ đến khó</p>
         </div>
         {isAuthorized && (
-          <div className="flex items-center gap-3">
-            <button
-              onClick={handleDownloadTemplate}
-              className="px-4 py-2 bg-white border border-slate-200 text-slate-700 rounded-lg hover:bg-slate-50 transition font-medium text-sm flex items-center gap-2"
-            >
-              <Download className="w-4 h-4" /> Tải mẫu CSV
-            </button>
-            <Link
-              href="/question-bank/categories"
-              className="px-4 py-2 bg-white border border-slate-200 text-slate-700 rounded-lg hover:bg-slate-50 transition font-medium text-sm"
-            >
-              Subject/Topic
-            </Link>
-            <input
-              type="file"
-              ref={fileInputRef}
-              className="hidden"
-              accept=".csv, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel"
-              onChange={handlePickFile}
+          <div className="flex w-full flex-wrap items-center gap-2 xl:max-w-none xl:justify-end">
+            <ImportTemplateActions
+              onDownloadXlsx={handleDownloadTemplate}
+              onDownloadCsv={() => downloadImportTemplate("problemCsv", "problem-import-template.csv")}
+              className="shrink-0"
             />
-            <button
-              onClick={() => fileInputRef.current?.click()}
-              disabled={isUploading || isParsingFile}
-              className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition font-medium text-sm flex items-center gap-2 disabled:opacity-50"
-            >
-              {isParsingFile ? (
-                <span className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></span>
-              ) : (
-                <Upload className="w-4 h-4" />
-              )}
-              Import file
-            </button>
-            <Link
-              href="/question-bank/problems/create"
-              className="px-5 py-2.5 bg-navy-600 text-white rounded-lg hover:bg-navy-700 transition font-medium text-sm flex items-center gap-2"
-            >
-              + Tạo bài tập
-            </Link>
+              <Link
+                href="/question-bank/categories"
+                className="inline-flex min-h-[38px] shrink-0 items-center justify-center whitespace-nowrap rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-[13px] font-medium text-slate-700 shadow-sm transition hover:bg-slate-50"
+              >
+                Subject/Topic
+              </Link>
+              <input
+                type="file"
+                ref={fileInputRef}
+                className="hidden"
+                accept=".csv, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel"
+                onChange={handlePickFile}
+              />
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isUploading || isParsingFile}
+                className="inline-flex min-h-[38px] shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-xl bg-emerald-600 px-3.5 py-2 text-[13px] font-medium text-white shadow-sm transition hover:bg-emerald-700 disabled:opacity-50"
+              >
+                {isParsingFile ? (
+                  <span className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></span>
+                ) : (
+                  <Upload className="w-4 h-4" />
+                )}
+                Import file
+              </button>
+              <Link
+                href="/question-bank/problems/create"
+                className="inline-flex min-h-[38px] shrink-0 items-center justify-center whitespace-nowrap rounded-xl bg-navy-600 px-3.5 py-2 text-[13px] font-medium text-white shadow-sm transition hover:bg-navy-700"
+              >
+                + Tạo bài tập
+              </Link>
           </div>
         )}
       </div>

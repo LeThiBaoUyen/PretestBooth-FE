@@ -1,0 +1,8 @@
+﻿# Hướng dẫn:
+# - Khuyến nghị dùng file .xlsx nếu mở bằng Excel để giữ đúng dấu tiếng Việt.
+# - Các dòng bắt đầu bằng # là hướng dẫn và sẽ được bỏ qua khi import.
+# - className để trống nếu sinh viên chưa có lớp.
+studentCode,email,name,className,dateOfBirth
+21000001,21000001@student.iuh.edu.vn,Nguyen Van A,DHKTPM17ATT,2003-08-15
+21000002,21000002@student.iuh.edu.vn,Tran Thi B,DHKTPM17BTT,15/09/2003
+21000003,21000003@student.iuh.edu.vn,Le Van C,,2004-01-20

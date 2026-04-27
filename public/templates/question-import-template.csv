@@ -1,0 +1,9 @@
+﻿# Hướng dẫn:
+# - Khuyến nghị dùng file .xlsx nếu mở bằng Excel để giữ đúng dấu tiếng Việt.
+# - Các dòng bắt đầu bằng # là hướng dẫn và sẽ được bỏ qua khi import.
+# - subjectId/topicId có thể nhập UUID hoặc tên môn/chủ đề, hệ thống sẽ tự đối chiếu.
+# - image là tên file ảnh nếu có.
+content,questionType,classification,difficulty,subjectId,topicId,image,isPublished,A,B,C,D,Đáp án đúng,correctAnswer,explanation
+"Phát biểu nào sau đây là mệnh đề đúng?",SINGLE_CHOICE,EXAM,EASY,Toán rời rạc,Logic mệnh đề,logic.png,TRUE,"Mệnh đề","Biến số","Hàm số","Biểu thức",A,,"Phát biểu đúng là một mệnh đề có giá trị chân lý xác định."
+"Chọn các cấu trúc dữ liệu tuyến tính.",MULTIPLE_CHOICE,PRACTICE,MEDIUM,Cấu trúc dữ liệu,Mảng và danh sách,linear-structure.jpg,FALSE,"Mảng","Danh sách liên kết","Cây nhị phân","Đồ thị","A,D",,"Mảng và danh sách liên kết là cấu trúc dữ liệu tuyến tính."
+"Hãy viết tên thuật toán sắp xếp nổi bọt bằng tiếng Anh.",SHORT_ANSWER,EXAM,HARD,Thuật toán,Sắp xếp,,FALSE,,,,,,,Bubble Sort,"Thuật toán sắp xếp nổi bọt trong tiếng Anh là Bubble Sort."
