@@ -104,6 +104,7 @@ export default function ExamSessionDetailPage() {
   const [draftGrades, setDraftGrades] = useState<
     Record<string, { score: string; isCorrect: boolean; feedback: string }>
   >({});
+  const [isFallbackReviewOpen, setIsFallbackReviewOpen] = useState(false);
 
   const { data: result, isLoading, isError, error } = useQuery({
     queryKey: ["exam-session-result", sessionId],
@@ -117,6 +118,18 @@ export default function ExamSessionDetailPage() {
         (item) => item.section === "QUESTION" && item.questionType === "SHORT_ANSWER",
       ) || [],
     [result],
+  );
+  const fallbackReview = canReviewResult ? result?.fallbackReview : null;
+  const hasFallbackReviewImages = Boolean(
+    fallbackReview?.fallbackEvidenceImageUrl ||
+      fallbackReview?.studentCardImageUrl ||
+      fallbackReview?.registeredFaceImageUrl,
+  );
+  const shouldAutoOpenFallbackReview = Boolean(
+    fallbackReview?.shouldAutoExpand ||
+      fallbackReview?.fallbackAppliedAt ||
+      fallbackReview?.fallbackEvidenceImageUrl ||
+      fallbackReview?.checkinStatus === "FAILED_BUT_ALLOWED",
   );
 
   useEffect(() => {
@@ -139,6 +152,10 @@ export default function ExamSessionDetailPage() {
 
     setDraftGrades(initialDrafts);
   }, [result, canReviewResult, shortAnswerItems]);
+
+  useEffect(() => {
+    setIsFallbackReviewOpen(shouldAutoOpenFallbackReview);
+  }, [result?.id, shouldAutoOpenFallbackReview]);
 
   const gradeMutation = useMutation({
     mutationFn: async (payload: {
@@ -187,7 +204,7 @@ export default function ExamSessionDetailPage() {
       <div className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-100 flex items-center justify-center">
         <div className="text-center">
           <h2 className="text-2xl font-bold text-gray-900 mb-4">
-            {isError ? "Không thể xem kết quả bài thi" : "Không tìm thấy kết quả bài thi"}
+            {isError ? "Không thể xem kết quả bài làm" : "Không tìm thấy kết quả bài làm"}
           </h2>
           <p className="mb-4 text-sm text-gray-600">{errorMessage}</p>
           <Link
@@ -208,12 +225,9 @@ export default function ExamSessionDetailPage() {
 
   const canViewItemDetails = result.canViewItemDetails;
   const canViewProctoringWarnings = user?.role === "ADMIN" || user?.role === "LECTURER";
-  const fallbackReview = canViewProctoringWarnings ? result.fallbackReview : null;
-  const hasFallbackReviewImages = Boolean(
-    fallbackReview?.fallbackEvidenceImageUrl ||
-      fallbackReview?.studentCardImageUrl ||
-      fallbackReview?.registeredFaceImageUrl,
-  );
+  const isPracticeSession = result.examType === "PRACTICE";
+  const sessionLabel = isPracticeSession ? "bài luyện tập" : "bài thi";
+  const sessionLabelTitle = isPracticeSession ? "Bài luyện tập" : "Phiên thi";
   const proctoringWarnings = canViewProctoringWarnings ? (result.proctoringWarnings || []) : [];
   const questionItems = result.items.filter((i) => i.section === "QUESTION");
   const problemItems = result.items.filter((i) => i.section === "PROBLEM");
@@ -250,7 +264,7 @@ export default function ExamSessionDetailPage() {
         {/* Header */}
         <div className="mb-6">
           <div className="flex flex-wrap items-center gap-2">
-            <h1 className="text-3xl font-bold text-gray-900">Kết quả bài thi</h1>
+            <h1 className="text-3xl font-bold text-gray-900">Kết quả {sessionLabel}</h1>
             <span className={`rounded-full px-3 py-1 text-xs font-semibold ${publicationClass}`}>
               {publicationLabel}
             </span>
@@ -270,7 +284,7 @@ export default function ExamSessionDetailPage() {
                 {result.examTitle}
               </h2>
               <p className="text-gray-500 mt-1">
-                Phiên thi: {result.id.slice(0, 8)}...
+                {sessionLabelTitle}: {result.id.slice(0, 8)}...
               </p>
             </div>
             <div className="flex items-center gap-2">
@@ -358,7 +372,7 @@ export default function ExamSessionDetailPage() {
           <div className="mb-6 rounded-lg border border-amber-200 bg-amber-50 p-4 text-amber-900">
             <p className="font-semibold">Kết quả đang chờ giảng viên xác nhận</p>
             <p className="mt-1 text-sm">
-              Điểm của bài thi này sẽ được công bố sau khi giảng viên kiểm duyệt phần tự luận ngắn.
+              Điểm của {sessionLabel} này sẽ được công bố sau khi giảng viên kiểm duyệt phần tự luận ngắn.
             </p>
           </div>
         )}
@@ -379,78 +393,93 @@ export default function ExamSessionDetailPage() {
         )}
 
         {canReviewResult && hasFallbackReviewImages && fallbackReview && (
-          <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
-            <h2 className="text-xl font-bold text-gray-900 mb-1">Ảnh đối chiếu check-in fallback</h2>
-            <p className="text-sm text-gray-500 mb-4">
-              Dùng để đối chiếu trước khi công bố điểm nếu có phiên xác thực khuôn mặt thất bại nhiều lần.
-            </p>
-
-            <div className="mb-4 grid grid-cols-1 gap-3 text-sm text-slate-700 md:grid-cols-3">
-              <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
-                <p className="text-xs text-slate-500">Check-in status</p>
-                <p className="font-semibold">{fallbackReview.checkinStatus || "-"}</p>
-              </div>
-              <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
-                <p className="text-xs text-slate-500">Số lần xác thực</p>
-                <p className="font-semibold">{fallbackReview.checkinAttemptCount}</p>
-              </div>
-              <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
-                <p className="text-xs text-slate-500">Fallback applied at</p>
-                <p className="font-semibold">
-                  {fallbackReview.fallbackAppliedAt
-                    ? new Date(fallbackReview.fallbackAppliedAt).toLocaleString("vi-VN")
-                    : "-"}
+          <details
+            className="mb-6 rounded-lg bg-white shadow-sm"
+            open={isFallbackReviewOpen}
+            onToggle={(event) => setIsFallbackReviewOpen(event.currentTarget.open)}
+          >
+            <summary className="flex cursor-pointer list-none items-center justify-between gap-4 rounded-lg p-6">
+              <div>
+                <h2 className="text-xl font-bold text-gray-900">
+                  Ảnh đối chiếu check-in fallback
+                </h2>
+                <p className="text-sm text-gray-500">
+                  Gập mặc định, chỉ mở khi phiên có fallback hoặc khi giảng viên cần đối chiếu.
                 </p>
               </div>
+              <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
+                {isFallbackReviewOpen ? "Thu gọn" : "Mở rộng"}
+              </span>
+            </summary>
+
+            <div className="border-t border-slate-200 p-6">
+              <div className="mb-4 grid grid-cols-1 gap-3 text-sm text-slate-700 md:grid-cols-3">
+                <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                  <p className="text-xs text-slate-500">Check-in status</p>
+                  <p className="font-semibold">{fallbackReview.checkinStatus || "-"}</p>
+                </div>
+                <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                  <p className="text-xs text-slate-500">Số lần xác thực</p>
+                  <p className="font-semibold">{fallbackReview.checkinAttemptCount}</p>
+                </div>
+                <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                  <p className="text-xs text-slate-500">Fallback applied at</p>
+                  <p className="font-semibold">
+                    {fallbackReview.fallbackAppliedAt
+                      ? new Date(fallbackReview.fallbackAppliedAt).toLocaleString("vi-VN")
+                      : "-"}
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+                <div className="rounded-lg border border-slate-200 p-3">
+                  <p className="mb-2 text-sm font-semibold text-slate-800">Ảnh fallback (lần cuối)</p>
+                  {fallbackReview.fallbackEvidenceImageUrl ? (
+                    <img
+                      src={fallbackReview.fallbackEvidenceImageUrl}
+                      alt="Fallback evidence"
+                      className="h-56 w-full rounded-md border border-slate-200 object-cover"
+                    />
+                  ) : (
+                    <div className="flex h-56 items-center justify-center rounded-md border border-dashed border-slate-300 text-sm text-slate-500">
+                      Không có ảnh fallback
+                    </div>
+                  )}
+                </div>
+
+                <div className="rounded-lg border border-slate-200 p-3">
+                  <p className="mb-2 text-sm font-semibold text-slate-800">Ảnh thẻ sinh viên</p>
+                  {fallbackReview.studentCardImageUrl ? (
+                    <img
+                      src={fallbackReview.studentCardImageUrl}
+                      alt="Student card"
+                      className="h-56 w-full rounded-md border border-slate-200 object-cover"
+                    />
+                  ) : (
+                    <div className="flex h-56 items-center justify-center rounded-md border border-dashed border-slate-300 text-sm text-slate-500">
+                      Không có ảnh thẻ
+                    </div>
+                  )}
+                </div>
+
+                <div className="rounded-lg border border-slate-200 p-3">
+                  <p className="mb-2 text-sm font-semibold text-slate-800">Ảnh đăng ký ban đầu</p>
+                  {fallbackReview.registeredFaceImageUrl ? (
+                    <img
+                      src={fallbackReview.registeredFaceImageUrl}
+                      alt="Registered face"
+                      className="h-56 w-full rounded-md border border-slate-200 object-cover"
+                    />
+                  ) : (
+                    <div className="flex h-56 items-center justify-center rounded-md border border-dashed border-slate-300 text-sm text-slate-500">
+                      Không có ảnh đăng ký
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
-
-            <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-              <div className="rounded-lg border border-slate-200 p-3">
-                <p className="mb-2 text-sm font-semibold text-slate-800">Ảnh fallback (lần cuối)</p>
-                {fallbackReview.fallbackEvidenceImageUrl ? (
-                  <img
-                    src={fallbackReview.fallbackEvidenceImageUrl}
-                    alt="Fallback evidence"
-                    className="h-56 w-full rounded-md border border-slate-200 object-cover"
-                  />
-                ) : (
-                  <div className="flex h-56 items-center justify-center rounded-md border border-dashed border-slate-300 text-sm text-slate-500">
-                    Không có ảnh fallback
-                  </div>
-                )}
-              </div>
-
-              <div className="rounded-lg border border-slate-200 p-3">
-                <p className="mb-2 text-sm font-semibold text-slate-800">Ảnh thẻ sinh viên</p>
-                {fallbackReview.studentCardImageUrl ? (
-                  <img
-                    src={fallbackReview.studentCardImageUrl}
-                    alt="Student card"
-                    className="h-56 w-full rounded-md border border-slate-200 object-cover"
-                  />
-                ) : (
-                  <div className="flex h-56 items-center justify-center rounded-md border border-dashed border-slate-300 text-sm text-slate-500">
-                    Không có ảnh thẻ
-                  </div>
-                )}
-              </div>
-
-              <div className="rounded-lg border border-slate-200 p-3">
-                <p className="mb-2 text-sm font-semibold text-slate-800">Ảnh đăng ký ban đầu</p>
-                {fallbackReview.registeredFaceImageUrl ? (
-                  <img
-                    src={fallbackReview.registeredFaceImageUrl}
-                    alt="Registered face"
-                    className="h-56 w-full rounded-md border border-slate-200 object-cover"
-                  />
-                ) : (
-                  <div className="flex h-56 items-center justify-center rounded-md border border-dashed border-slate-300 text-sm text-slate-500">
-                    Không có ảnh đăng ký
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
+          </details>
         )}
 
         {canViewProctoringWarnings && (

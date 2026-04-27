@@ -988,12 +988,14 @@ export interface SessionFallbackReview {
   fallbackEvidenceImageUrl: string | null;
   registeredFaceImageUrl: string | null;
   studentCardImageUrl: string | null;
+  shouldAutoExpand: boolean;
 }
 
 export interface SessionResult {
   id: string;
   examId: string;
   examTitle: string;
+  examType: ExamContentType;
   isPretestSession: boolean;
   pretestAttemptNumber: number | null;
   pretestAssignmentMode: "QUESTION_BANK_RANDOM" | "OFFICIAL_EXAM_POOL" | null;
@@ -1080,6 +1082,7 @@ export interface ExamSessionListItem {
   id: string;
   examId: string;
   examTitle: string;
+  examType: ExamContentType;
   isPretestSession: boolean;
   pretestAttemptNumber: number | null;
   appliedPassingScoreAbsolute: number | null;
@@ -1171,10 +1174,12 @@ export interface PretestStatus {
 // ==================== UNIFIED SUBMISSIONS ====================
 
 export type UnifiedSubmissionType = "PROBLEM" | "EXAM";
+export type ExamContentType = "PRACTICE" | "EXAM";
 
 export interface UnifiedSubmissionItem {
   id: string;
   type: UnifiedSubmissionType;
+  examType: ExamContentType | null;
   title: string;
   slug: string | null;
   difficulty: Difficulty | null;
@@ -1211,6 +1216,7 @@ export interface QueryUnifiedSubmissionsParams {
 
 export interface SubmissionTestGroupItem {
   type: UnifiedSubmissionType;
+  examType: ExamContentType | null;
   entityId: string;
   title: string;
   slug: string | null;
@@ -1252,11 +1258,13 @@ export interface SubmissionTestMemberItem {
   totalTestCases: number | null;
   score: number | null;
   maxScore: number | null;
+  examType: ExamContentType | null;
   submittedAt: string;
 }
 
 export interface SubmissionTestMeta {
   type: UnifiedSubmissionType;
+  examType: ExamContentType | null;
   entityId: string;
   title: string;
   slug: string | null;

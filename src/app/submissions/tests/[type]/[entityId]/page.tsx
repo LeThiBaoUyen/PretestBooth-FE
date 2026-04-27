@@ -126,6 +126,12 @@ export default function SubmissionTestDetailPage() {
 
   const passedCount = filteredMembers.filter((m) => m.passed === true).length;
   const failedCount = filteredMembers.filter((m) => m.passed === false).length;
+  const testLabel =
+    data?.test.type === "PROBLEM"
+      ? "Bài tập code"
+      : data?.test.examType === "PRACTICE"
+        ? "Đề luyện tập"
+        : "Bài thi";
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-100 px-4 py-8 sm:px-6 lg:px-8">
@@ -136,7 +142,7 @@ export default function SubmissionTestDetailPage() {
           </h1>
           {!isLoading && data?.test && (
             <p className="mt-2 text-sm text-slate-600">
-              Loại: {data.test.type === "PROBLEM" ? "Bài tập code" : "Bài thi"}
+              Loại: {testLabel}
               {data.test.type === "EXAM" ? ` - ${data.test.questionCount || 0} câu hỏi, ${data.test.problemCount || 0} bài code` : ""}
             </p>
           )}

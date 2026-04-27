@@ -8,6 +8,7 @@ import { submissionsApi } from "@/lib/api/execution";
 import { useAuth } from "@/lib/hooks";
 import type {
   Difficulty,
+  ExamContentType,
   UnifiedSubmissionItem,
   UnifiedSubmissionType,
 } from "@/lib/api/types";
@@ -59,6 +60,27 @@ const TYPE_LABELS: Record<UnifiedSubmissionType, string> = {
   PROBLEM: "Bài tập",
   EXAM: "Bài thi",
 };
+
+function getExamContentLabel(examType: ExamContentType | null | undefined) {
+  return examType === "PRACTICE" ? "Luyện tập" : "Bài thi";
+}
+
+function getUnifiedTypeBadge(item: UnifiedSubmissionItem) {
+  if (item.type === "PROBLEM") {
+    return {
+      className: TYPE_COLORS.PROBLEM,
+      label: TYPE_LABELS.PROBLEM,
+    };
+  }
+
+  return {
+    className:
+      item.examType === "PRACTICE"
+        ? "bg-emerald-100 text-emerald-800"
+        : TYPE_COLORS.EXAM,
+    label: getExamContentLabel(item.examType),
+  };
+}
 
 export default function SubmissionsHome() {
   const router = useRouter();
@@ -250,8 +272,18 @@ export default function SubmissionsHome() {
                       }}
                     >
                       <td className="whitespace-nowrap px-6 py-4">
-                        <span className={`rounded-full px-2 py-1 text-xs font-medium ${TYPE_COLORS[item.type]}`}>
-                          {TYPE_LABELS[item.type]}
+                        <span
+                          className={`rounded-full px-2 py-1 text-xs font-medium ${
+                            item.type === "PROBLEM"
+                              ? TYPE_COLORS.PROBLEM
+                              : item.examType === "PRACTICE"
+                                ? "bg-emerald-100 text-emerald-800"
+                                : TYPE_COLORS.EXAM
+                          }`}
+                        >
+                          {item.type === "PROBLEM"
+                            ? TYPE_LABELS.PROBLEM
+                            : getExamContentLabel(item.examType)}
                         </span>
                       </td>
                       <td className="px-6 py-4 text-sm font-medium text-gray-900">{item.title}</td>
@@ -513,11 +545,16 @@ export default function SubmissionsHome() {
                     onClick={() => (window.location.href = getLink(item))}
                   >
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span
-                        className={`px-2 py-1 rounded-full text-xs font-medium ${TYPE_COLORS[item.type]}`}
-                      >
-                        {TYPE_LABELS[item.type]}
-                      </span>
+                      {(() => {
+                        const badge = getUnifiedTypeBadge(item);
+                        return (
+                          <span
+                            className={`px-2 py-1 rounded-full text-xs font-medium ${badge.className}`}
+                          >
+                            {badge.label}
+                          </span>
+                        );
+                      })()}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       {item.type === "PROBLEM" && item.slug ? (
@@ -543,7 +580,7 @@ export default function SubmissionsHome() {
                         </span>
                       ) : item.type === "EXAM" ? (
                         <span className="text-gray-600">
-                          {item.questionCount || 0} câu hỏi,{" "}
+                          {getExamContentLabel(item.examType)} • {item.questionCount || 0} câu hỏi,{" "}
                           {item.problemCount || 0} bài code
                         </span>
                       ) : (
