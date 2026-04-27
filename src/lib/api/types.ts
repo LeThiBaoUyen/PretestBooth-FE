@@ -980,6 +980,16 @@ export interface SessionResultProctoringWarning {
   metadata: Record<string, unknown> | null;
 }
 
+export interface SessionFallbackReview {
+  bookingId: string | null;
+  checkinStatus: string | null;
+  checkinAttemptCount: number;
+  fallbackAppliedAt: string | null;
+  fallbackEvidenceImageUrl: string | null;
+  registeredFaceImageUrl: string | null;
+  studentCardImageUrl: string | null;
+}
+
 export interface SessionResult {
   id: string;
   examId: string;
@@ -1005,6 +1015,7 @@ export interface SessionResult {
   pendingItems: number;
   canViewItemDetails: boolean;
   detailMessage: string | null;
+  fallbackReview: SessionFallbackReview | null;
   proctoringWarnings?: SessionResultProctoringWarning[];
   items: SessionResultItem[];
 }
