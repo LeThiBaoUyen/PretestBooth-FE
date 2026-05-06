@@ -84,6 +84,8 @@ function warningLevelClass(level: number) {
   return "bg-amber-100 text-amber-800";
 }
 
+type DraftGrade = { score: string; isCorrect: boolean; feedback: string };
+
 function formatWarningMetadata(metadata: SessionResultProctoringWarning["metadata"]) {
   if (!metadata) return "Không có metadata";
 
@@ -102,7 +104,7 @@ export default function ExamSessionDetailPage() {
   const hasSessionId = Boolean(sessionId);
   const canReviewResult = user?.role === "ADMIN" || user?.role === "LECTURER";
   const [draftGrades, setDraftGrades] = useState<
-    Record<string, { score: string; isCorrect: boolean; feedback: string }>
+    Record<string, DraftGrade>
   >({});
   const [isFallbackReviewOpen, setIsFallbackReviewOpen] = useState(false);
 
@@ -112,6 +114,15 @@ export default function ExamSessionDetailPage() {
     enabled: hasSessionId,
   });
 
+  const manuallyGradableItems = useMemo(
+    () =>
+      result?.items.filter(
+        (item) =>
+          item.section === "PROBLEM" ||
+          (item.section === "QUESTION" && item.questionType === "SHORT_ANSWER"),
+      ) || [],
+    [result],
+  );
   const shortAnswerItems = useMemo(
     () =>
       result?.items.filter(
@@ -137,12 +148,9 @@ export default function ExamSessionDetailPage() {
       return;
     }
 
-    const initialDrafts: Record<
-      string,
-      { score: string; isCorrect: boolean; feedback: string }
-    > = {};
+    const initialDrafts: Record<string, DraftGrade> = {};
 
-    for (const item of shortAnswerItems) {
+    for (const item of manuallyGradableItems) {
       initialDrafts[item.examItemId] = {
         score: String(item.manualScore ?? item.score ?? 0),
         isCorrect: item.manualIsCorrect ?? item.isCorrect ?? false,
@@ -151,7 +159,7 @@ export default function ExamSessionDetailPage() {
     }
 
     setDraftGrades(initialDrafts);
-  }, [result, canReviewResult, shortAnswerItems]);
+  }, [result, canReviewResult, manuallyGradableItems]);
 
   useEffect(() => {
     setIsFallbackReviewOpen(shouldAutoOpenFallbackReview);
@@ -238,7 +246,7 @@ export default function ExamSessionDetailPage() {
   const requiresPublishAction =
     canReviewResult && result.resultPublicationStatus === "PENDING_REVIEW";
 
-  const saveShortAnswerGrade = (examItemId: string, maxPoints: number) => {
+  const saveManualGrade = (examItemId: string, maxPoints: number) => {
     const draft = draftGrades[examItemId];
     if (!draft) {
       return;
@@ -639,7 +647,7 @@ export default function ExamSessionDetailPage() {
                       <div className="flex items-end">
                         <button
                           type="button"
-                          onClick={() => saveShortAnswerGrade(item.examItemId, item.points)}
+                          onClick={() => saveManualGrade(item.examItemId, item.points)}
                           disabled={gradeMutation.isPending}
                           className="w-full rounded-md bg-navy-600 px-3 py-2 text-sm font-semibold text-white hover:bg-navy-700 disabled:cursor-not-allowed disabled:bg-navy-300"
                         >
@@ -695,7 +703,18 @@ export default function ExamSessionDetailPage() {
             </h2>
             <div className="space-y-4">
               {problemItems.map((item, idx) => (
-                <ItemCard key={item.examItemId} item={item} index={idx + 1} />
+                <ItemCard
+                  key={item.examItemId}
+                  item={item}
+                  index={idx + 1}
+                  canReviewResult={canReviewResult}
+                  draft={draftGrades[item.examItemId]}
+                  isSavingGrade={gradeMutation.isPending}
+                  onDraftChange={(examItemId, draft) =>
+                    setDraftGrades((prev) => ({ ...prev, [examItemId]: draft }))
+                  }
+                  onSaveManualGrade={saveManualGrade}
+                />
               ))}
             </div>
           </div>
@@ -705,13 +724,34 @@ export default function ExamSessionDetailPage() {
   );
 }
 
-function ItemCard({ item, index }: { item: SessionResultItem; index: number }) {
+function ItemCard({
+  item,
+  index,
+  canReviewResult = false,
+  draft,
+  onDraftChange,
+  onSaveManualGrade,
+  isSavingGrade = false,
+}: {
+  item: SessionResultItem;
+  index: number;
+  canReviewResult?: boolean;
+  draft?: DraftGrade;
+  onDraftChange?: (examItemId: string, draft: DraftGrade) => void;
+  onSaveManualGrade?: (examItemId: string, maxPoints: number) => void;
+  isSavingGrade?: boolean;
+}) {
   const isCorrect = item.isCorrect === true;
   const isPending = item.isCorrect === null;
   const isWrong = item.isCorrect === false;
   const submission = item.submission;
   const sourceCode = item.sourceCode?.trim() || "";
   const questionType = questionTypeLabel(item.questionType);
+  const problemDraft = draft || {
+    score: String(item.manualScore ?? item.score ?? 0),
+    isCorrect: item.manualIsCorrect ?? item.isCorrect ?? false,
+    feedback: item.reviewerFeedback || "",
+  };
 
   return (
     <div
@@ -931,9 +971,82 @@ function ItemCard({ item, index }: { item: SessionResultItem; index: number }) {
           ) : (
             <p className="rounded-md border border-slate-200 bg-white p-3 text-slate-600">
               {sourceCode
-                ? "Hệ thống chưa tạo dữ liệu chấm cho mục này. Vui lòng thử nộp lại hoặc liên hệ giảng viên."
+                ? "Hệ thống chưa tạo dữ liệu chấm cho mục này. Giảng viên có thể chấm tay bên dưới."
                 : "Mục này không có mã nguồn được nộp nên không có dữ liệu chấm code."}
             </p>
+          )}
+
+          {canReviewResult && onDraftChange && onSaveManualGrade && (
+            <div className="rounded-md border border-navy-200 bg-white p-4">
+              <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <p className="font-semibold text-slate-900">Chấm tay bài code</p>
+                  <p className="text-xs text-slate-500">Có thể ghi đè điểm auto judge cho bài này.</p>
+                </div>
+                <span className="text-xs font-semibold text-slate-500">Tối đa {item.points} điểm</span>
+              </div>
+
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+                <label className="flex flex-col text-sm text-slate-700">
+                  Điểm chấm tay
+                  <input
+                    type="number"
+                    min={0}
+                    max={item.points}
+                    step="0.01"
+                    value={problemDraft.score}
+                    onChange={(event) =>
+                      onDraftChange(item.examItemId, {
+                        ...problemDraft,
+                        score: event.target.value,
+                      })
+                    }
+                    className="mt-1 rounded-md border border-slate-300 px-3 py-2"
+                  />
+                </label>
+
+                <label className="flex items-center gap-2 text-sm text-slate-700 md:mt-6">
+                  <input
+                    type="checkbox"
+                    checked={problemDraft.isCorrect}
+                    onChange={(event) =>
+                      onDraftChange(item.examItemId, {
+                        ...problemDraft,
+                        isCorrect: event.target.checked,
+                      })
+                    }
+                  />
+                  Đánh dấu đúng
+                </label>
+
+                <div className="flex items-end">
+                  <button
+                    type="button"
+                    onClick={() => onSaveManualGrade(item.examItemId, item.points)}
+                    disabled={isSavingGrade}
+                    className="w-full rounded-md bg-navy-600 px-3 py-2 text-sm font-semibold text-white hover:bg-navy-700 disabled:cursor-not-allowed disabled:bg-navy-300"
+                  >
+                    {isSavingGrade ? "Đang lưu..." : "Lưu chấm điểm"}
+                  </button>
+                </div>
+              </div>
+
+              <label className="mt-3 block text-sm text-slate-700">
+                Nhận xét cho sinh viên
+                <textarea
+                  value={problemDraft.feedback}
+                  onChange={(event) =>
+                    onDraftChange(item.examItemId, {
+                      ...problemDraft,
+                      feedback: event.target.value,
+                    })
+                  }
+                  rows={3}
+                  className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2"
+                  placeholder="Nhập nhận xét chấm điểm bài code..."
+                />
+              </label>
+            </div>
           )}
         </div>
       )}
