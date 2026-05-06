@@ -186,6 +186,15 @@ export default function ExamSessionDetailPage() {
     },
   });
 
+  const regradeProblemMutation = useMutation({
+    mutationFn: async (examItemId: string) =>
+      examsApiClient.regradeProblemItem(sessionId, examItemId, accessToken || ""),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
+        queryKey: ["exam-session-result", sessionId],
+      });
+    },
+  });
   const publishMutation = useMutation({
     mutationFn: async () => examsApiClient.publishSessionResults(sessionId, accessToken || ""),
     onSuccess: async () => {
@@ -710,10 +719,12 @@ export default function ExamSessionDetailPage() {
                   canReviewResult={canReviewResult}
                   draft={draftGrades[item.examItemId]}
                   isSavingGrade={gradeMutation.isPending}
+                  isRegrading={regradeProblemMutation.isPending}
                   onDraftChange={(examItemId, draft) =>
                     setDraftGrades((prev) => ({ ...prev, [examItemId]: draft }))
                   }
                   onSaveManualGrade={saveManualGrade}
+                  onRegradeProblem={(examItemId) => regradeProblemMutation.mutate(examItemId)}
                 />
               ))}
             </div>
@@ -731,7 +742,9 @@ function ItemCard({
   draft,
   onDraftChange,
   onSaveManualGrade,
+  onRegradeProblem,
   isSavingGrade = false,
+  isRegrading = false,
 }: {
   item: SessionResultItem;
   index: number;
@@ -739,7 +752,9 @@ function ItemCard({
   draft?: DraftGrade;
   onDraftChange?: (examItemId: string, draft: DraftGrade) => void;
   onSaveManualGrade?: (examItemId: string, maxPoints: number) => void;
+  onRegradeProblem?: (examItemId: string) => void;
   isSavingGrade?: boolean;
+  isRegrading?: boolean;
 }) {
   const isCorrect = item.isCorrect === true;
   const isPending = item.isCorrect === null;
@@ -1019,15 +1034,25 @@ function ItemCard({
                   Đánh dấu đúng
                 </label>
 
-                <div className="flex items-end">
+                <div className="flex flex-col justify-end gap-2">
                   <button
                     type="button"
                     onClick={() => onSaveManualGrade(item.examItemId, item.points)}
-                    disabled={isSavingGrade}
+                    disabled={isSavingGrade || isRegrading}
                     className="w-full rounded-md bg-navy-600 px-3 py-2 text-sm font-semibold text-white hover:bg-navy-700 disabled:cursor-not-allowed disabled:bg-navy-300"
                   >
                     {isSavingGrade ? "Đang lưu..." : "Lưu chấm điểm"}
                   </button>
+                  {onRegradeProblem && (
+                    <button
+                      type="button"
+                      onClick={() => onRegradeProblem(item.examItemId)}
+                      disabled={isSavingGrade || isRegrading || !sourceCode}
+                      className="w-full rounded-md border border-purple-200 bg-white px-3 py-2 text-sm font-semibold text-purple-700 hover:bg-purple-50 disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-400"
+                    >
+                      {isRegrading ? "Đang chấm lại..." : "Chấm lại bằng auto judge"}
+                    </button>
+                  )}
                 </div>
               </div>
 

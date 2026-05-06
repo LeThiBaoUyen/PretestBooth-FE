@@ -189,6 +189,15 @@ class ExamsApiClient {
     return httpClient.patch<SessionResult>(`/api/exams/sessions/${sessionId}/grade`, data);
   }
 
+  async regradeProblemItem(
+    sessionId: string,
+    examItemId: string,
+    _accessToken: string,
+  ): Promise<SessionResult> {
+    return httpClient.post<SessionResult>(
+      `/api/exams/sessions/${sessionId}/items/${examItemId}/regrade`,
+    );
+  }
   async publishSessionResults(
     sessionId: string,
     _accessToken: string,
