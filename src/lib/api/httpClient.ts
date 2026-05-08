@@ -32,9 +32,6 @@ class HttpClient {
 
         if (!response.ok) {
           tokenManager.clearTokens();
-          if (typeof window !== "undefined") {
-            window.location.href = "/login";
-          }
           throw new Error("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.");
         }
 

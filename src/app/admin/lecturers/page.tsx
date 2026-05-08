@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { Loader2, Lock, Save, ShieldCheck, Unlock, Users } from "lucide-react";
 import { useAuth } from "@/lib/hooks";
 import {
@@ -11,6 +12,8 @@ import {
 } from "@/lib/api/users";
 import type { LecturerPermission } from "@/lib/api/types";
 import { hasPermission } from "@/lib/auth/permissions";
+import { buildQueryString } from "@/lib/navigation/listQueryPersistence";
+import { useListQuerySync } from "@/lib/hooks/useListQuerySync";
 
 const PERMISSION_LABELS: Record<LecturerPermission, string> = {
   CREATE_EXAM: "Tạo/Cập nhật đề thi",
@@ -44,11 +47,12 @@ type LecturerInfoForm = {
 
 export default function LecturerManagementPage() {
   const { user, userLoading } = useAuth();
+  const searchParams = useSearchParams();
   const canManageLecturers = hasPermission(user, "LECTURER_ADMIN");
   const canManageStudents = hasPermission(user, "MANAGE_STUDENTS");
   const canApproveKyc = hasPermission(user, "APPROVE_KYC");
 
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useState(() => searchParams.get("search") || "");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [creatingLecturer, setCreatingLecturer] = useState(false);
@@ -75,6 +79,13 @@ export default function LecturerManagementPage() {
     name: "",
     password: "",
   });
+
+  const queryString = useMemo(
+    () => buildQueryString({ search: search.trim() || undefined }),
+    [search],
+  );
+
+  useListQuerySync("/admin/lecturers", queryString);
 
   const permissionSet = useMemo(() => new Set(draftPermissions), [draftPermissions]);
   const selectedDraftRole = useMemo(() => {

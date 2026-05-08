@@ -2,11 +2,14 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { AlertTriangle, CheckCircle2, Loader2, RefreshCw, XCircle } from "lucide-react";
 import { kycApi } from "@/lib/api/kyc";
 import type { KycManualReviewDetail, KycManualReviewItem, VerifiedKycItem } from "@/lib/api/types";
 import { hasPermission } from "@/lib/auth/permissions";
 import { useAuth } from "@/lib/hooks";
+import { buildQueryString } from "@/lib/navigation/listQueryPersistence";
+import { useListQuerySync } from "@/lib/hooks/useListQuerySync";
 
 const PAGE_SIZE = 12;
 
@@ -33,16 +36,19 @@ export default function AdminKycModerationPage() {
   const canReview = hasPermission(user, "APPROVE_KYC");
   const canManageStudents = hasPermission(user, "MANAGE_STUDENTS");
   const canManageLecturers = hasPermission(user, "LECTURER_ADMIN");
+  const searchParams = useSearchParams();
 
-  const [page, setPage] = useState(1);
-  const [search, setSearch] = useState("");
+  const [page, setPage] = useState(() => Math.max(1, Number(searchParams.get("page") || 1)));
+  const [search, setSearch] = useState(() => searchParams.get("search") || "");
   const [rows, setRows] = useState<KycManualReviewItem[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const [verifiedPage, setVerifiedPage] = useState(1);
-  const [verifiedSearch, setVerifiedSearch] = useState("");
+  const [verifiedPage, setVerifiedPage] = useState(() =>
+    Math.max(1, Number(searchParams.get("verifiedPage") || 1)),
+  );
+  const [verifiedSearch, setVerifiedSearch] = useState(() => searchParams.get("verifiedSearch") || "");
   const [verifiedRows, setVerifiedRows] = useState<VerifiedKycItem[]>([]);
   const [verifiedTotal, setVerifiedTotal] = useState(0);
   const [loadingVerified, setLoadingVerified] = useState(true);
@@ -57,6 +63,19 @@ export default function AdminKycModerationPage() {
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
   const verifiedTotalPages = Math.max(1, Math.ceil(verifiedTotal / PAGE_SIZE));
+
+  const queryString = useMemo(
+    () =>
+      buildQueryString({
+        page: page > 1 ? page : undefined,
+        search: search.trim() || undefined,
+        verifiedPage: verifiedPage > 1 ? verifiedPage : undefined,
+        verifiedSearch: verifiedSearch.trim() || undefined,
+      }),
+    [page, search, verifiedPage, verifiedSearch],
+  );
+
+  useListQuerySync("/admin/kyc", queryString);
 
   const loadPending = useCallback(async () => {
     if (!canReview) return;

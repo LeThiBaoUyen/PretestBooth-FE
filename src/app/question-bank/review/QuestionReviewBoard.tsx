@@ -1,12 +1,15 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { CheckCircle2, Clock3, MessageSquare, RefreshCw, Wrench, XCircle } from "lucide-react";
 import { questionsApiClient } from "@/lib/api/questions";
 import type { QuestionReviewSession, QuestionReviewStatus } from "@/lib/api/types";
 import { useAuth } from "@/lib/hooks/useAuth";
+import { buildQueryString } from "@/lib/navigation/listQueryPersistence";
+import { useListQuerySync } from "@/lib/hooks/useListQuerySync";
 
 type ReviewDecisionStatus = "APPROVED" | "NEEDS_REVISION";
 
@@ -84,12 +87,17 @@ function getDecisionActionText(status: ReviewDecisionStatus) {
 export default function QuestionReviewBoard() {
   const { user, accessToken } = useAuth();
   const queryClient = useQueryClient();
+  const searchParams = useSearchParams();
 
   const now = useMemo(() => new Date(), []);
-  const [quarter, setQuarter] = useState<number>(getCurrentQuarter());
-  const [year, setYear] = useState<number>(now.getFullYear());
-  const [status, setStatus] = useState<QuestionReviewStatus | "ALL">("ALL");
-  const [page, setPage] = useState(1);
+  const [quarter, setQuarter] = useState<number>(
+    () => Number(searchParams.get("quarter") || getCurrentQuarter()),
+  );
+  const [year, setYear] = useState<number>(() => Number(searchParams.get("year") || now.getFullYear()));
+  const [status, setStatus] = useState<QuestionReviewStatus | "ALL">(
+    () => (searchParams.get("status") as QuestionReviewStatus | "ALL") || "ALL",
+  );
+  const [page, setPage] = useState(() => Math.max(1, Number(searchParams.get("page") || 1)));
   const [notesBySession, setNotesBySession] = useState<Record<string, string>>({});
   const [statusBySession, setStatusBySession] = useState<Record<string, ReviewDecisionStatus>>({});
 
@@ -97,6 +105,19 @@ export default function QuestionReviewBoard() {
   const canGenerate = user?.role === "ADMIN";
 
   const years = [now.getFullYear() - 1, now.getFullYear(), now.getFullYear() + 1];
+
+  const queryString = useMemo(
+    () =>
+      buildQueryString({
+        quarter: quarter !== getCurrentQuarter() ? quarter : undefined,
+        year: year !== now.getFullYear() ? year : undefined,
+        status: status === "ALL" ? undefined : status,
+        page: page > 1 ? page : undefined,
+      }),
+    [quarter, year, status, page, now],
+  );
+
+  useListQuerySync("/question-bank/review", queryString);
 
   const sessionsQuery = useQuery({
     queryKey: ["question-review-sessions", quarter, year, status, page, accessToken],

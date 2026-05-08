@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import * as XLSX from "xlsx";
 import {
   AlertCircle,
@@ -28,6 +29,8 @@ import { getTokenManager } from "@/lib/auth/tokenManager";
 import { hasPermission } from "@/lib/auth/permissions";
 import { downloadImportTemplate } from "@/lib/importTemplates";
 import { ImportTemplateActions } from "@/components/import/ImportTemplateActions";
+import { buildQueryString } from "@/lib/navigation/listQueryPersistence";
+import { useListQuerySync } from "@/lib/hooks/useListQuerySync";
 
 type PreviewRow = {
   rowNumber: number;
@@ -229,13 +232,17 @@ export function AdminUsersPageContent({
   const { user } = useAuth();
   const canManageStudents = hasPermission(user, "MANAGE_STUDENTS");
   const canApproveKyc = hasPermission(user, "APPROVE_KYC");
+  const searchParams = useSearchParams();
+
+  const nextInitialClassFilter = searchParams.get("classFilter") ?? initialClassFilter;
+  const nextInitialCohortFilter = searchParams.get("cohortFilter") ?? String(initialCohortFilter);
 
   const [users, setUsers] = useState<any[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
-  const [classFilter, setClassFilter] = useState(initialClassFilter);
-  const [cohortFilter, setCohortFilter] = useState(String(initialCohortFilter));
+  const [classFilter, setClassFilter] = useState(nextInitialClassFilter);
+  const [cohortFilter, setCohortFilter] = useState(nextInitialCohortFilter);
   const [lockFilter, setLockFilter] = useState<"ALL" | "LOCKED" | "ACTIVE">("ALL");
   const [loading, setLoading] = useState(true);
   const [savingForm, setSavingForm] = useState(false);
@@ -259,6 +266,20 @@ export function AdminUsersPageContent({
   const [expandedCohort, setExpandedCohort] = useState<number | null>(null);
   const [expandedClassKey, setExpandedClassKey] = useState<string | null>(null);
   const [newCohortInput, setNewCohortInput] = useState("");
+
+  const queryString = useMemo(
+    () =>
+      buildQueryString({
+        page: page > 1 ? page : undefined,
+        search: search.trim() || undefined,
+        classFilter: classFilter.trim() || undefined,
+        cohortFilter: cohortFilter.trim() || undefined,
+        lockFilter: lockFilter === "ALL" ? undefined : lockFilter,
+      }),
+    [page, search, classFilter, cohortFilter, lockFilter],
+  );
+
+  useListQuerySync("/dashboard/users", queryString);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const studentFormRef = useRef<HTMLFormElement>(null);

@@ -1,11 +1,14 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { submissionsApi } from "@/lib/api/execution";
 import { useAuth } from "@/lib/hooks";
+import { buildQueryString } from "@/lib/navigation/listQueryPersistence";
+import { useListQuerySync } from "@/lib/hooks/useListQuerySync";
 import type {
   Difficulty,
   ExamContentType,
@@ -86,14 +89,35 @@ export default function SubmissionsHome() {
   const router = useRouter();
   const { accessToken, user, userLoading } = useAuth();
   const isManagerView = user?.role === "ADMIN" || user?.role === "LECTURER";
-  const [page, setPage] = useState(1);
-  const [type, setType] = useState<"ALL" | "PROBLEM" | "EXAM">("ALL");
-  const [statusFilter, setStatusFilter] = useState<string>("ALL");
-  const [difficultyFilter, setDifficultyFilter] = useState<"ALL" | Difficulty>("ALL");
-  const [keyword, setKeyword] = useState("");
-  const [fromDate, setFromDate] = useState("");
-  const [toDate, setToDate] = useState("");
+  const searchParams = useSearchParams();
+  const [page, setPage] = useState(() => Math.max(1, Number(searchParams.get("page") || 1)));
+  const [type, setType] = useState<"ALL" | "PROBLEM" | "EXAM">(
+    () => (searchParams.get("type") as "ALL" | "PROBLEM" | "EXAM") || "ALL",
+  );
+  const [statusFilter, setStatusFilter] = useState<string>(() => searchParams.get("status") || "ALL");
+  const [difficultyFilter, setDifficultyFilter] = useState<"ALL" | Difficulty>(() =>
+    (searchParams.get("difficulty") as "ALL" | Difficulty) || "ALL",
+  );
+  const [keyword, setKeyword] = useState(() => searchParams.get("keyword") || "");
+  const [fromDate, setFromDate] = useState(() => searchParams.get("fromDate") || "");
+  const [toDate, setToDate] = useState(() => searchParams.get("toDate") || "");
   const limit = 20;
+
+  const queryString = useMemo(
+    () =>
+      buildQueryString({
+        page: page > 1 ? page : undefined,
+        type: type === "ALL" ? undefined : type,
+        status: statusFilter === "ALL" ? undefined : statusFilter,
+        difficulty: difficultyFilter === "ALL" ? undefined : difficultyFilter,
+        keyword: keyword.trim() || undefined,
+        fromDate: fromDate || undefined,
+        toDate: toDate || undefined,
+      }),
+    [page, type, statusFilter, difficultyFilter, keyword, fromDate, toDate],
+  );
+
+  useListQuerySync("/submissions", queryString);
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ["unified-submissions", page, type, !!accessToken],

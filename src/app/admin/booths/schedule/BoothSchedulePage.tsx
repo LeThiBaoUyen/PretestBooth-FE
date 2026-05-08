@@ -8,11 +8,8 @@ import {
   endOfMonth,
   endOfWeek,
   format,
-  isAfter,
-  isBefore,
   isSameDay,
   isSameMonth,
-  startOfDay,
   startOfMonth,
   startOfWeek,
   subMonths,
@@ -218,9 +215,6 @@ export default function BoothSchedulePage() {
     try {
       const monthStart = startOfMonth(targetMonth);
       const monthEnd = endOfMonth(targetMonth);
-      const today = startOfDay(new Date());
-      const minDate = addDays(today, bookingWindowDays.min);
-      const maxDate = addDays(today, bookingWindowDays.max);
 
       const days: string[] = [];
       let cursor = monthStart;
@@ -231,34 +225,29 @@ export default function BoothSchedulePage() {
 
       const summaryEntries = await Promise.all(
         days.map(async (day) => {
-          const targetDate = startOfDay(new Date(day));
-          if (isBefore(targetDate, minDate) || isAfter(targetDate, maxDate)) {
-            return [
-              day,
-              {
-                bookedBooths: 0,
-                bookedSlots: 0,
-                totalBooths: 0,
-              } as MonthlyDaySummary,
-            ] as const;
-          }
-
           try {
             const availability = await bookingsApi.getAvailability(day);
-            const uniqueBookedBoothIds = new Set<string>();
+            let bookedBooths = 0;
             let bookedSlots = 0;
 
-            (availability.slots || []).forEach((slot) => {
-              bookedSlots += slot.bookedBooths || 0;
-              (slot.bookedBoothIds || []).forEach((boothId) => {
-                uniqueBookedBoothIds.add(boothId);
+            if (availability.dailyStats) {
+              bookedBooths = availability.dailyStats.bookedBooths;
+              bookedSlots = availability.dailyStats.bookedSlots;
+            } else {
+              const uniqueBookedBoothIds = new Set<string>();
+              (availability.slots || []).forEach((slot) => {
+                bookedSlots += slot.bookedBooths || 0;
+                (slot.bookedBoothIds || []).forEach((boothId) => {
+                  uniqueBookedBoothIds.add(boothId);
+                });
               });
-            });
+              bookedBooths = uniqueBookedBoothIds.size;
+            }
 
             return [
               day,
               {
-                bookedBooths: uniqueBookedBoothIds.size,
+                bookedBooths,
                 bookedSlots,
                 totalBooths: Array.isArray(availability.booths)
                   ? availability.booths.length
@@ -313,11 +302,14 @@ export default function BoothSchedulePage() {
     const selectedDate = new Date(`${date}T00:00:00`);
     if (Number.isNaN(selectedDate.getTime())) return;
 
-    const selectedMonth = startOfMonth(selectedDate);
-    if (selectedMonth.getTime() !== monthCursor.getTime()) {
-      setMonthCursor(selectedMonth);
-    }
-  }, [date, monthCursor]);
+    setMonthCursor((currentMonth) => {
+      const selectedMonth = startOfMonth(selectedDate);
+      if (selectedMonth.getTime() !== currentMonth.getTime()) {
+        return selectedMonth;
+      }
+      return currentMonth;
+    });
+  }, [date]);
 
   useEffect(() => {
     setSelectedTimelineBooking(null);
@@ -381,14 +373,12 @@ export default function BoothSchedulePage() {
   }, [filteredBookings]);
 
   const hasActiveFilters =
-    Boolean(date) ||
     statusFilter !== "ALL" ||
     typeFilter !== "ALL" ||
     boothFilter !== "ALL" ||
     Boolean(keyword.trim());
 
   const resetFilters = () => {
-    setDate("");
     setStatusFilter("ALL");
     setTypeFilter("ALL");
     setBoothFilter("ALL");
@@ -547,12 +537,15 @@ export default function BoothSchedulePage() {
   }, [monthCursor]);
 
   const monthOverview = useMemo(() => {
+    // activeDays: number of days in the month that have at least one booking
+    // totalUniqueBooths: sum of unique booths booked per day (may count same booth across different days)
+    // totalBookedSlots: total bookings counted per 30-min slot across the month
     let activeDays = 0;
-    let totalBookedBooths = 0;
+    let totalUniqueBooths = 0;
     let totalBookedSlots = 0;
 
     Object.values(monthlySummaries).forEach((summary) => {
-      totalBookedBooths += summary.bookedBooths;
+      totalUniqueBooths += summary.bookedBooths;
       totalBookedSlots += summary.bookedSlots;
       if (summary.bookedBooths > 0) {
         activeDays += 1;
@@ -561,7 +554,7 @@ export default function BoothSchedulePage() {
 
     return {
       activeDays,
-      totalBookedBooths,
+      totalUniqueBooths,
       totalBookedSlots,
     };
   }, [monthlySummaries]);
@@ -659,86 +652,6 @@ export default function BoothSchedulePage() {
         </div>
       </div>
 
-      <div className="mb-6 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-5">
-          <div className="flex items-center rounded-xl border border-gray-200 px-3 py-2">
-            <Calendar className="w-4 h-4 text-gray-400" />
-            <input
-              type="date"
-              className="ml-2 w-full border-0 bg-transparent text-sm text-gray-700 outline-none"
-              value={date}
-              onChange={(e) => setDate(e.target.value)}
-            />
-          </div>
-
-          <select
-            className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm"
-            value={typeFilter}
-            onChange={(e) => setTypeFilter(e.target.value as BookingType | "ALL")}
-          >
-            <option value="ALL">Tất cả mục đích</option>
-            <option value="PRACTICE">Luyện tập</option>
-            <option value="EXAM">Kiểm tra</option>
-          </select>
-
-          <select
-            className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm"
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value as BookingStatus | "ALL")}
-          >
-            <option value="ALL">Tất cả trạng thái</option>
-            <option value="CONFIRM">Đã xác nhận</option>
-            <option value="CHECKED_IN">Đang sử dụng</option>
-            <option value="COMPLETED">Đã xong</option>
-            <option value="CANCEL">Đã hủy</option>
-            <option value="ABSENT">Vắng mặt</option>
-          </select>
-
-          <select
-            className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm"
-            value={boothFilter}
-            onChange={(e) => setBoothFilter(e.target.value)}
-          >
-            <option value="ALL">Tất cả booth</option>
-            {boothOptions.map((booth) => (
-              <option key={booth.id} value={booth.id}>
-                {booth.name}
-              </option>
-            ))}
-          </select>
-
-          <div className="flex items-center rounded-xl border border-gray-200 bg-white px-3 py-2">
-            <Search className="h-4 w-4 text-gray-400" />
-            <input
-              value={keyword}
-              onChange={(e) => setKeyword(e.target.value)}
-              placeholder="Lọc theo sinh viên hoặc booth"
-              className="ml-2 w-full border-0 bg-transparent p-0 text-sm outline-none"
-            />
-          </div>
-        </div>
-
-        <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
-          <div className="flex flex-wrap gap-2 text-xs font-semibold">
-            <span className="rounded-full bg-navy-50 px-3 py-1 text-navy-700">Tổng: {summary.total}</span>
-            <span className="rounded-full bg-amber-100 px-3 py-1 text-amber-700">Đã xác nhận: {summary.confirm}</span>
-            <span className="rounded-full bg-blue-100 px-3 py-1 text-blue-700">Đang sử dụng: {summary.inUse}</span>
-            <span className="rounded-full bg-emerald-100 px-3 py-1 text-emerald-700">Hoàn tất: {summary.completed}</span>
-            <span className="rounded-full bg-rose-100 px-3 py-1 text-rose-700">Đã hủy: {summary.cancel}</span>
-            <span className="rounded-full bg-orange-100 px-3 py-1 text-orange-700">Vắng mặt: {summary.absent}</span>
-          </div>
-
-          <button
-            onClick={resetFilters}
-            disabled={!hasActiveFilters}
-            className="inline-flex items-center rounded-lg border border-slate-200 px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            <RotateCcw className="h-3.5 w-3.5 mr-1" />
-            Đặt lại bộ lọc
-          </button>
-        </div>
-      </div>
-
       <div className="mb-6 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
         <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <div>
@@ -791,10 +704,10 @@ export default function BoothSchedulePage() {
             Ngày có phát sinh booking: {monthOverview.activeDays}
           </span>
           <span className="rounded-full bg-cyan-50 px-3 py-1 text-cyan-700">
-            Tổng lượt booth-book trong tháng: {monthOverview.totalBookedBooths}
+            Tổng booth đã được đặt (cộng theo từng ngày): {monthOverview.totalUniqueBooths}
           </span>
           <span className="rounded-full bg-amber-50 px-3 py-1 text-amber-700">
-            Tổng lượt đặt theo khung giờ: {monthOverview.totalBookedSlots}
+            Tổng lượt đặt theo khung giờ (tổng bookings): {monthOverview.totalBookedSlots}
           </span>
           {monthlyLoading ? (
             <span className="rounded-full bg-slate-100 px-3 py-1 text-slate-600">
@@ -868,25 +781,113 @@ export default function BoothSchedulePage() {
       </div>
 
       <div ref={scheduleSectionRef} className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
-        <h2 className="text-lg font-bold text-navy-700 mb-6">
-          {selectedDateLabel ? `Lịch trình ngày ${selectedDateLabel}` : "Tất cả lịch trình"}
-        </h2>
+        <div className="flex flex-col gap-4 mb-6">
+          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <h2 className="text-lg font-bold text-navy-700">
+              {selectedDateLabel ? `Lịch trình ngày ${selectedDateLabel}` : "Chọn ngày trên lịch để xem lịch trình"}
+            </h2>
 
-        {loading ? (
+            {date ? (
+              <button
+                type="button"
+                onClick={() => setDate("")}
+                className="inline-flex items-center self-start rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-bold text-slate-600 hover:bg-slate-50"
+              >
+                <RotateCcw className="h-3.5 w-3.5 mr-1" />
+                Bỏ chọn ngày
+              </button>
+            ) : null}
+          </div>
+
+          {date ? (
+            <>
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
+                <select
+                  className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm"
+                  value={typeFilter}
+                  onChange={(e) => setTypeFilter(e.target.value as BookingType | "ALL")}
+                >
+                  <option value="ALL">Tất cả mục đích</option>
+                  <option value="PRACTICE">Luyện tập</option>
+                  <option value="EXAM">Kiểm tra</option>
+                </select>
+
+                <select
+                  className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm"
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value as BookingStatus | "ALL")}
+                >
+                  <option value="ALL">Tất cả trạng thái</option>
+                  <option value="CONFIRM">Đã xác nhận</option>
+                  <option value="CHECKED_IN">Đang sử dụng</option>
+                  <option value="COMPLETED">Đã xong</option>
+                  <option value="CANCEL">Đã hủy</option>
+                  <option value="ABSENT">Vắng mặt</option>
+                </select>
+
+                <select
+                  className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm"
+                  value={boothFilter}
+                  onChange={(e) => setBoothFilter(e.target.value)}
+                >
+                  <option value="ALL">Tất cả booth</option>
+                  {boothOptions.map((booth) => (
+                    <option key={booth.id} value={booth.id}>
+                      {booth.name}
+                    </option>
+                  ))}
+                </select>
+
+                <div className="flex items-center rounded-xl border border-gray-200 bg-white px-3 py-2">
+                  <Search className="h-4 w-4 text-gray-400" />
+                  <input
+                    value={keyword}
+                    onChange={(e) => setKeyword(e.target.value)}
+                    placeholder="Tìm sinh viên hoặc booth"
+                    className="ml-2 w-full border-0 bg-transparent p-0 text-sm outline-none"
+                  />
+                </div>
+              </div>
+
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="flex flex-wrap gap-2 text-xs font-semibold">
+                  <span className="rounded-full bg-navy-50 px-3 py-1 text-navy-700">Tổng: {summary.total}</span>
+                  <span className="rounded-full bg-amber-100 px-3 py-1 text-amber-700">Đã xác nhận: {summary.confirm}</span>
+                  <span className="rounded-full bg-blue-100 px-3 py-1 text-blue-700">Đang sử dụng: {summary.inUse}</span>
+                  <span className="rounded-full bg-emerald-100 px-3 py-1 text-emerald-700">Hoàn tất: {summary.completed}</span>
+                  <span className="rounded-full bg-rose-100 px-3 py-1 text-rose-700">Đã hủy: {summary.cancel}</span>
+                  <span className="rounded-full bg-orange-100 px-3 py-1 text-orange-700">Vắng mặt: {summary.absent}</span>
+                </div>
+
+                {hasActiveFilters ? (
+                  <button
+                    onClick={resetFilters}
+                    className="inline-flex items-center rounded-lg border border-slate-200 px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50"
+                  >
+                    <RotateCcw className="h-3.5 w-3.5 mr-1" />
+                    Đặt lại bộ lọc
+                  </button>
+                ) : null}
+              </div>
+            </>
+          ) : null}
+        </div>
+
+        {!date ? (
+          <div className="text-center py-20 text-gray-400 flex flex-col items-center">
+            <CalendarDays className="w-12 h-12 text-gray-200 mb-4" />
+            <p className="text-sm">Bấm vào một ngày trên lịch tháng để xem lịch trình chi tiết.</p>
+          </div>
+        ) : loading ? (
           <div className="text-center py-20 text-gray-500">Đang tải dữ liệu...</div>
         ) : error ? (
           <div className="text-center py-20 text-red-500">{error}</div>
         ) : filteredBookings.length === 0 ? (
           <div className="text-center py-20 text-gray-500 flex flex-col items-center">
             <Wrench className="w-12 h-12 text-gray-300 mb-4" />
-            Không có lịch đặt nào {date ? "trong ngày này" : "được tìm thấy"}.
+            Không có lịch đặt nào trong ngày này.
           </div>
         ) : viewMode === "TIMELINE" ? (
-          !date ? (
-            <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-700">
-              Vui lòng chọn ngày cụ thể để xem timeline theo booth.
-            </div>
-          ) : (
             <>
               <div className="mb-4 flex flex-wrap items-center gap-2 text-xs font-semibold">
                 <span className="rounded-full bg-blue-100 px-3 py-1 text-blue-700">Đang sử dụng</span>
@@ -980,7 +981,6 @@ export default function BoothSchedulePage() {
                 Mẹo: Bấm vào block để xem chi tiết đặt lịch, hoặc di chuột để xem tóm tắt nhanh.
               </p>
             </>
-          )
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">

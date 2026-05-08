@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect, useCallback, useMemo, useRef, type ReactNode } from "react";
+import { useSearchParams } from "next/navigation";
 import { examsApiClient } from "@/lib/api/exams";
 import { questionsApiClient } from "@/lib/api/questions";
 import { bookingsApi } from "@/lib/api/bookings";
@@ -21,6 +22,8 @@ import ExamSelection from "./ExamSelection";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { boothSessionManager } from "@/lib/auth/boothSession";
+import { buildQueryString } from "@/lib/navigation/listQueryPersistence";
+import { useListQuerySync } from "@/lib/hooks/useListQuerySync";
 
 const DURATION_RANGE_CONFIG = {
   min: 15,
@@ -158,20 +161,25 @@ function RangeFilterSlider({
 
 export default function ExamLibrary() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { accessToken, user, userLoading } = useAuth();
-  const [selectedSubject, setSelectedSubject] = useState("Tất cả");
-  const [selectedExamType, setSelectedExamType] = useState<ExamTypeFilter>("ALL");
-  const [search, setSearch] = useState("");
-  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [selectedSubject, setSelectedSubject] = useState(() => searchParams.get("subject") || "Tất cả");
+  const [selectedExamType, setSelectedExamType] = useState<ExamTypeFilter>(
+    () => (searchParams.get("examType") as ExamTypeFilter) || "ALL",
+  );
+  const [search, setSearch] = useState(() => searchParams.get("search") || "");
+  const [debouncedSearch, setDebouncedSearch] = useState(() => searchParams.get("search") || "");
   const [durationRange, setDurationRange] = useState<[number, number]>([
-    DURATION_RANGE_CONFIG.min,
-    DURATION_RANGE_CONFIG.max,
+    Number(searchParams.get("durationMin") || DURATION_RANGE_CONFIG.min),
+    Number(searchParams.get("durationMax") || DURATION_RANGE_CONFIG.max),
   ]);
   const [questionRange, setQuestionRange] = useState<[number, number]>([
-    QUESTION_RANGE_CONFIG.min,
-    QUESTION_RANGE_CONFIG.max,
+    Number(searchParams.get("questionMin") || QUESTION_RANGE_CONFIG.min),
+    Number(searchParams.get("questionMax") || QUESTION_RANGE_CONFIG.max),
   ]);
-  const [activeTab, setActiveTab] = useState<"all" | "published" | "custom">("all");
+  const [activeTab, setActiveTab] = useState<"all" | "published" | "custom">(
+    () => (searchParams.get("tab") as "all" | "published" | "custom") || "all",
+  );
   const [error, setError] = useState<string | null>(null);
   const [checkingExamAutoAssign, setCheckingExamAutoAssign] = useState(false);
   const [hasCheckedInExamBooking, setHasCheckedInExamBooking] = useState(false);
@@ -188,6 +196,25 @@ export default function ExamLibrary() {
   const [pretestTotal, setPretestTotal] = useState(0);
   const latestFetchRef = useRef(0);
   const autoAssignCheckedRef = useRef(false);
+
+  const queryString = useMemo(
+    () =>
+      buildQueryString({
+        subject: selectedSubject === "Tất cả" ? undefined : selectedSubject,
+        examType: selectedExamType === "ALL" ? undefined : selectedExamType,
+        search: search.trim() || undefined,
+        durationMin: durationRange[0] !== DURATION_RANGE_CONFIG.min ? durationRange[0] : undefined,
+        durationMax: durationRange[1] !== DURATION_RANGE_CONFIG.max ? durationRange[1] : undefined,
+        questionMin: questionRange[0] !== QUESTION_RANGE_CONFIG.min ? questionRange[0] : undefined,
+        questionMax: questionRange[1] !== QUESTION_RANGE_CONFIG.max ? questionRange[1] : undefined,
+        tab: activeTab === "all" ? undefined : activeTab,
+        regularPage: regularPage > 1 ? regularPage : undefined,
+        pretestPage: pretestPage > 1 ? pretestPage : undefined,
+      }),
+    [selectedSubject, selectedExamType, search, durationRange, questionRange, activeTab, regularPage, pretestPage],
+  );
+
+  useListQuerySync("/dashboard/exams", queryString);
 
   const resetPagination = useCallback(() => {
     setRegularPage(1);

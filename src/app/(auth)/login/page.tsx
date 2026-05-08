@@ -24,26 +24,11 @@ export default function LoginPage() {
   const [boothMeta, setBoothMeta] = useState<ReturnType<
     typeof boothSessionManager.getMeta
   > | null>(null);
-  const [nextPath, setNextPath] = useState<string | null>(null);
 
   useEffect(() => {
     // Keep first client render aligned with server HTML, then hydrate client-only data.
     setBoothMeta(boothSessionManager.getMeta());
-
-    const params = new URLSearchParams(window.location.search);
-    setNextPath(params.get("next"));
   }, []);
-
-  const resolveRedirectPath = () => {
-    if (!nextPath) return "/dashboard";
-
-    // Prevent open redirects. Only allow app-internal absolute paths.
-    if (!nextPath.startsWith("/") || nextPath.startsWith("//")) {
-      return "/dashboard";
-    }
-
-    return nextPath;
-  };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -141,7 +126,7 @@ export default function LoginPage() {
 
       setSubmitMessage("Đăng nhập thành công! Đang chuyển hướng...");
       setTimeout(() => {
-        router.push(kioskRedirect || resolveRedirectPath());
+        router.push(kioskRedirect || "/dashboard");
       }, 1000);
     },
     onError: (error: any) => {

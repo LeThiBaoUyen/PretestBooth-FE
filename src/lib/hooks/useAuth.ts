@@ -16,19 +16,26 @@ export function useAuth() {
   const { data: user, isLoading: userLoading } = useQuery({
     queryKey: ["user"],
     queryFn: async () => {
-      // Try to get from API if we have access token
-      const accessToken = tokenManager.getAccessToken();
+      let accessToken = tokenManager.getAccessToken();
 
-      if (accessToken) {
+      // On hard refresh, access token might be empty while refresh cookie is still valid.
+      // Try restoring a new access token first before deciding the user is unauthenticated.
+      if (!accessToken) {
         try {
-          const userData = await apiClient.getMe(accessToken);
-          return userData;
-        } catch (error) {
-          // If API fails, return cached user data
+          const refreshed = await apiClient.refreshToken();
+          accessToken = refreshed.accessToken;
+          tokenManager.saveAccessToken(accessToken);
+        } catch {
           return null;
         }
       }
-      return null;
+
+      try {
+        const userData = await apiClient.getMe(accessToken);
+        return userData;
+      } catch {
+        return null;
+      }
     },
     enabled: true,
     staleTime: 1000 * 60 * 5, // 5 minutes

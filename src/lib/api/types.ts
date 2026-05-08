@@ -1427,6 +1427,10 @@ export interface AvailabilityResponse {
   date: string;
   booths: Booth[];
   slots: AvailableTimeSlot[];
+  dailyStats?: {
+    bookedBooths: number;
+    bookedSlots: number;
+  };
 }
 
 export interface BookingDurationOption {

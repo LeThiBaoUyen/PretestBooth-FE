@@ -1,8 +1,10 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import * as XLSX from "xlsx";
 import type { Difficulty } from "@/lib/api/types";
 import { problemsApiClient } from "@/lib/api/problems";
@@ -12,6 +14,8 @@ import { getTokenManager } from "@/lib/auth/tokenManager";
 import { downloadImportTemplate } from "@/lib/importTemplates";
 import { ImportTemplateActions } from "@/components/import/ImportTemplateActions";
 import { CircleAlert, CircleCheck, FileSpreadsheet, Upload } from "lucide-react";
+import { buildQueryString } from "@/lib/navigation/listQueryPersistence";
+import { useListQuerySync } from "@/lib/hooks/useListQuerySync";
 
 type ProblemImportPreviewRow = {
   rowNumber: number;
@@ -131,11 +135,14 @@ function validateProblemPreviewRow(row: ProblemImportPreviewRow) {
 
 export default function ProblemsLibrary() {
   const { user, accessToken } = useAuth();
-  const [page, setPage] = useState(1);
-  const [difficulty, setDifficulty] = useState<Difficulty | "ALL">("ALL");
-  const [search, setSearch] = useState("");
-  const [subjectId, setSubjectId] = useState<string>("");
-  const [topicId, setTopicId] = useState<string>("");
+  const searchParams = useSearchParams();
+  const [page, setPage] = useState(() => Math.max(1, Number(searchParams.get("page") || 1)));
+  const [difficulty, setDifficulty] = useState<Difficulty | "ALL">(
+    () => (searchParams.get("difficulty") as Difficulty | "ALL") || "ALL",
+  );
+  const [search, setSearch] = useState(() => searchParams.get("search") || "");
+  const [subjectId, setSubjectId] = useState<string>(() => searchParams.get("subjectId") || "");
+  const [topicId, setTopicId] = useState<string>(() => searchParams.get("topicId") || "");
 
   const [isParsingFile, setIsParsingFile] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
@@ -146,6 +153,20 @@ export default function ProblemsLibrary() {
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const limit = 20;
+
+  const queryString = useMemo(
+    () =>
+      buildQueryString({
+        page: page > 1 ? page : undefined,
+        difficulty: difficulty === "ALL" ? undefined : difficulty,
+        search: search.trim() || undefined,
+        subjectId: subjectId || undefined,
+        topicId: topicId || undefined,
+      }),
+    [page, difficulty, search, subjectId, topicId],
+  );
+
+  useListQuerySync("/question-bank/problems", queryString);
 
   const isAuthorized = user && ["LECTURER", "ADMIN"].includes(user.role);
   const isStudent = user?.role === "STUDENT";

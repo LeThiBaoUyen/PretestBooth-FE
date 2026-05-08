@@ -3,6 +3,7 @@
 import { useMemo } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
+import { buildPathWithRememberedQuery } from "@/lib/navigation/listQueryPersistence";
 
 type ParentRule = {
   pattern: RegExp;
@@ -134,7 +135,7 @@ export default function BackButton() {
     <div className="mx-auto w-full max-w-7xl px-4 pt-4 sm:px-6 lg:px-8">
       <button
         type="button"
-        onClick={() => router.push(parentPath)}
+        onClick={() => router.push(buildPathWithRememberedQuery(parentPath))}
         className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-navy-300 hover:text-navy-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-navy-500"
         aria-label="Quay về trang cha"
       >
