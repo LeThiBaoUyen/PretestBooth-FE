@@ -235,17 +235,7 @@ export default function AdminMonitoringPage() {
     [withAction],
   );
 
-  const handleForceLogoutBooth = useCallback(
-    async (row: ActiveMonitoringSessionItem) => {
-      const reason = askReason(`Buộc đăng xuất kiosk tại booth ${row.boothName}`);
-      if (!reason) return;
 
-      await withAction(`force-logout-${row.boothId}`, async () => {
-        await boothsApi.forceLogoutBooth(row.boothId, { reason });
-      });
-    },
-    [withAction],
-  );
 
   const handleNotify = useCallback(
     async (row: ActiveMonitoringSessionItem) => {
@@ -575,15 +565,6 @@ export default function AdminMonitoringPage() {
                               className="inline-flex items-center rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-1.5 text-xs font-semibold text-amber-700 hover:bg-amber-100 disabled:opacity-60"
                             >
                               <UserX className="mr-1 h-3.5 w-3.5" /> Force checkout
-                            </button>
-
-                            <button
-                              type="button"
-                              onClick={() => void handleForceLogoutBooth(row)}
-                              disabled={actionLoadingKey === `force-logout-${row.boothId}`}
-                              className="inline-flex items-center rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-60"
-                            >
-                              <LogOut className="mr-1 h-3.5 w-3.5" /> Logout kiosk
                             </button>
 
                             {row.currentActivityType === "EXAM" && row.activeExam && (

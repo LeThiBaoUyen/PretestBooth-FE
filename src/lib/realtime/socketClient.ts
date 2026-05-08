@@ -25,6 +25,7 @@ class RealtimeClient {
 
     const token = this.getAccessToken();
     if (!token) {
+      this.disconnect();
       return null;
     }
 
@@ -38,12 +39,26 @@ class RealtimeClient {
       return this.socket;
     }
 
-    this.socket.auth = { token };
+    const currentToken = (this.socket.auth as any)?.token;
+    if (currentToken !== token) {
+      this.socket.disconnect();
+      this.socket.auth = { token };
+      this.socket.connect();
+      return this.socket;
+    }
+
     if (!this.socket.connected) {
       this.socket.connect();
     }
 
     return this.socket;
+  }
+
+  disconnect() {
+    if (this.socket) {
+      this.socket.disconnect();
+      this.socket = null;
+    }
   }
 
   subscribe<T>(event: string, handler: (payload: T) => void) {
