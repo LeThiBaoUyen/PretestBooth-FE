@@ -6,7 +6,6 @@ import {
   AlertTriangle,
   Bell,
   Clock3,
-  LogOut,
   RefreshCw,
   ShieldAlert,
   TimerReset,

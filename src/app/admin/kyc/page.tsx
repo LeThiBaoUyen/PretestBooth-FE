@@ -31,7 +31,7 @@ function normalizeScore(value?: number | null) {
   return value.toFixed(4);
 }
 
-export default function AdminKycModerationPage() {
+function AdminKycModerationContent() {
   const { user, userLoading } = useAuth();
   const canReview = hasPermission(user, "APPROVE_KYC");
   const canManageStudents = hasPermission(user, "MANAGE_STUDENTS");
@@ -636,5 +636,15 @@ export default function AdminKycModerationPage() {
         </section>
       </div>
     </main>
+  );
+}
+
+import { Suspense } from "react";
+
+export default function AdminKycModerationPage() {
+  return (
+    <Suspense fallback={<div className="py-20 text-center text-gray-500">Đang tải duyệt KYC...</div>}>
+      <AdminKycModerationContent />
+    </Suspense>
   );
 }

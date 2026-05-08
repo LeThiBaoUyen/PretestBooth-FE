@@ -2,7 +2,6 @@ import { useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "../api/auth";
 import { getTokenManager } from "../auth/tokenManager";
-import { realtimeClient } from "../realtime/socketClient";
 
 /**
  * Hook for managing authentication state and operations
@@ -101,8 +100,6 @@ export function useAuth() {
     } finally {
       // Clear tokens
       tokenManager.clearTokens();
-      // Disconnect socket
-      realtimeClient.disconnect();
       // Clear user from cache
       queryClient.setQueryData(["user"], null);
       queryClient.invalidateQueries({ queryKey: ["user"] });

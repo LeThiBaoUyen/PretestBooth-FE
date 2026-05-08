@@ -32,6 +32,7 @@ import {
   RefreshCw,
   RotateCcw,
   Search,
+  UserRound,
   Wrench,
 } from "lucide-react";
 import { realtimeClient } from "@/lib/realtime/socketClient";
@@ -226,27 +227,20 @@ export default function BoothSchedulePage() {
         days.map(async (day) => {
           try {
             const availability = await bookingsApi.getAvailability(day);
-            let bookedBooths = 0;
+            const uniqueBookedBoothIds = new Set<string>();
             let bookedSlots = 0;
 
-            if (availability.dailyStats) {
-              bookedBooths = availability.dailyStats.bookedBooths;
-              bookedSlots = availability.dailyStats.bookedSlots;
-            } else {
-              const uniqueBookedBoothIds = new Set<string>();
-              (availability.slots || []).forEach((slot) => {
-                bookedSlots += slot.bookedBooths || 0;
-                (slot.bookedBoothIds || []).forEach((boothId) => {
-                  uniqueBookedBoothIds.add(boothId);
-                });
+            (availability.slots || []).forEach((slot) => {
+              bookedSlots += slot.bookedBooths || 0;
+              (slot.bookedBoothIds || []).forEach((boothId) => {
+                uniqueBookedBoothIds.add(boothId);
               });
-              bookedBooths = uniqueBookedBoothIds.size;
-            }
+            });
 
             return [
               day,
               {
-                bookedBooths,
+                bookedBooths: uniqueBookedBoothIds.size,
                 bookedSlots,
                 totalBooths: Array.isArray(availability.booths)
                   ? availability.booths.length
@@ -372,14 +366,14 @@ export default function BoothSchedulePage() {
   }, [filteredBookings]);
 
   const hasActiveFilters =
-    (viewMode === "LIST" && Boolean(date)) ||
+    Boolean(date) ||
     statusFilter !== "ALL" ||
     typeFilter !== "ALL" ||
     boothFilter !== "ALL" ||
     Boolean(keyword.trim());
 
   const resetFilters = () => {
-    if (viewMode === "LIST") setDate("");
+    setDate("");
     setStatusFilter("ALL");
     setTypeFilter("ALL");
     setBoothFilter("ALL");
@@ -587,9 +581,7 @@ export default function BoothSchedulePage() {
           <div>
             <h1 className="ui-page-title">Lịch trình Booth</h1>
             <p className="ui-page-subtitle">
-              {viewMode === "TIMELINE"
-                ? "Xem trực quan booth nào đang có người đặt ở khung giờ nào theo dạng timeline."
-                : "Xem danh sách tất cả lịch đặt booth với bộ lọc chi tiết."}
+              Xem trực quan booth nào đang có người đặt ở khung giờ nào theo dạng timeline.
             </p>
           </div>
 
@@ -655,8 +647,86 @@ export default function BoothSchedulePage() {
         </div>
       </div>
 
-      {viewMode === "TIMELINE" ? (
-      <>
+      <div className="mb-6 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-5">
+          <div className="flex items-center rounded-xl border border-gray-200 px-3 py-2">
+            <Calendar className="w-4 h-4 text-gray-400" />
+            <input
+              type="date"
+              className="ml-2 w-full border-0 bg-transparent text-sm text-gray-700 outline-none"
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+            />
+          </div>
+
+          <select
+            className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm"
+            value={typeFilter}
+            onChange={(e) => setTypeFilter(e.target.value as BookingType | "ALL")}
+          >
+            <option value="ALL">Tất cả mục đích</option>
+            <option value="PRACTICE">Luyện tập</option>
+            <option value="EXAM">Kiểm tra</option>
+          </select>
+
+          <select
+            className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm"
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value as BookingStatus | "ALL")}
+          >
+            <option value="ALL">Tất cả trạng thái</option>
+            <option value="CONFIRM">Đã xác nhận</option>
+            <option value="CHECKED_IN">Đang sử dụng</option>
+            <option value="COMPLETED">Đã xong</option>
+            <option value="CANCEL">Đã hủy</option>
+            <option value="ABSENT">Vắng mặt</option>
+          </select>
+
+          <select
+            className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm"
+            value={boothFilter}
+            onChange={(e) => setBoothFilter(e.target.value)}
+          >
+            <option value="ALL">Tất cả booth</option>
+            {boothOptions.map((booth) => (
+              <option key={booth.id} value={booth.id}>
+                {booth.name}
+              </option>
+            ))}
+          </select>
+
+          <div className="flex items-center rounded-xl border border-gray-200 bg-white px-3 py-2">
+            <Search className="h-4 w-4 text-gray-400" />
+            <input
+              value={keyword}
+              onChange={(e) => setKeyword(e.target.value)}
+              placeholder="Lọc theo sinh viên hoặc booth"
+              className="ml-2 w-full border-0 bg-transparent p-0 text-sm outline-none"
+            />
+          </div>
+        </div>
+
+        <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
+          <div className="flex flex-wrap gap-2 text-xs font-semibold">
+            <span className="rounded-full bg-navy-50 px-3 py-1 text-navy-700">Tổng: {summary.total}</span>
+            <span className="rounded-full bg-amber-100 px-3 py-1 text-amber-700">Đã xác nhận: {summary.confirm}</span>
+            <span className="rounded-full bg-blue-100 px-3 py-1 text-blue-700">Đang sử dụng: {summary.inUse}</span>
+            <span className="rounded-full bg-emerald-100 px-3 py-1 text-emerald-700">Hoàn tất: {summary.completed}</span>
+            <span className="rounded-full bg-rose-100 px-3 py-1 text-rose-700">Đã hủy: {summary.cancel}</span>
+            <span className="rounded-full bg-orange-100 px-3 py-1 text-orange-700">Vắng mặt: {summary.absent}</span>
+          </div>
+
+          <button
+            onClick={resetFilters}
+            disabled={!hasActiveFilters}
+            className="inline-flex items-center rounded-lg border border-slate-200 px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <RotateCcw className="h-3.5 w-3.5 mr-1" />
+            Đặt lại bộ lọc
+          </button>
+        </div>
+      </div>
+
       <div className="mb-6 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
         <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <div>
@@ -786,113 +856,25 @@ export default function BoothSchedulePage() {
       </div>
 
       <div ref={scheduleSectionRef} className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
-        <div className="flex flex-col gap-4 mb-6">
-          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-            <h2 className="text-lg font-bold text-navy-700">
-              {selectedDateLabel ? `Lịch trình ngày ${selectedDateLabel}` : "Chọn ngày trên lịch để xem lịch trình"}
-            </h2>
+        <h2 className="text-lg font-bold text-navy-700 mb-6">
+          {selectedDateLabel ? `Lịch trình ngày ${selectedDateLabel}` : "Tất cả lịch trình"}
+        </h2>
 
-            {date ? (
-              <button
-                type="button"
-                onClick={() => setDate("")}
-                className="inline-flex items-center self-start rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-bold text-slate-600 hover:bg-slate-50"
-              >
-                <RotateCcw className="h-3.5 w-3.5 mr-1" />
-                Bỏ chọn ngày
-              </button>
-            ) : null}
-          </div>
-
-          {date ? (
-            <>
-              <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
-                <select
-                  className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm"
-                  value={typeFilter}
-                  onChange={(e) => setTypeFilter(e.target.value as BookingType | "ALL")}
-                >
-                  <option value="ALL">Tất cả mục đích</option>
-                  <option value="PRACTICE">Luyện tập</option>
-                  <option value="EXAM">Kiểm tra</option>
-                </select>
-
-                <select
-                  className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm"
-                  value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value as BookingStatus | "ALL")}
-                >
-                  <option value="ALL">Tất cả trạng thái</option>
-                  <option value="CONFIRM">Đã xác nhận</option>
-                  <option value="CHECKED_IN">Đang sử dụng</option>
-                  <option value="COMPLETED">Đã xong</option>
-                  <option value="CANCEL">Đã hủy</option>
-                  <option value="ABSENT">Vắng mặt</option>
-                </select>
-
-                <select
-                  className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm"
-                  value={boothFilter}
-                  onChange={(e) => setBoothFilter(e.target.value)}
-                >
-                  <option value="ALL">Tất cả booth</option>
-                  {boothOptions.map((booth) => (
-                    <option key={booth.id} value={booth.id}>
-                      {booth.name}
-                    </option>
-                  ))}
-                </select>
-
-                <div className="flex items-center rounded-xl border border-gray-200 bg-white px-3 py-2">
-                  <Search className="h-4 w-4 text-gray-400" />
-                  <input
-                    value={keyword}
-                    onChange={(e) => setKeyword(e.target.value)}
-                    placeholder="Tìm sinh viên hoặc booth"
-                    className="ml-2 w-full border-0 bg-transparent p-0 text-sm outline-none"
-                  />
-                </div>
-              </div>
-
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <div className="flex flex-wrap gap-2 text-xs font-semibold">
-                  <span className="rounded-full bg-navy-50 px-3 py-1 text-navy-700">Tổng: {summary.total}</span>
-                  <span className="rounded-full bg-amber-100 px-3 py-1 text-amber-700">Đã xác nhận: {summary.confirm}</span>
-                  <span className="rounded-full bg-blue-100 px-3 py-1 text-blue-700">Đang sử dụng: {summary.inUse}</span>
-                  <span className="rounded-full bg-emerald-100 px-3 py-1 text-emerald-700">Hoàn tất: {summary.completed}</span>
-                  <span className="rounded-full bg-rose-100 px-3 py-1 text-rose-700">Đã hủy: {summary.cancel}</span>
-                  <span className="rounded-full bg-orange-100 px-3 py-1 text-orange-700">Vắng mặt: {summary.absent}</span>
-                </div>
-
-                {hasActiveFilters ? (
-                  <button
-                    onClick={resetFilters}
-                    className="inline-flex items-center rounded-lg border border-slate-200 px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50"
-                  >
-                    <RotateCcw className="h-3.5 w-3.5 mr-1" />
-                    Đặt lại bộ lọc
-                  </button>
-                ) : null}
-              </div>
-            </>
-          ) : null}
-        </div>
-
-        {!date ? (
-          <div className="text-center py-20 text-gray-400 flex flex-col items-center">
-            <CalendarDays className="w-12 h-12 text-gray-200 mb-4" />
-            <p className="text-sm">Bấm vào một ngày trên lịch tháng để xem lịch trình chi tiết.</p>
-          </div>
-        ) : loading ? (
+        {loading ? (
           <div className="text-center py-20 text-gray-500">Đang tải dữ liệu...</div>
         ) : error ? (
           <div className="text-center py-20 text-red-500">{error}</div>
         ) : filteredBookings.length === 0 ? (
           <div className="text-center py-20 text-gray-500 flex flex-col items-center">
             <Wrench className="w-12 h-12 text-gray-300 mb-4" />
-            Không có lịch đặt nào trong ngày này.
+            Không có lịch đặt nào {date ? "trong ngày này" : "được tìm thấy"}.
           </div>
-        ) : (
+        ) : viewMode === "TIMELINE" ? (
+          !date ? (
+            <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-700">
+              Vui lòng chọn ngày cụ thể để xem timeline theo booth.
+            </div>
+          ) : (
             <>
               <div className="mb-4 flex flex-wrap items-center gap-2 text-xs font-semibold">
                 <span className="rounded-full bg-blue-100 px-3 py-1 text-blue-700">Đang sử dụng</span>
@@ -986,158 +968,60 @@ export default function BoothSchedulePage() {
                 Mẹo: Bấm vào block để xem chi tiết đặt lịch, hoặc di chuột để xem tóm tắt nhanh.
               </p>
             </>
-        )}
-      </div>
-      </>
-      ) : (
-      <div className="rounded-2xl border border-gray-200 bg-white shadow-sm">
-        <div className="border-b border-gray-200 p-5">
-          <h2 className="flex items-center text-lg font-bold text-navy-700 mb-4">
-            <List className="mr-2 h-5 w-5" />
-            Danh sách Booking
-          </h2>
-
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-5">
-            <div className="flex items-center rounded-xl border border-gray-200 px-3 py-2">
-              <Calendar className="w-4 h-4 text-gray-400" />
-              <input
-                type="date"
-                className="ml-2 w-full border-0 bg-transparent text-sm text-gray-700 outline-none"
-                value={date}
-                onChange={(e) => setDate(e.target.value)}
-              />
-            </div>
-
-            <select
-              className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm"
-              value={typeFilter}
-              onChange={(e) => setTypeFilter(e.target.value as BookingType | "ALL")}
-            >
-              <option value="ALL">Tất cả mục đích</option>
-              <option value="PRACTICE">Luyện tập</option>
-              <option value="EXAM">Kiểm tra</option>
-            </select>
-
-            <select
-              className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm"
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value as BookingStatus | "ALL")}
-            >
-              <option value="ALL">Tất cả trạng thái</option>
-              <option value="CONFIRM">Đã xác nhận</option>
-              <option value="CHECKED_IN">Đang sử dụng</option>
-              <option value="COMPLETED">Đã xong</option>
-              <option value="CANCEL">Đã hủy</option>
-              <option value="ABSENT">Vắng mặt</option>
-            </select>
-
-            <select
-              className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm"
-              value={boothFilter}
-              onChange={(e) => setBoothFilter(e.target.value)}
-            >
-              <option value="ALL">Tất cả booth</option>
-              {boothOptions.map((booth) => (
-                <option key={booth.id} value={booth.id}>
-                  {booth.name}
-                </option>
-              ))}
-            </select>
-
-            <div className="flex items-center rounded-xl border border-gray-200 bg-white px-3 py-2">
-              <Search className="h-4 w-4 text-gray-400" />
-              <input
-                value={keyword}
-                onChange={(e) => setKeyword(e.target.value)}
-                placeholder="Tìm sinh viên hoặc booth"
-                className="ml-2 w-full border-0 bg-transparent p-0 text-sm outline-none"
-              />
-            </div>
-          </div>
-
-          <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
-            <div className="flex flex-wrap gap-2 text-xs font-semibold">
-              <span className="rounded-full bg-navy-50 px-3 py-1 text-navy-700">Tổng: {summary.total}</span>
-              <span className="rounded-full bg-amber-100 px-3 py-1 text-amber-700">Đã xác nhận: {summary.confirm}</span>
-              <span className="rounded-full bg-blue-100 px-3 py-1 text-blue-700">Đang sử dụng: {summary.inUse}</span>
-              <span className="rounded-full bg-emerald-100 px-3 py-1 text-emerald-700">Hoàn tất: {summary.completed}</span>
-              <span className="rounded-full bg-rose-100 px-3 py-1 text-rose-700">Đã hủy: {summary.cancel}</span>
-              <span className="rounded-full bg-orange-100 px-3 py-1 text-orange-700">Vắng mặt: {summary.absent}</span>
-            </div>
-
-            {hasActiveFilters ? (
-              <button
-                onClick={resetFilters}
-                className="inline-flex items-center rounded-lg border border-slate-200 px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50"
-              >
-                <RotateCcw className="h-3.5 w-3.5 mr-1" />
-                Đặt lại bộ lọc
-              </button>
-            ) : null}
-          </div>
-        </div>
-
-        {loading ? (
-          <div className="text-center py-20 text-gray-500">Đang tải dữ liệu...</div>
-        ) : error ? (
-          <div className="text-center py-20 text-red-500">{error}</div>
-        ) : filteredBookings.length === 0 ? (
-          <div className="text-center py-20 text-gray-400 flex flex-col items-center">
-            <Wrench className="w-12 h-12 text-gray-200 mb-4" />
-            <p className="text-sm">Không tìm thấy booking nào phù hợp với bộ lọc.</p>
-          </div>
+          )
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="border-b border-gray-200 bg-slate-50">
-                  <th className="py-3 px-4 font-semibold text-gray-500 text-xs uppercase tracking-wide">Ngày</th>
-                  <th className="py-3 px-4 font-semibold text-gray-500 text-xs uppercase tracking-wide">Khung giờ</th>
-                  <th className="py-3 px-4 font-semibold text-gray-500 text-xs uppercase tracking-wide">Booth</th>
-                  <th className="py-3 px-4 font-semibold text-gray-500 text-xs uppercase tracking-wide">Sinh viên</th>
-                  <th className="py-3 px-4 font-semibold text-gray-500 text-xs uppercase tracking-wide">Mục đích</th>
-                  <th className="py-3 px-4 font-semibold text-gray-500 text-xs uppercase tracking-wide">Trạng thái</th>
-                  <th className="py-3 px-4 font-semibold text-gray-500 text-xs uppercase tracking-wide">Thời lượng</th>
-                  <th className="py-3 px-4 font-semibold text-gray-500 text-xs uppercase tracking-wide">Check-in</th>
+                <tr className="border-b-2 border-gray-100">
+                  <th className="pb-3 px-4 font-semibold text-gray-500 text-sm">Thời gian</th>
+                  <th className="pb-3 px-4 font-semibold text-gray-500 text-sm">Booth</th>
+                  <th className="pb-3 px-4 font-semibold text-gray-500 text-sm">Sinh viên</th>
+                  <th className="pb-3 px-4 font-semibold text-gray-500 text-sm">Mục đích</th>
+                  <th className="pb-3 px-4 font-semibold text-gray-500 text-sm">Trạng thái</th>
+                  <th className="pb-3 px-4 font-semibold text-gray-500 text-sm text-right">Ghi chú</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100">
+              <tbody className="divide-y divide-gray-50">
                 {filteredBookings.map((booking) => {
                   const start = new Date(booking.startTime);
                   const end = new Date(booking.endTime);
 
                   return (
-                    <tr key={booking.id} className="hover:bg-slate-50 transition">
-                      <td className="py-3.5 px-4 text-sm text-gray-700 whitespace-nowrap">{format(start, "dd/MM/yyyy")}</td>
-                      <td className="py-3.5 px-4 whitespace-nowrap">
-                        <span className="font-semibold text-sm text-gray-900">{format(start, "HH:mm")}</span>
-                        <span className="text-gray-400 mx-1">–</span>
-                        <span className="font-semibold text-sm text-gray-900">{format(end, "HH:mm")}</span>
+                    <tr key={booking.id} className="hover:bg-gray-50 transition">
+                      <td className="py-4 px-4">
+                        <div className="text-xs text-gray-500 mb-1">{format(start, "dd/MM/yyyy")}</div>
+                        <div className="font-bold text-gray-900">{format(start, "HH:mm")} - {format(end, "HH:mm")}</div>
                       </td>
-                      <td className="py-3.5 px-4 font-medium text-sm text-navy-700 whitespace-nowrap">{booking.booth?.name || "-"}</td>
-                      <td className="py-3.5 px-4">
-                        <div className="font-semibold text-sm text-gray-900">{booking.user?.name || "N/A"}</div>
+                      <td className="py-4 px-4 font-medium text-navy-700">{booking.booth?.name}</td>
+                      <td className="py-4 px-4">
+                        <div className="font-semibold text-gray-900">{booking.user?.name || "N/A"}</div>
                         <div className="text-xs text-gray-500">{booking.user?.email}</div>
-                        <div className="text-xs text-gray-400">{booking.user?.studentCode || ""}</div>
                       </td>
-                      <td className="py-3.5 px-4">
-                        <span className={`px-2 py-1 rounded text-xs font-bold ${booking.type === "EXAM" ? "bg-red-50 text-red-700" : "bg-blue-50 text-blue-700"}`}>
+                      <td className="py-4 px-4">
+                        <span
+                          className={`px-2 py-1 rounded text-xs font-bold ${
+                            booking.type === "EXAM" ? "bg-red-50 text-red-700" : "bg-blue-50 text-blue-700"
+                          }`}
+                        >
                           {getBookingTypeLabel(booking.type)}
                         </span>
                       </td>
-                      <td className="py-3.5 px-4">
-                        <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${getBookingStatusChipClass(booking.status)}`}>
+                      <td className="py-4 px-4">
+                        <span
+                          className={`px-2 py-1 rounded-full text-xs font-semibold ${getBookingStatusChipClass(booking.status)}`}
+                        >
                           {getBookingStatusLabel(booking.status)}
                         </span>
                       </td>
-                      <td className="py-3.5 px-4 text-sm text-gray-700 whitespace-nowrap">
-                        <span className="inline-flex items-center">
-                          <Clock3 className="mr-1 h-3.5 w-3.5 text-gray-400" />
-                          {getBookingDurationMinutes(booking)} phút
+                      <td className="py-4 px-4 text-right">
+                        <span className="inline-flex items-center text-xs text-gray-500 font-medium">
+                          <UserRound className="mr-1 h-3.5 w-3.5" />
+                          {booking.user?.studentCode || "Không có MSSV"}
+                          <Clock3 className="mx-1 h-3.5 w-3.5" />
+                          {getBookingDurationMinutes(booking)}
+                          p
                         </span>
-                      </td>
-                      <td className="py-3.5 px-4 text-xs text-gray-500 whitespace-nowrap">
-                        {booking.checkedInAt ? formatDateTime(booking.checkedInAt) : <span className="text-gray-300">—</span>}
                       </td>
                     </tr>
                   );
@@ -1147,7 +1031,6 @@ export default function BoothSchedulePage() {
           </div>
         )}
       </div>
-      )}
 
       {selectedTimelineBooking ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/45 p-4">

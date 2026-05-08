@@ -45,7 +45,7 @@ type LecturerInfoForm = {
   lockedReason: string;
 };
 
-export default function LecturerManagementPage() {
+function LecturerManagementContent() {
   const { user, userLoading } = useAuth();
   const searchParams = useSearchParams();
   const canManageLecturers = hasPermission(user, "LECTURER_ADMIN");
@@ -849,5 +849,15 @@ export default function LecturerManagementPage() {
         )}
       </div>
     </main>
+  );
+}
+
+import { Suspense } from "react";
+
+export default function LecturerManagementPage() {
+  return (
+    <Suspense fallback={<div className="py-20 text-center text-gray-500">Đang tải quản lý giảng viên...</div>}>
+      <LecturerManagementContent />
+    </Suspense>
   );
 }
