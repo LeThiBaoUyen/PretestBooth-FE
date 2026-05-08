@@ -163,9 +163,10 @@ export default function Header() {
 
     try {
       await logout();
-      router.push(`/login?next=${encodeURIComponent(nextPath)}`);
     } catch (error) {
       console.error("Logout failed:", error);
+    } finally {
+      router.push(`/login?next=${encodeURIComponent(nextPath)}`);
     }
   };
 

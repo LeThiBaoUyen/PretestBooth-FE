@@ -109,11 +109,11 @@ export default function DashboardProfilePage() {
     try {
       await usersApi.deleteUser(user.id);
       await logout();
-      router.push("/login");
     } catch (err: any) {
       alert(err?.message || "Không thể xóa tài khoản");
     } finally {
       setDeleting(false);
+      router.push("/login");
     }
   };
 
