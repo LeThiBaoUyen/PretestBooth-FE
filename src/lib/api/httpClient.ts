@@ -91,11 +91,29 @@ class HttpClient {
       const data = await response.json();
 
       if (!response.ok) {
-        const apiError = new Error(
-          Array.isArray(data.message)
-            ? data.message.join(", ")
-            : data.message || "Request failed",
-        ) as ApiError;
+        let messageText = "Request failed";
+
+        if (data) {
+          if (Array.isArray(data.message)) {
+            messageText = data.message.join(", ");
+          } else if (typeof data.message === "string") {
+            messageText = data.message;
+          } else if (typeof data.detail === "string") {
+            messageText = data.detail;
+          } else if (typeof data.error === "string") {
+            messageText = data.error;
+          } else if (data.data && typeof data.data === "object") {
+            if (Array.isArray((data.data as any).message)) {
+              messageText = (data.data as any).message.join(", ");
+            } else if (typeof (data.data as any).message === "string") {
+              messageText = (data.data as any).message;
+            } else if (typeof (data.data as any).detail === "string") {
+              messageText = (data.data as any).detail;
+            }
+          }
+        }
+
+        const apiError = new Error(messageText) as ApiError;
         apiError.status = response.status;
         throw apiError;
       }

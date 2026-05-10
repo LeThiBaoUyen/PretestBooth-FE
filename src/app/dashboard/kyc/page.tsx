@@ -175,8 +175,20 @@ export default function KycPage() {
       } else {
         setMessage("Hồ sơ KYC đã được gửi. Nếu bị từ chối, bạn có thể gửi yêu cầu duyệt thủ công.");
       }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Đăng ký KYC thất bại");
+    } catch (err: any) {
+      try {
+        const latestStatus = await kycApi.getStatus();
+        setStatus(latestStatus);
+      } catch {
+        // Keep original error display when status refresh fails.
+      }
+
+      // Map common backend error cases to friendlier Vietnamese messages
+      if (err && typeof err.status === "number" && err.status === 422 && /no face/i.test(err.message || "")) {
+        setError("Không phát hiện khuôn mặt trong ảnh. Vui lòng chụp lại.");
+      } else {
+        setError(err instanceof Error ? err.message : "Đăng ký KYC thất bại");
+      }
     } finally {
       setSubmitting(false);
     }
@@ -362,17 +374,15 @@ export default function KycPage() {
                   {submitting ? "Đang gửi KYC..." : "Gửi đăng ký KYC"}
                 </button>
 
-                {canRequestManualReview && (
-                  <button
-                    type="button"
-                    onClick={requestManualReview}
-                    disabled={submitting || requestingManualReview}
-                    className="inline-flex items-center gap-2 rounded-lg bg-amber-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-amber-700 disabled:cursor-not-allowed disabled:bg-slate-400"
-                  >
-                    {requestingManualReview ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                    {requestingManualReview ? "Đang gửi yêu cầu..." : "Yêu cầu duyệt thủ công"}
-                  </button>
-                )}
+                <button
+                  type="button"
+                  onClick={requestManualReview}
+                  disabled={submitting || requestingManualReview || !canRequestManualReview}
+                  className="inline-flex items-center gap-2 rounded-lg bg-amber-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-amber-700 disabled:cursor-not-allowed disabled:bg-slate-400"
+                >
+                  {requestingManualReview ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                  {requestingManualReview ? "Đang gửi yêu cầu..." : "Yêu cầu duyệt thủ công"}
+                </button>
 
                 {status?.kycManualReviewStatus === "REJECTED" && status?.kycManualReviewRejectionReason && (
                   <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
