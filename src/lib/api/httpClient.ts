@@ -94,7 +94,28 @@ class HttpClient {
         let messageText = "Request failed";
 
         if (data) {
-          if (Array.isArray(data.message)) {
+          // Handle structured validation errors: { errors: { field: [msg] } }
+          const extractErrors = (obj: any) => {
+            const msgs: string[] = [];
+            if (obj && typeof obj === "object") {
+              for (const key of Object.keys(obj)) {
+                const val = obj[key];
+                if (Array.isArray(val)) {
+                  for (const v of val) {
+                    if (typeof v === "string") msgs.push(v);
+                  }
+                } else if (typeof val === "string") {
+                  msgs.push(val);
+                }
+              }
+            }
+            return msgs;
+          };
+
+          const topLevelErrors = extractErrors(data.errors ?? data);
+          if (topLevelErrors.length > 0 && data.errors) {
+            messageText = topLevelErrors.join("; ");
+          } else if (Array.isArray(data.message)) {
             messageText = data.message.join(", ");
           } else if (typeof data.message === "string") {
             messageText = data.message;
@@ -103,7 +124,10 @@ class HttpClient {
           } else if (typeof data.error === "string") {
             messageText = data.error;
           } else if (data.data && typeof data.data === "object") {
-            if (Array.isArray((data.data as any).message)) {
+            const nestedErrors = extractErrors((data.data as any).errors ?? (data.data as any));
+            if (nestedErrors.length > 0) {
+              messageText = nestedErrors.join("; ");
+            } else if (Array.isArray((data.data as any).message)) {
               messageText = (data.data as any).message.join(", ");
             } else if (typeof (data.data as any).message === "string") {
               messageText = (data.data as any).message;
