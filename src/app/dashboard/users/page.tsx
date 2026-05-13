@@ -1290,6 +1290,7 @@ export function AdminUsersPageContent({
                   <th className="py-3 px-6 font-semibold text-gray-500 text-sm">Khóa</th>
                   <th className="py-3 px-6 font-semibold text-gray-500 text-sm">Lớp học phần</th>
                   <th className="py-3 px-6 font-semibold text-gray-500 text-sm">Điểm tích lũy</th>
+                  <th className="py-3 px-6 font-semibold text-gray-500 text-sm">Pretest</th>
                   <th className="py-3 px-6 font-semibold text-gray-500 text-sm">Trạng thái</th>
                   <th className="py-3 px-6 font-semibold text-gray-500 text-sm text-right">Thao tác</th>
                 </tr>
@@ -1315,6 +1316,19 @@ export function AdminUsersPageContent({
                     </td>
                     <td className="py-4 px-6">
                       <span className="font-bold text-yellow-600">{student.totalPoints || 0}</span>
+                    </td>
+                    <td className="py-4 px-6">
+                      {student.hasPassedPretest ? (
+                        <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                          <CheckCircle className="w-3 h-3 mr-1" />
+                          Đã đạt
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-100 text-amber-800 border border-amber-200">
+                          <CircleAlert className="w-3 h-3 mr-1" />
+                          Chưa đạt
+                        </span>
+                      )}
                     </td>
                     <td className="py-4 px-6">
                       {student.isLocked ? (
@@ -1465,6 +1479,7 @@ export function AdminUsersPageContent({
                                       <th className="py-3 px-6 font-semibold text-gray-500 text-sm">Khóa</th>
                                       <th className="py-3 px-6 font-semibold text-gray-500 text-sm">Lớp học phần</th>
                                       <th className="py-3 px-6 font-semibold text-gray-500 text-sm">Điểm tích lũy</th>
+                                      <th className="py-3 px-6 font-semibold text-gray-500 text-sm">Pretest</th>
                                       <th className="py-3 px-6 font-semibold text-gray-500 text-sm">Trạng thái</th>
                                       <th className="py-3 px-6 font-semibold text-gray-500 text-sm text-right">Thao tác</th>
                                     </tr>
@@ -1503,6 +1518,19 @@ export function AdminUsersPageContent({
                                         </td>
                                         <td className="py-4 px-6">
                                           <span className="font-bold text-yellow-600">{student.totalPoints || 0}</span>
+                                        </td>
+                                        <td className="py-4 px-6">
+                                          {student.hasPassedPretest ? (
+                                            <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                                              <CheckCircle className="w-3 h-3 mr-1" />
+                                              Đã đạt
+                                            </span>
+                                          ) : (
+                                            <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-100 text-amber-800 border border-amber-200">
+                                              <CircleAlert className="w-3 h-3 mr-1" />
+                                              Chưa đạt
+                                            </span>
+                                          )}
                                         </td>
                                         <td className="py-4 px-6">
                                           {student.isLocked ? (

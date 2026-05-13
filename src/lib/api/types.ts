@@ -24,6 +24,7 @@ export interface User {
   lockedReason?: string;
   totalPoints?: number;
   kycStatus?: "NOT_STARTED" | "PENDING" | "VERIFIED" | "REJECTED";
+  hasPassedPretest?: boolean;
 }
 
 export interface LoginRequest {
@@ -1800,6 +1801,7 @@ export interface StudentStats {
   submissionAccuracy: number;
   totalSubmissions: number;
   upcomingBookings: Booking[];
+  hasPassedPretest?: boolean;
 }
 
 export interface AdminStats {
