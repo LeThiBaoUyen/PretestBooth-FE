@@ -401,7 +401,7 @@ export interface SubmissionResponse {
   language: string;
   version: string;
   problemId: string;
-  userId: string;
+  studentId: string | null;
   sourceCode: string;
   status: SubmissionStatus;
   totalTestCases: number;
@@ -1394,7 +1394,7 @@ export type BookingType = "PRACTICE" | "EXAM";
 
 export interface Booking {
   id: string;
-  userId: string;
+  studentId: string | null;
   boothId: string;
   date: string;
   startTime: string;
@@ -1411,7 +1411,13 @@ export interface Booking {
   createdAt: string;
   updatedAt: string;
   booth?: Booth;
-  user?: Partial<User>;
+  student?: {
+    id: string;
+    userId: string;
+    studentCode: string | null;
+    className: string | null;
+    user: { id: string; email: string; name: string | null };
+  };
 }
 
 export interface AvailableTimeSlot {
@@ -1733,7 +1739,7 @@ export interface UpdateKycCardThresholdRequest {
 // Practice
 export interface PracticeSession {
   id: string;
-  userId: string;
+  studentId: string | null;
   duration: number;
   totalItems: number;
   difficulty: Difficulty | null;

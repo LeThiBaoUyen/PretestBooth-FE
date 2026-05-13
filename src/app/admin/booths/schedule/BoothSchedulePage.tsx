@@ -340,8 +340,8 @@ export default function BoothSchedulePage() {
 
       if (!q) return true;
 
-      const studentName = booking.user?.name?.toLowerCase() || "";
-      const studentEmail = booking.user?.email?.toLowerCase() || "";
+      const studentName = booking.student?.user?.name?.toLowerCase() || "";
+      const studentEmail = booking.student?.user?.email?.toLowerCase() || "";
       const boothName = booking.booth?.name?.toLowerCase() || "";
 
       return studentName.includes(q) || studentEmail.includes(q) || boothName.includes(q);
@@ -486,8 +486,8 @@ export default function BoothSchedulePage() {
               booking,
               leftPercent,
               widthPercent: Math.max(1.8, widthPercent),
-              studentName: booking.user?.name || "N/A",
-              studentEmail: booking.user?.email || "N/A",
+              studentName: booking.student?.user?.name || "N/A",
+              studentEmail: booking.student?.user?.email || "N/A",
               timeRange: `${format(startDate, "HH:mm")} - ${format(endDate, "HH:mm")}`,
             };
           })
@@ -995,8 +995,8 @@ export default function BoothSchedulePage() {
                       </td>
                       <td className="py-4 px-4 font-medium text-navy-700">{booking.booth?.name}</td>
                       <td className="py-4 px-4">
-                        <div className="font-semibold text-gray-900">{booking.user?.name || "N/A"}</div>
-                        <div className="text-xs text-gray-500">{booking.user?.email}</div>
+                        <div className="font-semibold text-gray-900">{booking.student?.user?.name || "N/A"}</div>
+                        <div className="text-xs text-gray-500">{booking.student?.user?.email}</div>
                       </td>
                       <td className="py-4 px-4">
                         <span
@@ -1017,7 +1017,7 @@ export default function BoothSchedulePage() {
                       <td className="py-4 px-4 text-right">
                         <span className="inline-flex items-center text-xs text-gray-500 font-medium">
                           <UserRound className="mr-1 h-3.5 w-3.5" />
-                          {booking.user?.studentCode || "Không có MSSV"}
+                          {booking.student?.studentCode || "Không có MSSV"}
                           <Clock3 className="mx-1 h-3.5 w-3.5" />
                           {getBookingDurationMinutes(booking)}
                           p
@@ -1054,9 +1054,9 @@ export default function BoothSchedulePage() {
             <div className="grid grid-cols-1 gap-3 px-5 py-4 md:grid-cols-2">
               <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
                 <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Sinh viên</p>
-                <p className="mt-1 text-sm font-bold text-slate-900">{selectedTimelineBooking.user?.name || "N/A"}</p>
-                <p className="text-xs text-slate-600">{selectedTimelineBooking.user?.email || "-"}</p>
-                <p className="text-xs text-slate-600">MSSV: {selectedTimelineBooking.user?.studentCode || "-"}</p>
+                <p className="mt-1 text-sm font-bold text-slate-900">{selectedTimelineBooking.student?.user?.name || "N/A"}</p>
+                <p className="text-xs text-slate-600">{selectedTimelineBooking.student?.user?.email || "-"}</p>
+                <p className="text-xs text-slate-600">MSSV: {selectedTimelineBooking.student?.studentCode || "-"}</p>
               </div>
 
               <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
