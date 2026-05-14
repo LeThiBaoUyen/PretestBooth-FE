@@ -12,7 +12,6 @@ import type {
   QuestionType,
   ResultPublicationStatus,
   SessionResultTestCase,
-  SessionResultProctoringWarning,
 } from "@/lib/api/types";
 
 const STATUS_COLORS: Record<ExamSessionStatus, string> = {
