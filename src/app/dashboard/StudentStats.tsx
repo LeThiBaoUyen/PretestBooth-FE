@@ -128,10 +128,21 @@ export default function StudentStatsDashboard() {
 
   return (
     <div className="pt-2">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-navy-600">Xin chào, {user.name || "Sinh viên"}! 👋</h1>
-        <p className="text-gray-600 mt-2">Theo dõi tiến trình luyện tập và điểm tích lũy của bạn tại đây.</p>
-      </div>
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div>
+            <h1 className="text-3xl font-bold text-navy-600">Xin chào, {user.name || "Sinh viên"}! 👋</h1>
+            <p className="text-gray-600 mt-2">Theo dõi tiến trình luyện tập và điểm tích lũy của bạn tại đây.</p>
+          </div>
+          {stats?.hasPassedPretest && (
+            <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-200 text-emerald-700 px-4 py-3 rounded-2xl shadow-sm">
+              <CheckCircle className="w-5 h-5" />
+              <div className="flex flex-col">
+                <span className="font-bold text-sm">Đã đạt Pretest</span>
+                <span className="text-xs opacity-90 text-emerald-600">Bạn đã đủ điều kiện thi chính thức</span>
+              </div>
+            </div>
+          )}
+        </div>
 
       {/* Primary Stats */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">

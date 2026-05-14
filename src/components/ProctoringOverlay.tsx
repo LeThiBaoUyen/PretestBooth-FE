@@ -60,11 +60,12 @@ export default function ProctoringOverlay({
 
     try {
       // In a real app we might capture a screenshot here
-      // const imageSrc = webcamRef.current?.getScreenshot();
-      
+      const imageSrc = webcamRef.current?.getScreenshot();
+
       const res = await proctoringApi.reportEvent({
         sessionId,
         eventType,
+        metadata: { message, timestamp: new Date().toISOString(), imageSrc },
       });
 
       // Show temporary warning

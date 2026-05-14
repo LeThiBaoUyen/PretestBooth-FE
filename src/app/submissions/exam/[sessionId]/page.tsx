@@ -84,17 +84,39 @@ function warningLevelClass(level: number) {
   return "bg-amber-100 text-amber-800";
 }
 
-type DraftGrade = { score: string; isCorrect: boolean; feedback: string };
-
-function formatWarningMetadata(metadata: SessionResultProctoringWarning["metadata"]) {
-  if (!metadata) return "Không có metadata";
-
-  try {
-    return JSON.stringify(metadata, null, 2);
-  } catch {
-    return "Không thể hiển thị metadata";
-  }
+function formatWarningMetadata(metadata: any) {
+  if (!metadata) return null;
+  return (
+    <div className="space-y-2">
+      {metadata.message && (
+        <p className="text-sm font-medium text-slate-200">{metadata.message}</p>
+      )}
+      {metadata.timestamp && (
+        <p className="text-[10px] text-slate-400">
+          Thời điểm: {new Date(metadata.timestamp).toLocaleString("vi-VN")}
+        </p>
+      )}
+      {metadata.imageSrc && (
+        <div className="mt-2">
+          <p className="text-[10px] text-slate-400 mb-1 font-semibold uppercase">Ảnh bằng chứng:</p>
+          <img 
+            src={metadata.imageSrc} 
+            alt="Proctoring Evidence" 
+            className="max-w-full rounded-md border border-slate-700 hover:scale-105 transition-transform cursor-zoom-in"
+            onClick={() => window.open(metadata.imageSrc, '_blank')}
+          />
+        </div>
+      )}
+      {!metadata.message && !metadata.imageSrc && (
+        <pre className="text-[10px] text-slate-400 whitespace-pre-wrap">
+          {JSON.stringify(metadata, null, 2)}
+        </pre>
+      )}
+    </div>
+  );
 }
+
+type DraftGrade = { score: string; isCorrect: boolean; feedback: string };
 
 export default function ExamSessionDetailPage() {
   const params = useParams();
@@ -533,13 +555,14 @@ export default function ExamSessionDetailPage() {
                       </span>
                     </div>
 
-                    <details className="mt-3">
-                      <summary className="cursor-pointer text-sm font-medium text-slate-700">
-                        Xem metadata
+                    <details className="mt-3 group">
+                      <summary className="cursor-pointer text-sm font-medium text-slate-700 hover:text-navy-600 flex items-center gap-1">
+                        <span className="group-open:rotate-90 transition-transform">▶</span>
+                        Chi tiết vi phạm & bằng chứng
                       </summary>
-                      <pre className="mt-2 overflow-auto rounded-md bg-slate-900 p-3 text-xs text-slate-100">
+                      <div className="mt-2 overflow-auto rounded-xl bg-slate-900 p-4 text-xs text-slate-100 shadow-inner">
                         {formatWarningMetadata(warning.metadata)}
-                      </pre>
+                      </div>
                     </details>
                   </div>
                 ))}

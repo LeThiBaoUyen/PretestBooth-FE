@@ -159,7 +159,7 @@ export default function AdminStatsDashboard() {
             <div className="space-y-4 max-h-96 overflow-y-auto pr-2">
               {stats.recentProctoringEvents.map((event) => (
                 (() => {
-                  const student = event?.examSession?.user || event?.practiceSession?.user;
+                  const student = event?.student || event?.examSession?.student || event?.practiceSession?.student;
                   return (
                 <div key={event.id} className="flex items-start space-x-4 p-4 rounded-xl border border-gray-100 hover:bg-gray-50 transition flex-shrink-0">
                   <div className={`p-2 font-bold rounded-lg text-white mt-1 ${
@@ -184,8 +184,23 @@ export default function AdminStatsDashboard() {
                     <p className="text-sm text-gray-600 mt-1">
                       Mức cảnh báo: <span className="font-semibold text-gray-900">{event.warningLevel}</span> 
                       <span className="mx-2">•</span>
-                      Sinh viên: <span className="font-semibold">{student?.name || "Không xác định"} ({student?.studentCode || "N/A"})</span>
+                      Sinh viên: <span className="font-semibold">{student?.user?.name || "Không xác định"} ({student?.studentCode || "N/A"})</span>
                     </p>
+                    {event.metadata?.message && (
+                      <div className="mt-1 flex flex-col gap-1">
+                        <p className="text-xs text-amber-700 bg-amber-50 px-2 py-1 rounded-md border border-amber-100">
+                          {event.metadata.message}
+                        </p>
+                        {event.metadata.imageSrc && (
+                          <button 
+                            onClick={() => window.open(event.metadata.imageSrc, '_blank')}
+                            className="text-[10px] text-navy-600 hover:underline font-semibold flex items-center gap-1"
+                          >
+                            📷 Xem ảnh bằng chứng
+                          </button>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
                   );
