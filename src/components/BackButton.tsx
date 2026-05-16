@@ -4,6 +4,7 @@ import { useMemo } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { buildPathWithRememberedQuery } from "@/lib/navigation/listQueryPersistence";
+import { useAuth } from "@/lib/hooks/useAuth";
 
 type ParentRule = {
   pattern: RegExp;
@@ -126,8 +127,23 @@ function resolveParentPath(pathname: string): string | null {
 
 export default function BackButton() {
   const router = useRouter();
+  const { user } = useAuth();
   const pathname = usePathname() || "/";
-  const parentPath = useMemo(() => resolveParentPath(pathname), [pathname]);
+  const parentPath = useMemo(() => {
+    const rawParentPath = resolveParentPath(pathname);
+
+    // Ensure students always go back to student-facing lists
+    if (user?.role === "STUDENT") {
+      if (rawParentPath === "/question-bank/problems" || pathname.startsWith("/question-bank/problems")) {
+        return "/problems";
+      }
+      if (rawParentPath === "/question-bank") {
+        return "/dashboard";
+      }
+    }
+
+    return rawParentPath;
+  }, [pathname, user?.role]);
 
   if (!parentPath) return null;
 

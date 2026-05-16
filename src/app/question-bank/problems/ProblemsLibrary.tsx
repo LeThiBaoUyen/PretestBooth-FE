@@ -645,12 +645,12 @@ export default function ProblemsLibrary() {
                     <tr
                       key={problem.id}
                       className="group cursor-pointer transition-all hover:bg-navy-50/50 hover:shadow-sm"
-                      onClick={() => router.push(`/question-bank/problems/${problem.slug}`)}
+                      onClick={() => router.push(isStudent ? `/problems/${problem.slug}` : `/question-bank/problems/${problem.slug}`)}
                     >
                       <td className="px-6 py-4 text-gray-600">{(page - 1) * limit + index + 1}</td>
                       <td className="px-6 py-4">
                         <Link
-                          href={`/question-bank/problems/${problem.slug}`}
+                          href={isStudent ? `/problems/${problem.slug}` : `/question-bank/problems/${problem.slug}`}
                           className="font-medium text-navy-600 transition-colors group-hover:text-navy-800 group-hover:underline"
                           onClick={(e) => e.stopPropagation()}
                         >

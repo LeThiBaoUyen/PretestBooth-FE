@@ -547,10 +547,10 @@ export default function SubmissionsHome() {
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Tên
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                   <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Độ khó / Chi tiết
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Trạng thái
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -583,7 +583,7 @@ export default function SubmissionsHome() {
                     <td className="px-6 py-4 whitespace-nowrap">
                       {item.type === "PROBLEM" && item.slug ? (
                         <Link
-                          href={`/question-bank/problems/${item.slug}`}
+                          href={user?.role === "STUDENT" ? `/problems/${item.slug}` : `/question-bank/problems/${item.slug}`}
                           className="text-blue-600 hover:text-blue-800 font-medium"
                           onClick={(e) => e.stopPropagation()}
                         >
@@ -595,7 +595,7 @@ export default function SubmissionsHome() {
                         </span>
                       )}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-center">
                       {item.type === "PROBLEM" && item.difficulty ? (
                         <span
                           className={`font-medium ${DIFFICULTY_COLORS[item.difficulty]}`}
