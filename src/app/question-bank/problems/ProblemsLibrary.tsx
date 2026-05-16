@@ -390,13 +390,13 @@ export default function ProblemsLibrary() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-2 pb-8">
-      <div className="mb-8 flex items-center justify-between">
-        <div>
-          <h1 className="text-4xl font-bold text-navy-600 mb-2">Thư viện Bài tập</h1>
+      <div className="mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="shrink-0">
+          <h1 className="text-4xl font-bold text-navy-600 mb-2 whitespace-nowrap">Thư viện Bài tập</h1>
           <p className="text-gray-600">Rèn luyện kỹ năng lập trình với các bài tập từ dễ đến khó</p>
         </div>
         {isAuthorized && (
-          <div className="flex w-full flex-wrap items-center gap-2 xl:max-w-none xl:justify-end">
+          <div className="flex flex-wrap items-center gap-2 md:justify-end">
             <ImportTemplateActions
               onDownloadXlsx={handleDownloadTemplate}
               onDownloadCsv={() => downloadImportTemplate("problemCsv", "problem-import-template.csv")}

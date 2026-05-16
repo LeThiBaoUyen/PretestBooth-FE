@@ -611,7 +611,7 @@ export default function SubmissionsHome() {
                         <span className="text-gray-400">—</span>
                       )}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-6 py-4 whitespace-nowrap text-center">
                       <span
                         className={`px-3 py-1 rounded-full text-sm font-medium ${
                           STATUS_COLORS[item.status] ||
