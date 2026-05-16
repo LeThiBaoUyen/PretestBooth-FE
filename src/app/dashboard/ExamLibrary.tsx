@@ -177,6 +177,12 @@ export default function ExamLibrary() {
     Number(searchParams.get("questionMin") || QUESTION_RANGE_CONFIG.min),
     Number(searchParams.get("questionMax") || QUESTION_RANGE_CONFIG.max),
   ]);
+
+  useEffect(() => {
+    if (user?.role === "STUDENT" && selectedExamType !== "PRACTICE") {
+      setSelectedExamType("PRACTICE");
+    }
+  }, [user?.role, selectedExamType]);
   const [activeTab, setActiveTab] = useState<"all" | "published" | "custom">(
     () => (searchParams.get("tab") as "all" | "published" | "custom") || "all",
   );
@@ -323,7 +329,7 @@ export default function ExamLibrary() {
       const baseParams = {
         limit: 12,
         subjectId: subjectMatch?.id,
-        type: selectedExamType === "ALL" ? undefined : selectedExamType,
+        type: user?.role === "STUDENT" ? "PRACTICE" : (selectedExamType === "ALL" ? undefined : selectedExamType),
         search: debouncedSearch || undefined,
         minDuration:
           durationRange[0] > DURATION_RANGE_CONFIG.min
@@ -588,7 +594,7 @@ export default function ExamLibrary() {
           </div>
 
           <div className="mt-3 grid grid-cols-1 gap-3 lg:grid-cols-12">
-            <div className="lg:col-span-4">
+            <div className={user?.role === "STUDENT" ? "lg:col-span-6" : "lg:col-span-4"}>
               <label className="mb-1 block text-xs font-semibold text-slate-600">Từ khóa</label>
               <div className="relative">
                 <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
@@ -623,22 +629,23 @@ export default function ExamLibrary() {
               </select>
             </div>
 
-            <div className="lg:col-span-2">
-              <label className="mb-1 block text-xs font-semibold text-slate-600">Loại đề</label>
-              <select
-                className="h-10 w-full rounded-lg border border-navy-200 px-3 py-2 text-sm text-navy-700 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500"
-                value={selectedExamType}
-                onChange={(e) => {
-                  setSelectedExamType(e.target.value as ExamTypeFilter);
-                  resetPagination();
-                }}
-                disabled={user?.role === "STUDENT"}
-              >
-                <option value="ALL">Tất cả</option>
-                <option value="PRACTICE">Luyện tập</option>
-                <option value="EXAM">Kiểm tra</option>
-              </select>
-            </div>
+            {user?.role !== "STUDENT" && (
+              <div className="lg:col-span-2">
+                <label className="mb-1 block text-xs font-semibold text-slate-600">Loại đề</label>
+                <select
+                  className="h-10 w-full rounded-lg border border-navy-200 px-3 py-2 text-sm text-navy-700 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500"
+                  value={selectedExamType}
+                  onChange={(e) => {
+                    setSelectedExamType(e.target.value as ExamTypeFilter);
+                    resetPagination();
+                  }}
+                >
+                  <option value="ALL">Tất cả</option>
+                  <option value="PRACTICE">Luyện tập</option>
+                  <option value="EXAM">Kiểm tra</option>
+                </select>
+              </div>
+            )}
 
             <div className="lg:col-span-2">
               <label className="mb-1 block text-xs font-semibold text-transparent select-none">Hành động</label>
