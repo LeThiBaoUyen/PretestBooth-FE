@@ -191,13 +191,49 @@ export default function AdminStatsDashboard() {
                         <p className="text-xs text-amber-700 bg-amber-50 px-2 py-1 rounded-md border border-amber-100">
                           {event.metadata.message}
                         </p>
-                        {event.metadata.imageSrc && (
-                          <button 
-                            onClick={() => window.open(event.metadata.imageSrc, '_blank')}
-                            className="text-[10px] text-navy-600 hover:underline font-semibold flex items-center gap-1"
-                          >
-                            📷 Xem ảnh bằng chứng
-                          </button>
+                        {(event.metadata.imageSrc || event.metadata.screenSrc) && (
+                          <div className="mt-1">
+                            <button 
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                const imgId = `evidence-${event.id}`;
+                                const img = document.getElementById(imgId);
+                                if (img) {
+                                  img.classList.toggle('hidden');
+                                }
+                              }}
+                              className="text-[10px] text-navy-600 hover:underline font-semibold flex items-center gap-1"
+                            >
+                              📷 Xem ảnh bằng chứng {(event.metadata.imageSrc && event.metadata.screenSrc) ? "(Cam & Screen)" : event.metadata.screenSrc ? "(Screen)" : "(Cam)"}
+                            </button>
+                            <div id={`evidence-${event.id}`} className="mt-2 hidden rounded-lg border border-gray-200 overflow-hidden bg-gray-50 p-2 space-y-2 max-w-md">
+                              {event.metadata.imageSrc && (
+                                <div>
+                                  <div className="text-[9px] text-gray-500 mb-1 uppercase font-bold">Ảnh Camera</div>
+                                  <img 
+                                    src={event.metadata.imageSrc} 
+                                    alt="Ảnh Camera" 
+                                    className="w-full h-auto rounded border border-gray-200 cursor-pointer hover:opacity-90"
+                                    onClick={() => window.open(event.metadata.imageSrc, '_blank')}
+                                  />
+                                </div>
+                              )}
+                              {event.metadata.screenSrc && (
+                                <div>
+                                  <div className="text-[9px] text-gray-500 mb-1 uppercase font-bold">Ảnh Chụp Màn Hình</div>
+                                  <img 
+                                    src={event.metadata.screenSrc} 
+                                    alt="Ảnh Màn Hình" 
+                                    className="w-full h-auto rounded border border-gray-200 cursor-pointer hover:opacity-90"
+                                    onClick={() => window.open(event.metadata.screenSrc, '_blank')}
+                                  />
+                                </div>
+                              )}
+                              <div className="text-[8px] text-gray-400 text-center pt-1 italic">
+                                Click vào ảnh để xem kích thước đầy đủ
+                              </div>
+                            </div>
+                          </div>
                         )}
                       </div>
                     )}

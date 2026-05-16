@@ -86,7 +86,7 @@ function warningLevelClass(level: number) {
 function formatWarningMetadata(metadata: any) {
   if (!metadata) return null;
   return (
-    <div className="space-y-2">
+    <div className="space-y-3">
       {metadata.message && (
         <p className="text-sm font-medium text-slate-200">{metadata.message}</p>
       )}
@@ -95,18 +95,33 @@ function formatWarningMetadata(metadata: any) {
           Thời điểm: {new Date(metadata.timestamp).toLocaleString("vi-VN")}
         </p>
       )}
-      {metadata.imageSrc && (
-        <div className="mt-2">
-          <p className="text-[10px] text-slate-400 mb-1 font-semibold uppercase">Ảnh bằng chứng:</p>
-          <img 
-            src={metadata.imageSrc} 
-            alt="Proctoring Evidence" 
-            className="max-w-full rounded-md border border-slate-700 hover:scale-105 transition-transform cursor-zoom-in"
-            onClick={() => window.open(metadata.imageSrc, '_blank')}
-          />
-        </div>
-      )}
-      {!metadata.message && !metadata.imageSrc && (
+      
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
+        {metadata.imageSrc && (
+          <div>
+            <p className="text-[10px] text-slate-400 mb-1 font-semibold uppercase">Ảnh Camera:</p>
+            <img 
+              src={metadata.imageSrc} 
+              alt="Ảnh Camera" 
+              className="w-full rounded-md border border-slate-700 hover:scale-[1.02] transition-transform cursor-zoom-in"
+              onClick={() => window.open(metadata.imageSrc, '_blank')}
+            />
+          </div>
+        )}
+        {metadata.screenSrc && (
+          <div>
+            <p className="text-[10px] text-slate-400 mb-1 font-semibold uppercase">Ảnh Màn Hình:</p>
+            <img 
+              src={metadata.screenSrc} 
+              alt="Ảnh Màn Hình" 
+              className="w-full rounded-md border border-slate-700 hover:scale-[1.02] transition-transform cursor-zoom-in"
+              onClick={() => window.open(metadata.screenSrc, '_blank')}
+            />
+          </div>
+        )}
+      </div>
+
+      {!metadata.message && !metadata.imageSrc && !metadata.screenSrc && (
         <pre className="text-[10px] text-slate-400 whitespace-pre-wrap">
           {JSON.stringify(metadata, null, 2)}
         </pre>

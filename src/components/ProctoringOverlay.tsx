@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import Webcam from "react-webcam";
 import { ShieldAlert, Video, AlertTriangle } from "lucide-react";
+import html2canvas from "html2canvas";
 import { proctoringApi } from "@/lib/api/proctoring";
 import type { ProctoringEventType } from "@/lib/api/proctoring";
 
@@ -26,6 +27,7 @@ export default function ProctoringOverlay({
   const [warnings, setWarnings] = useState<string[]>([]);
   const [showWarning, setShowWarning] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [lastViolationImage, setLastViolationImage] = useState<string | null>(null);
 
   const fullscreenRequired = isActive && enforceFullscreen;
 
@@ -59,22 +61,44 @@ export default function ProctoringOverlay({
     reportCooldownRef.current[eventType] = now;
 
     try {
-      // In a real app we might capture a screenshot here
+      // Capture webcam
       const imageSrc = webcamRef.current?.getScreenshot();
+
+      // Capture screen
+      let screenSrc = null;
+      try {
+        const canvas = await html2canvas(document.body, {
+          logging: false,
+          useCORS: true,
+          scale: 0.5,
+        });
+        screenSrc = canvas.toDataURL("image/jpeg", 0.6);
+      } catch (err) {
+        console.warn("Screen capture failed:", err);
+      }
 
       const res = await proctoringApi.reportEvent({
         sessionId,
         eventType,
-        metadata: { message, timestamp: new Date().toISOString(), imageSrc },
+        metadata: { 
+          message, 
+          timestamp: new Date().toISOString(), 
+          imageSrc, 
+          screenSrc 
+        },
       });
 
       // Show temporary warning
       setWarnings(prev => [message, ...prev].slice(0, 3));
+      setLastViolationImage(imageSrc || null);
       setShowWarning(true);
       if (warningTimeoutRef.current) {
         clearTimeout(warningTimeoutRef.current);
       }
-      warningTimeoutRef.current = setTimeout(() => setShowWarning(false), 5000);
+      warningTimeoutRef.current = setTimeout(() => {
+        setShowWarning(false);
+        setLastViolationImage(null);
+      }, 7000);
 
       // Handle immediate termination for EXAM
       if (res.actionTaken === "EXAM_TERMINATED_TAB_SWITCH") {
@@ -239,6 +263,12 @@ export default function ProctoringOverlay({
               CẢNH BÁO GIÁM THỊ
             </div>
             <p className="text-sm">{warnings[0]}</p>
+            {lastViolationImage && (
+              <div className="mt-3 rounded-lg overflow-hidden border border-red-400 bg-black/20">
+                <img src={lastViolationImage} alt="Violation Evidence" className="w-full h-auto" />
+                <div className="bg-red-600 text-[10px] text-center py-1 font-bold">ẢNH CHỤP BẰNG CHỨNG</div>
+              </div>
+            )}
           </div>
         )}
 
