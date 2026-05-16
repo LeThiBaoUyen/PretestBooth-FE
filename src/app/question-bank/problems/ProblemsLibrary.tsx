@@ -4,7 +4,7 @@ import { useRef, useState } from "react";
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import * as XLSX from "xlsx";
 import type { Difficulty } from "@/lib/api/types";
 import { problemsApiClient } from "@/lib/api/problems";
@@ -134,6 +134,7 @@ function validateProblemPreviewRow(row: ProblemImportPreviewRow) {
 }
 
 export default function ProblemsLibrary() {
+  const router = useRouter();
   const { user, accessToken } = useAuth();
   const searchParams = useSearchParams();
   const [page, setPage] = useState(() => Math.max(1, Number(searchParams.get("page") || 1)));
@@ -641,12 +642,17 @@ export default function ProblemsLibrary() {
                 </thead>
                 <tbody className="divide-y divide-gray-200">
                   {data?.data.map((problem, index) => (
-                    <tr key={problem.id} className="hover:bg-gray-50 transition">
+                    <tr
+                      key={problem.id}
+                      className="group cursor-pointer transition-all hover:bg-navy-50/50 hover:shadow-sm"
+                      onClick={() => router.push(`/question-bank/problems/${problem.slug}`)}
+                    >
                       <td className="px-6 py-4 text-gray-600">{(page - 1) * limit + index + 1}</td>
                       <td className="px-6 py-4">
                         <Link
                           href={`/question-bank/problems/${problem.slug}`}
-                          className="text-navy-600 hover:text-navy-700 font-medium hover:underline"
+                          className="font-medium text-navy-600 transition-colors group-hover:text-navy-800 group-hover:underline"
+                          onClick={(e) => e.stopPropagation()}
                         >
                           {problem.title}
                         </Link>
