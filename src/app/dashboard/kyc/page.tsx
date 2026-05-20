@@ -44,6 +44,8 @@ async function compressImageDataUrl(
   });
 }
 
+const MAX_STUDENT_CARD_IMAGE_BYTES = 10 * 1024 * 1024;
+
 export default function KycPage() {
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -101,6 +103,15 @@ export default function KycPage() {
 
     if (!file.type.startsWith("image/")) {
       setError("Vui lòng chọn file ảnh hợp lệ cho thẻ sinh viên.");
+      setStudentCardImage(null);
+      event.target.value = "";
+      return;
+    }
+
+    if (file.size > MAX_STUDENT_CARD_IMAGE_BYTES) {
+      setError("Ảnh thẻ sinh viên không được vượt quá 10MB. Vui lòng chọn ảnh nhỏ hơn.");
+      setStudentCardImage(null);
+      event.target.value = "";
       return;
     }
 
@@ -125,6 +136,7 @@ export default function KycPage() {
       }
     };
     reader.readAsDataURL(file);
+    event.target.value = "";
   };
 
   const submitKyc = async () => {
