@@ -112,28 +112,31 @@ const QuizScreen = () => {
     }, 0);
   }, []);
 
+  const isItemAnswered = useCallback((item: ShuffledItem) => {
+    const ans = answerMap[item.id];
+    if (!ans) return false;
+
+    if (item.question) {
+      if (item.question.questionType === "SHORT_ANSWER") {
+        return Boolean(ans.textAnswer && ans.textAnswer.trim().length > 0);
+      }
+
+      return (ans.selectedChoiceIds?.length || 0) > 0;
+    }
+
+    if (item.problem) {
+      const language = ans.language || "";
+      const starter = item.problem.starterCode?.[language] || "";
+      const current = ans.sourceCode || "";
+      return Boolean(current.trim().length > 0 && current.trim() !== starter.trim());
+    }
+
+    return false;
+  }, [answerMap]);
+
   const answeredCount = useMemo(
-    () => items.filter((item) => {
-      const ans = answerMap[item.id];
-      if (!ans) return false;
-
-      if (item.question) {
-        if (item.question.questionType === "SHORT_ANSWER") {
-          return Boolean(ans.textAnswer && ans.textAnswer.trim().length > 0);
-        }
-        return (ans.selectedChoiceIds?.length || 0) > 0;
-      }
-
-      if (item.problem) {
-        const language = ans.language || "";
-        const starter = item.problem.starterCode?.[language] || "";
-        const current = ans.sourceCode || "";
-        return Boolean(current.trim().length > 0 && current.trim() !== starter.trim());
-      }
-
-      return false;
-    }).length,
-    [items, answerMap],
+    () => items.filter((item) => isItemAnswered(item)).length,
+    [items, isItemAnswered],
   );
 
   const saveAnswer = useCallback(
@@ -748,7 +751,7 @@ const QuizScreen = () => {
             <p className="mt-2 text-slate-600">Bạn đã hoàn thành {answeredCount}/{items.length} câu.</p>
             <div className="mt-4 grid grid-cols-8 gap-2">
               {items.map((item, idx) => {
-                const answered = !!answerMap[item.id] && (answerMap[item.id].selectedChoiceIds.length > 0 || !!answerMap[item.id].textAnswer || !!answerMap[item.id].sourceCode);
+                const answered = isItemAnswered(item);
                 return (
                   <span
                     key={item.id}
@@ -780,47 +783,22 @@ const QuizScreen = () => {
       {showResult && result && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
           <div className="w-full max-w-lg rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-2xl">
-            <h3 className="text-3xl font-bold text-slate-900">Kết quả bài thi</h3>
+            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="h-9 w-9">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M20 6L9 17l-5-5" />
+              </svg>
+            </div>
+            <h3 className="mt-4 text-3xl font-bold text-slate-900">Nộp bài thành công</h3>
             <p className="mt-2 text-slate-600">{result.examTitle}</p>
 
-            <div className="mt-6 rounded-xl bg-slate-50 p-4">
-              <p className="text-sm text-slate-600">Điểm số</p>
-              <p className="text-4xl font-extrabold text-emerald-600">
-                {result.score ?? 0}/{result.maxScore ?? 0}
-              </p>
-              {result.isPretestSession && result.pretestAttemptNumber !== null && (
-                <p className="mt-2 text-xs font-semibold text-slate-600">
-                  Lần thi pretest: {result.pretestAttemptNumber}
-                </p>
-              )}
-              {result.appliedPassingScoreAbsolute !== null && (
-                <p className="mt-1 text-xs font-semibold text-slate-600">
-                  Ngưỡng đạt áp dụng: {result.appliedPassingScoreAbsolute}
-                  {result.pretestThresholdSource === "EXAM" && " (theo đề được gán)"}
-                  {result.pretestThresholdSource === "PRETEST_CONFIG" && " (theo cấu hình pretest)"}
-                </p>
-              )}
-              {result.passed !== null && (
-                <p
-                  className={`mt-1 text-sm font-bold ${
-                    result.passed ? "text-emerald-700" : "text-rose-700"
-                  }`}
-                >
-                  {result.passed ? "Kết luận: ĐẠT" : "Kết luận: CHƯA ĐẠT"}
-                </p>
-              )}
+            <div className="mt-6 rounded-xl bg-emerald-50 p-5 text-left">
+              <p className="text-sm font-semibold text-emerald-800">Bài thi của bạn đã được gửi thành công.</p>
               <p className="mt-2 text-sm text-slate-600">
-                Đúng {result.correctItems}/{result.totalItems}
-                {result.pendingItems > 0 && ` • Chờ chấm: ${result.pendingItems}`}
+                Hệ thống đã lưu bài nộp. Bạn có thể tiếp tục quay về trang phù hợp bằng nút bên dưới.
               </p>
-              {!result.canViewItemDetails && (
-                <p className="mt-2 text-xs text-slate-600">
-                  Đề thi này chỉ cho phép xem điểm tổng quan, không hiển thị chi tiết từng câu.
-                </p>
-              )}
               {result.pendingItems > 0 && (
-                <p className="mt-2 text-xs text-amber-700">
-                  Hệ thống đang tự động cập nhật kết quả mỗi 5 giây.
+                <p className="mt-3 text-xs font-semibold text-amber-700">
+                  Hệ thống vẫn đang xử lý {result.pendingItems} câu chưa có kết quả cuối cùng.
                 </p>
               )}
             </div>
@@ -985,12 +963,12 @@ const QuizScreen = () => {
                   </div>
                 )}
 
-                <div className="mt-6 flex flex-col gap-2 sm:flex-row">
+                <div className="mt-6 flex items-center justify-between gap-3">
                   <button
                     type="button"
                     onClick={goPrev}
                     disabled={currentIndex === 0}
-                    className="rounded-lg border border-slate-300 px-4 py-2.5 text-sm font-semibold text-slate-700 disabled:opacity-50"
+                    className="rounded-lg border border-slate-300 px-4 py-2.5 text-sm font-semibold text-slate-700 transition disabled:opacity-50"
                   >
                     Câu trước
                   </button>
@@ -998,17 +976,9 @@ const QuizScreen = () => {
                     type="button"
                     onClick={goNext}
                     disabled={currentIndex === items.length - 1}
-                    className="rounded-lg border border-slate-300 px-4 py-2.5 text-sm font-semibold text-slate-700 disabled:opacity-50"
+                    className="rounded-lg border border-slate-300 px-4 py-2.5 text-sm font-semibold text-slate-700 transition disabled:opacity-50"
                   >
                     Câu tiếp
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setShowConfirm(true)}
-                    disabled={submitting}
-                    className="sm:ml-auto rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-50"
-                  >
-                    {submitting ? "Đang nộp..." : "Nộp bài"}
                   </button>
                 </div>
               </div>
@@ -1025,8 +995,7 @@ const QuizScreen = () => {
             <div className="mt-4 grid grid-cols-6 gap-2">
               {items.map((item, idx) => {
                 const active = idx === currentIndex;
-                const ans = answerMap[item.id];
-                const answered = !!ans && (ans.selectedChoiceIds.length > 0 || !!ans.textAnswer || !!ans.sourceCode);
+                const answered = isItemAnswered(item);
 
                 return (
                   <button
@@ -1040,6 +1009,15 @@ const QuizScreen = () => {
                 );
               })}
             </div>
+
+            <button
+              type="button"
+              onClick={() => setShowConfirm(true)}
+              disabled={submitting}
+              className="mt-4 w-full rounded-xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:opacity-50"
+            >
+              {submitting ? "Đang nộp..." : "Nộp bài"}
+            </button>
 
             {error && (
               <div className="mt-4 rounded-lg border border-red-200 bg-red-50 p-3 text-xs text-red-700">
